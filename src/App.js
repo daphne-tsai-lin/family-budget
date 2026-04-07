@@ -24,9 +24,7 @@ const firebaseConfig = {
   apiKey: "AIzaSyBiFI05fIDz35Zk3n4nodHy9ZoYWqHOnZk",
   authDomain: "lin-buget-7972c.firebaseapp.com",
   projectId: "lin-buget-7972c",
-  storageBucket: "lin-buget-7972c.firebasestorage.app",
-  messagingSenderId: "請補上您的數字", 
-  appId: "請補上您的appId字串" 
+  storageBucket: "lin-buget-7972c.firebasestorage.app"
 };
 
 const app = initializeApp(firebaseConfig);
@@ -827,7 +825,7 @@ export default function App() {
           {errorMsg ? (
             <div className="bg-red-50 text-red-500 font-bold p-6 rounded-[2rem] flex flex-col items-center gap-4 border border-red-100 shadow-sm text-center w-full">
               <AlertCircle size={40} />
-              <p className="text-[15px] leading-relaxed">{errorMsg}</p>
+              <p className="text-[15px] leading-relaxed whitespace-pre-line">{errorMsg}</p>
               <button onClick={() => window.location.reload()} className="mt-2 bg-white text-red-500 px-6 py-2.5 rounded-xl text-[14px] shadow-sm border border-red-100 transition hover:bg-red-50">重新整理</button>
             </div>
           ) : (
