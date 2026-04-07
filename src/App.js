@@ -25,8 +25,8 @@ const firebaseConfig = {
   authDomain: "lin-buget-7972c.firebaseapp.com",
   projectId: "lin-buget-7972c",
   storageBucket: "lin-buget-7972c.firebasestorage.app",
-  messagingSenderId: "", 
-  appId: "" 
+  messagingSenderId: "請補上您的數字", 
+  appId: "請補上您的appId字串" 
 };
 
 const app = initializeApp(firebaseConfig);
@@ -181,17 +181,35 @@ export default function App() {
 
   const amountInputRef = useRef(null);
 
+  // 全域外框設計參數
+  const globalWrapperStyle = "min-h-screen bg-gray-100 sm:py-8 flex justify-center items-center font-sans";
+  const phoneContainerStyle = "w-full max-w-[420px] min-h-screen sm:min-h-0 sm:h-[844px] bg-[#FFFBF0] flex flex-col relative sm:rounded-[3rem] sm:border-[8px] sm:border-gray-800 shadow-2xl overflow-hidden";
+  const bottomNavStyle = "absolute bottom-0 left-0 w-full bg-white/95 backdrop-blur-md p-2 pb-6 sm:pb-5 rounded-t-[2rem] shadow-[0_-10px_40px_rgba(0,0,0,0.06)] grid grid-cols-5 gap-1.5 z-20 border-t border-gray-100";
+
+
   // ==========================================
   // Firebase 身份驗證 & 資料庫讀取
   // ==========================================
   useEffect(() => {
-    const initAuth = async () => {
-      try {
-        // 直接使用匿名登入，確保您的專案可以順暢寫入
-        await signInAnonymously(auth);
-      } catch (error) { 
-        console.error("Auth error:", error); 
-        setErrorMsg('無法連接資料庫！請確認您的 Firebase 專案已啟用「匿名登入 (Anonymous)」');
+    // 加入指數退避重試機制，防止網路短暫不穩或擋廣告軟體延遲
+    const initAuth = async (retries = 3) => {
+      for (let i = 0; i < retries; i++) {
+        try {
+          await signInAnonymously(auth);
+          return; // 成功連線則跳出迴圈
+        } catch (error) { 
+          console.error(`Auth attempt ${i + 1} failed:`, error); 
+          if (i === retries - 1) { // 最後一次重試仍失敗
+            if (error.message && (error.message.includes('offline') || error.message.includes('network-request-failed'))) {
+              setErrorMsg('⚠️ 網路連線被阻擋！\n請關閉「擋廣告軟體 (如 AdBlock)」或「Brave 瀏覽器盾牌」，或切換網路後重新整理網頁。');
+            } else {
+              setErrorMsg('無法連接資料庫！請確認您的 Firebase 專案已啟用「匿名登入 (Anonymous)」。');
+            }
+          } else {
+            // 等待 1s, 2s 進行重試
+            await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, i)));
+          }
+        }
       }
     };
     initAuth();
@@ -212,7 +230,11 @@ export default function App() {
       if (snapshot.exists()) setCurrentRoom({ id: snapshot.id, ...snapshot.data() });
     }, (error) => {
       console.error("Firestore error:", error);
-      setErrorMsg('讀取資料失敗，請確認 Firestore 規則已設定允許讀寫。');
+      if (error.message && (error.message.includes('offline') || error.message.includes('network-request-failed'))) {
+        setErrorMsg('網路不穩或被阻擋，無法取得最新資料，請檢查連線或關閉廣告阻擋器。');
+      } else {
+        setErrorMsg('讀取資料失敗，請確認 Firestore 規則已設定允許讀寫。');
+      }
     });
 
     const expensesRef = collection(db, 'artifacts', appId, 'public', 'data', 'expenses');
@@ -315,7 +337,14 @@ export default function App() {
       saveRoomToLocal(roomCode, roomName, roomPin, currentUserRole);
       setActiveRoomId(roomCode);
       setView('room');
-    } catch (err) { console.error(err); setErrorMsg('建立房間失敗'); }
+    } catch (err) { 
+      console.error(err); 
+      if (err.message && (err.message.includes('offline') || err.message.includes('network-request-failed'))) {
+        setErrorMsg('網路連線異常：請檢查網路，或關閉擋廣告擴充功能後重試。');
+      } else {
+        setErrorMsg('建立房間失敗');
+      }
+    }
     setIsLoading(false);
   };
 
@@ -338,7 +367,14 @@ export default function App() {
           setView('room'); 
         }
       }
-    } catch (err) { console.error(err); setErrorMsg('加入房間失敗，請確認資料庫連線'); }
+    } catch (err) { 
+      console.error(err); 
+      if (err.message && (err.message.includes('offline') || err.message.includes('network-request-failed'))) {
+        setErrorMsg('網路連線異常：請檢查網路，或關閉擋廣告軟體(AdBlock)後重試。');
+      } else {
+        setErrorMsg('加入房間失敗，請確認資料庫連線');
+      }
+    }
     setIsLoading(false);
   };
 
@@ -354,7 +390,14 @@ export default function App() {
       } else {
         setErrorMsg(`進入「${savedRoom.name}」失敗，密碼可能已被更改`);
       }
-    } catch(e) { setErrorMsg('快速登入失敗'); }
+    } catch(err) { 
+      console.error(err); 
+      if (err.message && (err.message.includes('offline') || err.message.includes('network-request-failed'))) {
+        setErrorMsg('網路連線異常：請檢查網路，或嘗試關閉擋廣告防毒軟體後重試。');
+      } else {
+        setErrorMsg('快速登入失敗');
+      }
+    }
     setIsLoading(false);
   };
 
@@ -389,7 +432,14 @@ export default function App() {
       else await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'expenses'), recordData);
       
       resetForm(); setShowAddForm(false);
-    } catch (err) { console.error('儲存失敗:', err); alert('儲存失敗，請確認連線'); }
+    } catch (err) { 
+      console.error('儲存失敗:', err); 
+      if (err.message && (err.message.includes('offline') || err.message.includes('network-request-failed'))) {
+         alert('儲存失敗：網路連線異常，請檢查網路連線或關閉擋廣告軟體。');
+      } else {
+         alert('儲存失敗，請確認連線'); 
+      }
+    }
   };
 
   const resetForm = () => {
@@ -465,7 +515,10 @@ export default function App() {
   const handleDeleteRecord = async (id) => {
     if(!user || !window.confirm('確定要刪除這筆紀錄嗎？')) return;
     try { await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'expenses', id)); } 
-    catch (err) { console.error('刪除失敗:', err); }
+    catch (err) { 
+      console.error('刪除失敗:', err); 
+      if (err.message && (err.message.includes('offline') || err.message.includes('network-request-failed'))) alert('刪除失敗：網路連線異常，請檢查連線');
+    }
   };
 
   const handleBackup = () => {
@@ -520,7 +573,8 @@ export default function App() {
       setIsEditingBalances(false);
     } catch (err) {
       console.error("儲存餘額失敗:", err);
-      alert("儲存餘額失敗");
+      if (err.message && (err.message.includes('offline') || err.message.includes('network-request-failed'))) alert('儲存失敗：網路連線異常，請檢查連線');
+      else alert("儲存餘額失敗");
     }
   };
 
@@ -534,7 +588,10 @@ export default function App() {
       const currentArray = currentRoom[field] || [];
       if (!currentArray.includes(value)) await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', activeRoomId), { [field]: [...currentArray, value] });
       setNewOptionInputs({ ...newOptionInputs, [field]: '' });
-    } catch (err) { console.error("更新選項失敗:", err); }
+    } catch (err) { 
+      console.error("更新選項失敗:", err); 
+      if (err.message && (err.message.includes('offline') || err.message.includes('network-request-failed'))) alert('更新失敗：網路連線異常');
+    }
   };
 
   const handleDeleteOption = async (field, valueToRemove) => {
@@ -542,7 +599,10 @@ export default function App() {
     try {
       const currentArray = currentRoom[field] || [];
       await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', activeRoomId), { [field]: currentArray.filter(item => item !== valueToRemove) });
-    } catch (err) { console.error("刪除選項失敗:", err); }
+    } catch (err) { 
+      console.error("刪除選項失敗:", err); 
+      if (err.message && (err.message.includes('offline') || err.message.includes('network-request-failed'))) alert('刪除失敗：網路連線異常');
+    }
   };
 
   const handleAddCategoryItem = async (category) => {
@@ -555,7 +615,10 @@ export default function App() {
         await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', activeRoomId), { [`categoryItems.${category}`]: [...itemsForCat, val] });
       }
       setNewCategoryItemInput('');
-    } catch (err) { console.error("更新分類項目失敗:", err); }
+    } catch (err) { 
+      console.error("更新分類項目失敗:", err); 
+      if (err.message && (err.message.includes('offline') || err.message.includes('network-request-failed'))) alert('更新失敗：網路連線異常');
+    }
   };
 
   const handleDeleteCategoryItem = async (category, valueToRemove) => {
@@ -564,7 +627,10 @@ export default function App() {
       const currentCatItems = currentRoom.categoryItems || {};
       const itemsForCat = currentCatItems[category] || [];
       await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', activeRoomId), { [`categoryItems.${category}`]: itemsForCat.filter(i => i !== valueToRemove) });
-    } catch (err) { console.error("刪除分類項目失敗:", err); }
+    } catch (err) { 
+      console.error("刪除分類項目失敗:", err); 
+      if (err.message && (err.message.includes('offline') || err.message.includes('network-request-failed'))) alert('刪除失敗：網路連線異常');
+    }
   };
 
   const handleAddRule = async () => {
@@ -572,7 +638,10 @@ export default function App() {
     try {
       await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', activeRoomId), { [`autoFillRules.${newRuleItem}`]: newRuleMerchant });
       setNewRuleItem(''); setNewRuleMerchant('');
-    } catch (err) { console.error(err); }
+    } catch (err) { 
+      console.error(err); 
+      if (err.message && (err.message.includes('offline') || err.message.includes('network-request-failed'))) alert('新增失敗：網路連線異常');
+    }
   };
 
   const handleDeleteRule = async (itemToRemove) => {
@@ -580,7 +649,10 @@ export default function App() {
       const newRules = { ...currentRoom.autoFillRules };
       delete newRules[itemToRemove];
       await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', activeRoomId), { autoFillRules: newRules });
-    } catch (err) { console.error(err); }
+    } catch (err) { 
+      console.error(err); 
+      if (err.message && (err.message.includes('offline') || err.message.includes('network-request-failed'))) alert('刪除失敗：網路連線異常');
+    }
   }
 
   const handleAddMethodRule = async () => {
@@ -590,7 +662,10 @@ export default function App() {
         [`methodRules.${newMethodRuleMerchant}`]: { method: newMethodRuleMethod, subMethod: newMethodRuleSubMethod }
       });
       setNewMethodRuleMerchant(''); setNewMethodRuleMethod(''); setNewMethodRuleSubMethod('');
-    } catch (err) { console.error(err); }
+    } catch (err) { 
+      console.error(err); 
+      if (err.message && (err.message.includes('offline') || err.message.includes('network-request-failed'))) alert('新增失敗：網路連線異常');
+    }
   };
 
   const handleDeleteMethodRule = async (merchant) => {
@@ -598,7 +673,10 @@ export default function App() {
       const newRules = { ...currentRoom.methodRules };
       delete newRules[merchant];
       await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', activeRoomId), { methodRules: newRules });
-    } catch (err) { console.error(err); }
+    } catch (err) { 
+      console.error(err); 
+      if (err.message && (err.message.includes('offline') || err.message.includes('network-request-failed'))) alert('刪除失敗：網路連線異常');
+    }
   }
 
   const handleMethodSelect = (method, isTransferTo = false) => {
@@ -741,12 +819,26 @@ export default function App() {
     else setRecordFrequencyDays([...recordFrequencyDays, d]);
   };
 
-  if (!user) return <div className="min-h-screen flex items-center justify-center bg-[#FAFAF8] text-gray-400 font-bold text-xl max-w-[400px] mx-auto shadow-2xl"><Sparkles className="animate-bounce mr-2"/> 魔法連線中...</div>;
-
-  // --- 全域外框設計：恢復流暢與陰影 ---
-  const globalWrapperStyle = "min-h-screen bg-gray-100 sm:py-8 flex justify-center items-center font-sans";
-  const phoneContainerStyle = "w-full max-w-[420px] min-h-screen sm:min-h-0 sm:h-[844px] bg-[#FFFBF0] flex flex-col relative sm:rounded-[3rem] sm:border-[8px] sm:border-gray-800 shadow-2xl overflow-hidden";
-  const bottomNavStyle = "absolute bottom-0 left-0 w-full bg-white/95 backdrop-blur-md p-2 pb-6 sm:pb-5 rounded-t-[2rem] shadow-[0_-10px_40px_rgba(0,0,0,0.06)] grid grid-cols-5 gap-1.5 z-20 border-t border-gray-100";
+  // --- 如果尚未連線成功 (沒有 user)，顯示精美錯誤或載入畫面 ---
+  if (!user) {
+    return (
+      <div className={globalWrapperStyle}>
+        <div className={`${phoneContainerStyle} justify-center items-center p-6`}>
+          {errorMsg ? (
+            <div className="bg-red-50 text-red-500 font-bold p-6 rounded-[2rem] flex flex-col items-center gap-4 border border-red-100 shadow-sm text-center w-full">
+              <AlertCircle size={40} />
+              <p className="text-[15px] leading-relaxed">{errorMsg}</p>
+              <button onClick={() => window.location.reload()} className="mt-2 bg-white text-red-500 px-6 py-2.5 rounded-xl text-[14px] shadow-sm border border-red-100 transition hover:bg-red-50">重新整理</button>
+            </div>
+          ) : (
+            <div className="text-gray-500 font-extrabold text-xl flex items-center bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100">
+              <Sparkles className="animate-bounce mr-3 text-yellow-400" size={28}/> 魔法連線中...
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   let content = null;
 
