@@ -3,9 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 // 確保使用最新穩定的 lucide-react 圖示名稱
 import { LogOut, AlertCircle, Settings, Trash2, X, Sparkles, Home, MinusCircle, PlusCircle, Pencil, BarChart, Calendar, Store, Tag, User, CreditCard, RefreshCw, Wallet, PiggyBank, PieChart as LucidePieChart, Download, Copy, Send, Landmark } from 'lucide-react';
 import { initializeApp } from 'firebase/app';
-// 【修復2】：正確引入 signInWithCustomToken 確保平台驗證成功
 import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'firebase/auth';
-// 【修復3】：改回標準的 getFirestore，移除會造成錯誤的 initializeFirestore 長輪詢設定
 import { getFirestore, collection, doc, setDoc, getDoc, updateDoc, onSnapshot, addDoc, deleteDoc } from 'firebase/firestore';
 
 // ==========================================
@@ -19,9 +17,16 @@ if (typeof document !== 'undefined' && !document.getElementById('tailwind-script
 }
 
 // ==========================================
-// 1. Firebase 初始化 【修復1：使用平台動態分配的合法資料庫與金鑰】
+// 1. Firebase 初始化 【雙棲版本：支援本地與 Vercel】
 // ==========================================
-const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+// 如果在 Vercel 執行，會自動使用你原本專屬的資料庫設定
+const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
+  apiKey: "AIzaSyBiFI05fIDz35Zk3n4nodHy9ZoYWqHOnZk",
+  authDomain: "lin-buget-7972c.firebaseapp.com",
+  projectId: "lin-buget-7972c",
+  storageBucket: "lin-buget-7972c.firebasestorage.app"
+};
+
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
@@ -185,15 +190,16 @@ export default function App() {
   useEffect(() => {
     const initAuth = async () => {
       try {
-        // 【修復2重點】：優先使用平台配發的安全 Token 進行連線登入
         if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+          // 在預覽平台時
           await signInWithCustomToken(auth, __initial_auth_token);
         } else {
+          // 在 Vercel 或本機執行時，需仰賴 Firebase 的匿名登入
           await signInAnonymously(auth);
         }
       } catch (error) { 
         console.warn(`登入連線失敗:`, error.message); 
-        setErrorMsg('無法連接資料庫！請確認網路狀態。');
+        setErrorMsg('無法連接資料庫！請確認已在 Firebase 打開「匿名登入」，並將網址加入「授權網域」。\n詳細錯誤: ' + error.message);
       }
     };
     initAuth();
@@ -283,7 +289,7 @@ export default function App() {
     e.preventDefault();
     setErrorMsg('');
     if (!roomCode || !roomPin || !roomName || !currentUserRole) { setErrorMsg('請填寫所有欄位並選擇身份'); return; }
-    if (!user) { setErrorMsg('資料庫尚未連線，請稍後再試'); return; }
+    if (!user) { setErrorMsg('資料庫尚未連線，請確認 Firebase 設定。'); return; }
     
     setIsLoading(true);
     try {
@@ -325,7 +331,7 @@ export default function App() {
       setView('room');
     } catch (err) { 
       console.warn("Create Room 失敗:", err.message); 
-      setErrorMsg('建立房間失敗：請檢查網路狀況。');
+      setErrorMsg('建立房間失敗：' + err.message);
     } finally {
       setIsLoading(false);
     }
@@ -336,7 +342,7 @@ export default function App() {
     setErrorMsg('');
     if (!currentUserRole) { setErrorMsg('請先點選「我是誰」喔！'); return; }
     if (!roomCode || !roomPin) { setErrorMsg('請輸入房間代碼和密碼'); return; }
-    if (!user) { setErrorMsg('資料庫尚未連線，請稍後再試'); return; }
+    if (!user) { setErrorMsg('資料庫尚未連線，請確認 Firebase 設定。'); return; }
 
     setIsLoading(true);
     try {
@@ -354,7 +360,7 @@ export default function App() {
       }
     } catch (err) { 
       console.warn("Join Room 失敗:", err.message); 
-      setErrorMsg('加入房間失敗：請檢查網路狀況。');
+      setErrorMsg('加入房間失敗：' + err.message);
     } finally {
       setIsLoading(false);
     }
@@ -362,7 +368,7 @@ export default function App() {
 
   const quickJoinRoom = async (savedRoom) => {
     setIsLoading(true); setErrorMsg('');
-    if (!user) { setErrorMsg('資料庫尚未連線，請稍後再試'); setIsLoading(false); return; }
+    if (!user) { setErrorMsg('資料庫尚未連線，請確認 Firebase 設定。'); setIsLoading(false); return; }
 
     try {
       const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', savedRoom.id);
@@ -376,7 +382,7 @@ export default function App() {
       }
     } catch(err) { 
       console.warn("Quick Join 失敗:", err.message); 
-      setErrorMsg('連線失敗：請檢查網路狀態。');
+      setErrorMsg('連線失敗：' + err.message);
     } finally {
       setIsLoading(false);
     }
