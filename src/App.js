@@ -49,7 +49,7 @@ const generateFutureDates = (startDateStr, freq, daysArr, intervalStr, customTex
   endD.setFullYear(endD.getFullYear() + maxYears);
   
   let curr = new Date(startD);
-  curr.setDate(curr.getDate() + 1); // 從起始日的「隔天」開始算 (因為起始日已經會被主程式存入)
+  curr.setDate(curr.getDate() + 1); 
   
   const mapDayToNum = { '週日':0, '週一':1, '週二':2, '週三':3, '週四':4, '週五':5, '週六':6 };
   
@@ -67,7 +67,6 @@ const generateFutureDates = (startDateStr, freq, daysArr, intervalStr, customTex
       if(targetDates.length === 0) return dates;
       while(curr <= endD) {
           const testD = new Date(curr.getFullYear(), curr.getMonth(), curr.getDate());
-          // 確保當月份真的有這一天 (避免2月跑到3月)
           if (targetDates.includes(curr.getDate()) && testD.getMonth() === curr.getMonth()) {
               dates.push(curr.toISOString().split('T')[0]);
           }
@@ -110,7 +109,7 @@ const db = getFirestore(app);
 const appId = typeof __app_id !== 'undefined' ? __app_id : 'linbei-family-app';
 
 // ==========================================
-// 共用組件：選項管理區塊 (支援編輯與排序)
+// 共用組件：選項管理區塊 (支援編輯與排序，版面加寬按鈕緊湊)
 // ==========================================
 const SettingBlock = ({ title, items, onUpdate, themeClass, spanClass, btnClass, placeholder }) => {
   const [newItem, setNewItem] = useState('');
@@ -157,12 +156,12 @@ const SettingBlock = ({ title, items, onUpdate, themeClass, spanClass, btnClass,
   };
 
   return (
-    <div className={`p-5 rounded-[2rem] border-2 ${themeClass} bg-white shadow-sm mb-6`}>
+    <div className={`p-4 sm:p-5 rounded-[2rem] border-2 ${themeClass} bg-white shadow-sm mb-6`}>
       <h3 className="font-bold text-gray-700 mb-4 text-[16px] flex items-center gap-2">{title}</h3>
       
       <div className="flex flex-col gap-2 mb-5">
         {items.map((item, idx) => (
-          <div key={idx} className="flex justify-between items-center bg-gray-50 p-2.5 rounded-[1.2rem] border border-gray-100 shadow-sm gap-2 transition-all">
+          <div key={idx} className="flex justify-between items-center bg-gray-50 p-2 sm:p-2.5 rounded-[1.2rem] border border-gray-100 shadow-sm gap-2 transition-all">
             {editIdx === idx ? (
               <div className="flex flex-1 gap-2 items-center">
                 <input 
@@ -172,19 +171,19 @@ const SettingBlock = ({ title, items, onUpdate, themeClass, spanClass, btnClass,
                   className="flex-1 px-3 py-2 rounded-xl border border-gray-300 outline-none font-bold text-[15px] min-w-0" 
                   autoFocus 
                 />
-                <button onClick={()=>handleSaveEdit(idx)} className="bg-green-500 text-white px-3 py-2 rounded-xl text-[14px] font-bold shadow-sm whitespace-nowrap active:scale-95 transition">儲存</button>
-                <button onClick={()=>setEditIndex(null)} className="bg-gray-400 text-white px-3 py-2 rounded-xl text-[14px] font-bold shadow-sm whitespace-nowrap active:scale-95 transition">取消</button>
+                <button onClick={()=>handleSaveEdit(idx)} className="bg-green-500 text-white px-3 py-2 rounded-xl text-[14px] font-bold shadow-sm whitespace-nowrap active:scale-95 transition shrink-0">儲存</button>
+                <button onClick={()=>setEditIndex(null)} className="bg-gray-400 text-white px-3 py-2 rounded-xl text-[14px] font-bold shadow-sm whitespace-nowrap active:scale-95 transition shrink-0">取消</button>
               </div>
             ) : (
               <>
-                <span className={`px-3 py-1.5 rounded-xl text-[15px] font-bold ${spanClass} flex-1 truncate`}>
+                <span className={`px-2 sm:px-3 py-1.5 rounded-xl text-[15px] font-bold ${spanClass} flex-1 min-w-0 truncate`}>
                   {item}
                 </span>
-                <div className="flex items-center gap-1.5 shrink-0">
-                  <button onClick={()=>handleMove(idx, -1)} disabled={idx===0} className="w-8 h-8 flex items-center justify-center bg-white border border-gray-200 rounded-lg text-gray-400 hover:bg-gray-100 hover:text-blue-500 disabled:opacity-30 transition font-black" title="往上移">↑</button>
-                  <button onClick={()=>handleMove(idx, 1)} disabled={idx===items.length-1} className="w-8 h-8 flex items-center justify-center bg-white border border-gray-200 rounded-lg text-gray-400 hover:bg-gray-100 hover:text-blue-500 disabled:opacity-30 transition font-black" title="往下移">↓</button>
-                  <button onClick={()=>{setEditIndex(idx); setEditValue(item);}} className="w-8 h-8 flex items-center justify-center bg-white border border-gray-200 rounded-lg text-gray-400 hover:bg-gray-100 hover:text-orange-500 transition" title="編輯"><Pencil size={14}/></button>
-                  <button onClick={()=>handleDelete(idx)} className="w-8 h-8 flex items-center justify-center bg-white border border-gray-200 rounded-lg text-gray-400 hover:bg-gray-100 hover:text-red-500 transition" title="刪除"><Trash2 size={14}/></button>
+                <div className="flex items-center gap-1 shrink-0 ml-2">
+                  <button onClick={()=>handleMove(idx, -1)} disabled={idx===0} className="w-7 h-7 flex items-center justify-center bg-white border border-gray-200 rounded-md text-gray-400 hover:bg-gray-100 hover:text-blue-500 disabled:opacity-30 transition font-black" title="往上移">↑</button>
+                  <button onClick={()=>handleMove(idx, 1)} disabled={idx===items.length-1} className="w-7 h-7 flex items-center justify-center bg-white border border-gray-200 rounded-md text-gray-400 hover:bg-gray-100 hover:text-blue-500 disabled:opacity-30 transition font-black" title="往下移">↓</button>
+                  <button onClick={()=>{setEditIndex(idx); setEditValue(item);}} className="w-7 h-7 flex items-center justify-center bg-white border border-gray-200 rounded-md text-gray-400 hover:bg-gray-100 hover:text-orange-500 transition" title="編輯"><Pencil size={12}/></button>
+                  <button onClick={()=>handleDelete(idx)} className="w-7 h-7 flex items-center justify-center bg-white border border-gray-200 rounded-md text-gray-400 hover:bg-gray-100 hover:text-red-500 transition" title="刪除"><Trash2 size={12}/></button>
                 </div>
               </>
             )}
@@ -193,16 +192,16 @@ const SettingBlock = ({ title, items, onUpdate, themeClass, spanClass, btnClass,
         {items.length === 0 && <div className="text-gray-400 text-[14px] font-bold py-4 text-center bg-gray-50 rounded-[1.2rem] border border-gray-100">尚無選項</div>}
       </div>
 
-      <div className="flex gap-2.5 mt-2">
+      <div className="flex gap-2 mt-2">
         <input 
           type="text" 
           value={newItem} 
           onChange={(e) => setNewItem(e.target.value)} 
           placeholder={placeholder} 
-          className={`flex-1 border-2 ${themeClass} bg-gray-50 rounded-[1.2rem] p-3 outline-none focus:bg-white transition text-[15px] font-bold`} 
+          className={`flex-1 border-2 ${themeClass} bg-gray-50 rounded-[1.2rem] p-3 outline-none focus:bg-white transition text-[15px] font-bold min-w-0`} 
           onKeyPress={(e) => e.key === 'Enter' && handleAdd()} 
         />
-        <button onClick={handleAdd} className={`${btnClass} text-white px-5 py-3 rounded-[1.2rem] text-[15px] font-bold shadow-md transition hover:scale-105 active:scale-95`}>新增</button>
+        <button onClick={handleAdd} className={`${btnClass} text-white px-5 py-3 rounded-[1.2rem] text-[15px] font-bold shadow-md transition hover:scale-105 active:scale-95 shrink-0`}>新增</button>
       </div>
     </div>
   );
@@ -354,7 +353,8 @@ export default function App() {
   const amountInputRef = useRef(null);
 
   const globalWrapperStyle = "min-h-screen bg-gray-100 sm:py-8 flex justify-center items-center font-sans text-[15px]";
-  const phoneContainerStyle = "w-full max-w-[420px] min-h-screen sm:min-h-0 sm:h-[844px] bg-[#FFFBF0] flex flex-col relative sm:rounded-[3rem] sm:border-[8px] sm:border-gray-800 shadow-2xl overflow-hidden";
+  // 需求 2 & 3: 加寬版面 max-w-[480px]
+  const phoneContainerStyle = "w-full max-w-[480px] min-h-screen sm:min-h-0 sm:h-[844px] bg-[#FFFBF0] flex flex-col relative sm:rounded-[3rem] sm:border-[8px] sm:border-gray-800 shadow-2xl overflow-hidden";
 
   // ==========================================
   // 防呆防退跳出視窗
@@ -577,7 +577,7 @@ export default function App() {
   };
 
   // ==========================================
-  // 紀錄 CRUD (支援定期群組新增、刪除未來排程)
+  // 紀錄 CRUD
   // ==========================================
   const handleSaveRecord = (e) => {
     e.preventDefault();
@@ -614,16 +614,14 @@ export default function App() {
       let opsCount = 0;
 
       if (!isEditing) {
-        // 新增目前這筆
         const curRef = doc(collection(db, 'artifacts', appId, 'public', 'data', 'expenses'));
         batch.set(curRef, { ...baseData, timestamp: Date.now() });
         opsCount++;
 
-        // 若為定期，自動產生未來1年內的資料 (預設在早上07:00建立)
         if (recordFrequency !== '一次') {
           const futureDates = generateFutureDates(recordDate, recordFrequency, recordFrequencyDays, recordFrequencyInterval, recordFrequencyCustomText, 1);
           futureDates.forEach(d => {
-            if(opsCount >= 490) return; // 保護 Firestore 500筆限制
+            if(opsCount >= 490) return;
             const futRef = doc(collection(db, 'artifacts', appId, 'public', 'data', 'expenses'));
             const ts = new Date(d + 'T07:00:00').getTime();
             batch.set(futRef, { ...baseData, date: d, timestamp: ts });
@@ -631,13 +629,11 @@ export default function App() {
           });
         }
       } else {
-        // 編輯目前這筆
         const curRef = doc(db, 'artifacts', appId, 'public', 'data', 'expenses', editRecordId);
         batch.update(curRef, { ...baseData, timestamp: oldRecord.timestamp });
         opsCount++;
 
         if (currentGroupId) {
-          // 如果本來是定期紀錄 => 先將修改日期「之後」的所有同群組未來資料刪除
           const futureRecords = records.filter(r => r.groupId === currentGroupId && r.date > recordDate && r.id !== editRecordId);
           futureRecords.forEach(r => {
             if(opsCount >= 490) return;
@@ -646,7 +642,6 @@ export default function App() {
             opsCount++;
           });
 
-          // 若修改後「依然」是定期記錄，則依照新規則重新產生未來的資料
           if (recordFrequency !== '一次') {
              const futureDates = generateFutureDates(recordDate, recordFrequency, recordFrequencyDays, recordFrequencyInterval, recordFrequencyCustomText, 1);
              futureDates.filter(d => d > recordDate).forEach(d => {
@@ -658,7 +653,6 @@ export default function App() {
              });
           }
         } else {
-           // 本來是「一次」，現在被改成定期
            if (recordFrequency !== '一次') {
              const futureDates = generateFutureDates(recordDate, recordFrequency, recordFrequencyDays, recordFrequencyInterval, recordFrequencyCustomText, 1);
              futureDates.filter(d => d > recordDate).forEach(d => {
@@ -746,7 +740,7 @@ export default function App() {
       setRecordSubMethod('');
       setTransferToSubMethod('');
     }
-    setEditRecordId(null); // Copy as new
+    setEditRecordId(null); 
     setShowAddForm(true);
   };
 
@@ -765,7 +759,6 @@ export default function App() {
       const { id, ...dataToCopy } = crossRoomRecord;
       dataToCopy.roomId = targetRoomId;
       dataToCopy.timestamp = Date.now();
-      // 切斷原始群組連結，確保傳過去後是獨立的
       dataToCopy.groupId = null;
       if (dataToCopy.frequency !== '一次') dataToCopy.frequency = '一次';
 
@@ -789,7 +782,7 @@ export default function App() {
   };
 
   // ==========================================
-  // 帳戶餘額
+  // 帳戶餘額 (需求 1: 只計算至今日)
   // ==========================================
   const getBalances = () => {
     const balances = { ...currentRoom?.initialBalances };
@@ -799,7 +792,12 @@ export default function App() {
 
     const getAccName = (method, subMethod) => method === '現金' ? '現金' : subMethod;
 
+    const todayStr = new Date().toISOString().split('T')[0];
+
     records.forEach(r => {
+      // 需求 1: 餘額計算不計入未來的排程
+      if (r.date > todayStr) return;
+
       const amt = Number(r.amount) || 0;
       if (r.type === 'expense' || !r.type) {
         const acc = getAccName(r.method, r.subMethod);
@@ -834,7 +832,7 @@ export default function App() {
   };
 
   // ==========================================
-  // 選項設定更新與規則管理 (需求 2: 歷史連動更新)
+  // 選項設定更新與規則管理
   // ==========================================
   const syncHistoricalData = async (settingField, oldItem, newItem) => {
     const updatesList = [];
@@ -901,14 +899,45 @@ export default function App() {
     if (!currentRoom || !user || !activeRoomId) return;
     try {
       const updates = { [field]: newList };
-      // 處理主分類名稱修改時，連帶保留其底下的子項目清單
+      
       if (field === 'categories' && oldItem && newItem && currentRoom.categoryItems && currentRoom.categoryItems[oldItem]) {
          updates[`categoryItems.${newItem}`] = currentRoom.categoryItems[oldItem];
          updates[`categoryItems.${oldItem}`] = deleteField();
       }
+
+      // 需求 3: 連動更新預設規則
+      if (oldItem && newItem && oldItem !== newItem) {
+         let rulesChanged = false;
+         let newAutoFill = { ...currentRoom.autoFillRules };
+         let newMethodRules = { ...currentRoom.methodRules };
+
+         if (field === 'merchants') {
+            Object.keys(newAutoFill).forEach(k => {
+               if (newAutoFill[k] === oldItem) { newAutoFill[k] = newItem; rulesChanged = true; }
+            });
+            if (newMethodRules[oldItem]) {
+               newMethodRules[newItem] = newMethodRules[oldItem];
+               delete newMethodRules[oldItem];
+               rulesChanged = true;
+            }
+         } else if (field === 'paymentMethods') {
+            Object.keys(newMethodRules).forEach(k => {
+               if (newMethodRules[k].method === oldItem) { newMethodRules[k].method = newItem; rulesChanged = true; }
+            });
+         } else if (field === 'creditCards' || field === 'bankAccounts') {
+            Object.keys(newMethodRules).forEach(k => {
+               if (newMethodRules[k].subMethod === oldItem) { newMethodRules[k].subMethod = newItem; rulesChanged = true; }
+            });
+         }
+
+         if (rulesChanged) {
+            if (field === 'merchants') updates.autoFillRules = newAutoFill;
+            updates.methodRules = newMethodRules;
+         }
+      }
+
       await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', activeRoomId), updates);
 
-      // 需求 2: 連動更新歷史資料
       if (oldItem && newItem && oldItem !== newItem) {
          await syncHistoricalData(field, oldItem, newItem);
       }
@@ -920,9 +949,19 @@ export default function App() {
   const updateCategoryItemsField = async (category, newList, oldItem, newItem) => {
     if (!currentRoom || !category || !user || !activeRoomId) return;
     try {
-      await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', activeRoomId), { [`categoryItems.${category}`]: newList });
+      const updates = { [`categoryItems.${category}`]: newList };
+      
+      if (oldItem && newItem && oldItem !== newItem) {
+         let newAutoFill = { ...currentRoom.autoFillRules };
+         if (newAutoFill[oldItem]) {
+            newAutoFill[newItem] = newAutoFill[oldItem];
+            delete newAutoFill[oldItem];
+            updates.autoFillRules = newAutoFill;
+         }
+      }
+      
+      await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', activeRoomId), updates);
 
-      // 連動更新子項目的歷史資料
       if (oldItem && newItem && oldItem !== newItem) {
          const updatesList = [];
          for (let r of records) {
@@ -953,6 +992,31 @@ export default function App() {
     } catch (err) { 
       alert('更新失敗：請檢查網路連線'); 
     }
+  };
+
+  // 需求 3: 預設規則上下順序移動
+  const handleMoveRule = async (itemKey, dir) => {
+      if (!user) return;
+      const keys = Object.keys(currentRoom.autoFillRules || {});
+      const idx = keys.indexOf(itemKey);
+      if (idx + dir < 0 || idx + dir >= keys.length) return;
+      const newKeys = [...keys];
+      [newKeys[idx], newKeys[idx+dir]] = [newKeys[idx+dir], newKeys[idx]];
+      const newRules = {};
+      newKeys.forEach(k => { newRules[k] = currentRoom.autoFillRules[k]; });
+      await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', activeRoomId), { autoFillRules: newRules });
+  };
+
+  const handleMoveMethodRule = async (merchantKey, dir) => {
+      if (!user) return;
+      const keys = Object.keys(currentRoom.methodRules || {});
+      const idx = keys.indexOf(merchantKey);
+      if (idx + dir < 0 || idx + dir >= keys.length) return;
+      const newKeys = [...keys];
+      [newKeys[idx], newKeys[idx+dir]] = [newKeys[idx+dir], newKeys[idx]];
+      const newRules = {};
+      newKeys.forEach(k => { newRules[k] = currentRoom.methodRules[k]; });
+      await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', activeRoomId), { methodRules: newRules });
   };
 
   const handleAddRule = async () => {
@@ -1382,63 +1446,67 @@ export default function App() {
                 <p>目前還沒有紀錄，快使用下方 ＋ 號開始記帳吧！</p>
               </div>
             ) : (
-              <div className="space-y-4">
+              <div className="space-y-3">
                 {displayRecords.map((exp) => {
                   const isIncome = exp.type === 'income';
                   const isTransfer = exp.type === 'transfer';
-                  const displayDate = exp.date ? toROCYearStr(exp.date) : toROCYearStr(new Date(exp.timestamp));
                   const payerStr = Array.isArray(exp.payer) ? exp.payer.join(', ') : exp.payer;
                   
                   let freqDisplay = exp.frequency;
                   if (freqDisplay === '區間') freqDisplay = exp.frequencyInterval === '自訂' ? exp.frequencyCustomText : exp.frequencyInterval;
                   
                   return (
-                    <div key={exp.id} onClick={() => setViewingRecord(exp)} className="bg-white p-4 sm:p-5 rounded-[1.5rem] shadow-sm border border-gray-100 flex justify-between items-start group relative hover:shadow-md transition duration-300 cursor-pointer">
+                    <div key={exp.id} onClick={() => setViewingRecord(exp)} className="bg-white p-3.5 sm:p-4 rounded-[1.5rem] shadow-sm border border-gray-100 flex justify-between items-start group relative hover:shadow-md transition duration-300 cursor-pointer">
                       <div className={`absolute left-0 top-1/2 -translate-y-1/2 h-1/2 w-1.5 rounded-r-lg ${isIncome ? 'bg-green-400' : isTransfer ? 'bg-blue-400' : 'bg-orange-400'}`}></div>
                       
-                      <div className="flex-1 pl-4 pr-2 overflow-hidden">
-                        <div className="text-[11px] font-bold text-gray-400 mb-2">
+                      <div className="flex-1 pl-3 pr-1 overflow-hidden">
+                        <div className="text-[11px] font-bold text-gray-400 mb-1">
                           建檔: {toROCYearStr(exp.timestamp)} {new Date(exp.timestamp).toLocaleTimeString('zh-TW', { hour12: false, hour: '2-digit', minute: '2-digit' })}
                         </div>
 
-                        <p className="text-[13px] font-bold text-gray-500 mb-2.5 flex items-center gap-2">
-                          消費日: {displayDate} 
-                          {freqDisplay && freqDisplay !== '一次' && <span className="bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-md">{freqDisplay}</span>}
-                          {exp.addedByRole && <span className="bg-gray-100 px-2 py-0.5 rounded-md text-gray-500">{exp.addedByRole}</span>}
-                        </p>
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-md text-[10px] font-bold tracking-wide">
+                            {freqDisplay || '一次'}
+                          </span>
+                          {exp.addedByRole && (
+                            <span className="bg-gray-100 px-2 py-0.5 rounded-md text-gray-500 text-[10px] font-bold tracking-wide">
+                              {exp.addedByRole}
+                            </span>
+                          )}
+                        </div>
                         
                         {isTransfer ? (
-                          <div className="flex items-center gap-2.5 mb-3">
-                            <span className="font-bold text-[14px] px-2.5 py-1 rounded-lg whitespace-nowrap bg-blue-50 text-blue-600 border border-blue-100">🔄 轉帳</span>
-                            <p className="font-black text-gray-800 text-[18px] truncate">{exp.method} ➜ {exp.transferToMethod}</p>
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="font-bold text-[13px] px-2 py-1 rounded-lg whitespace-nowrap bg-blue-50 text-blue-600 border border-blue-100">🔄 轉帳</span>
+                            <p className="font-black text-gray-800 text-[16px] truncate">{exp.method} ➜ {exp.transferToMethod}</p>
                           </div>
                         ) : (
-                          <div className="flex items-center gap-2.5 mb-3">
-                            <span className={`font-bold text-[14px] px-3 py-1 rounded-xl whitespace-nowrap border ${isIncome ? 'bg-green-50 text-green-600 border-green-100' : 'bg-orange-50 text-orange-600 border-orange-100'}`}>
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className={`font-bold text-[13px] px-2 py-1 rounded-lg whitespace-nowrap border ${isIncome ? 'bg-green-50 text-green-600 border-green-100' : 'bg-orange-50 text-orange-600 border-orange-100'}`}>
                               {exp.category}
                             </span>
-                            <p className="font-black text-gray-800 text-[18px] truncate">{exp.title}</p>
+                            <p className="font-black text-gray-800 text-[16px] truncate">{exp.title}</p>
                           </div>
                         )}
 
-                        <p className="text-[13px] font-bold text-gray-400 flex flex-wrap gap-x-2 gap-y-2 items-center mt-1">
-                          {payerStr && payerStr !== '未指定' && <span className="bg-gray-50 px-2.5 py-1 rounded-lg border border-gray-100">👤 {payerStr}</span>}
-                          {!isTransfer && exp.method && exp.method !== '未指定' && <span className="bg-gray-50 px-2.5 py-1 rounded-lg border border-gray-100">💳 {exp.method}{exp.subMethod ? `(${exp.subMethod})` : ''}</span>}
-                          {exp.merchant && exp.merchant !== '未指定' && <span className="bg-gray-50 px-2.5 py-1 rounded-lg border border-gray-100">🏪 {exp.merchant}</span>}
-                          {exp.note && <span className="bg-[#FFFDF9] border border-[#F2EFE9] text-gray-500 px-2.5 py-1 rounded-lg">📝 {exp.note}</span>}
+                        <p className="text-[12px] font-bold text-gray-400 flex flex-wrap gap-x-1.5 gap-y-1.5 items-center mt-1">
+                          {payerStr && payerStr !== '未指定' && <span className="bg-gray-50 px-2 py-0.5 rounded-md border border-gray-100">👤 {payerStr}</span>}
+                          {!isTransfer && exp.method && exp.method !== '未指定' && <span className="bg-gray-50 px-2 py-0.5 rounded-md border border-gray-100">💳 {exp.method}{exp.subMethod ? `(${exp.subMethod})` : ''}</span>}
+                          {exp.merchant && exp.merchant !== '未指定' && <span className="bg-gray-50 px-2 py-0.5 rounded-md border border-gray-100">🏪 {exp.merchant}</span>}
+                          {exp.note && <span className="bg-[#FFFDF9] border border-[#F2EFE9] text-gray-500 px-2 py-0.5 rounded-md">📝 {exp.note}</span>}
                         </p>
                       </div>
 
                       <div className="flex flex-col items-end shrink-0">
-                        <span className={`font-black text-[22px] ${isIncome ? 'text-green-500' : isTransfer ? 'text-blue-500' : 'text-gray-800'}`}>
+                        <span className={`font-black text-[20px] ${isIncome ? 'text-green-500' : isTransfer ? 'text-blue-500' : 'text-gray-800'}`}>
                           {isIncome ? '+' : isTransfer ? '⇆' : '-'}${exp.amount.toLocaleString()}
                         </span>
                         
-                        <div className="grid grid-cols-2 gap-2 mt-4 w-[84px] relative z-20">
-                          <button onClick={(e) => { e.stopPropagation(); openEditForm(exp); }} className="text-gray-400 hover:text-blue-500 font-bold p-2 transition bg-gray-50 hover:bg-blue-50 rounded-[0.8rem] shadow-sm" title="編輯"><Pencil size={16} /></button>
-                          <button onClick={(e) => { e.stopPropagation(); handleCopyRecord(exp); }} className="text-gray-400 hover:text-green-500 font-bold p-2 transition bg-gray-50 hover:bg-green-50 rounded-[0.8rem] shadow-sm" title="複製此筆"><Copy size={16} /></button>
-                          <button onClick={(e) => { e.stopPropagation(); handleDeleteRecord(exp.id); }} className="text-gray-400 hover:text-red-500 font-bold p-2 transition bg-gray-50 hover:bg-red-50 rounded-[0.8rem] shadow-sm" title="刪除"><Trash2 size={16} /></button>
-                          <button onClick={(e) => { e.stopPropagation(); setCrossRoomRecord(exp); }} className="text-gray-400 hover:text-orange-500 font-bold p-2 transition bg-gray-50 hover:bg-orange-50 rounded-[0.8rem] shadow-sm" title="傳送到其他房間"><Send size={16} /></button>
+                        <div className="grid grid-cols-2 gap-1.5 mt-3 w-[72px] relative z-20">
+                          <button onClick={(e) => { e.stopPropagation(); openEditForm(exp); }} className="text-gray-400 hover:text-blue-500 font-bold p-1.5 transition bg-gray-50 hover:bg-blue-50 rounded-lg shadow-sm flex items-center justify-center" title="編輯"><Pencil size={14} /></button>
+                          <button onClick={(e) => { e.stopPropagation(); handleCopyRecord(exp); }} className="text-gray-400 hover:text-green-500 font-bold p-1.5 transition bg-gray-50 hover:bg-green-50 rounded-lg shadow-sm flex items-center justify-center" title="複製此筆"><Copy size={14} /></button>
+                          <button onClick={(e) => { e.stopPropagation(); handleDeleteRecord(exp.id); }} className="text-gray-400 hover:text-red-500 font-bold p-1.5 transition bg-gray-50 hover:bg-red-50 rounded-lg shadow-sm flex items-center justify-center" title="刪除"><Trash2 size={14} /></button>
+                          <button onClick={(e) => { e.stopPropagation(); setCrossRoomRecord(exp); }} className="text-gray-400 hover:text-orange-500 font-bold p-1.5 transition bg-gray-50 hover:bg-orange-50 rounded-lg shadow-sm flex items-center justify-center" title="傳送到其他房間"><Send size={14} /></button>
                         </div>
                       </div>
                     </div>
@@ -1508,12 +1576,10 @@ export default function App() {
                      <span className="text-gray-800">{viewingRecord.transferToMethod} {viewingRecord.transferToSubMethod ? `(${viewingRecord.transferToSubMethod})` : ''}</span>
                   </div>
                 )}
-                {viewingRecord.frequency && viewingRecord.frequency !== '一次' && (
-                  <div className="flex justify-between items-center border-b border-gray-100 pb-2">
-                     <span className="text-gray-400">頻率</span>
-                     <span className="text-gray-800">{viewingRecord.frequency}</span>
-                  </div>
-                )}
+                <div className="flex justify-between items-center border-b border-gray-100 pb-2">
+                   <span className="text-gray-400">頻率</span>
+                   <span className="text-gray-800">{viewingRecord.frequency === '區間' && viewingRecord.frequencyInterval === '自訂' ? viewingRecord.frequencyCustomText : (viewingRecord.frequencyInterval || viewingRecord.frequency)}</span>
+                </div>
                 <div className="flex justify-between items-center border-b border-gray-100 pb-2">
                    <span className="text-gray-400">建立者</span>
                    <span className="text-gray-800">{viewingRecord.addedByRole}</span>
@@ -1607,7 +1673,6 @@ export default function App() {
                 <div>
                   <label className="flex items-center justify-between text-[15px] font-bold text-gray-500 mb-2.5 ml-1 w-full pr-1">
                     <span className="flex items-center gap-1.5"><Calendar size={16} className="text-gray-400" /> 日期 🗓️</span>
-                    {/* 需求 1: 「今天」快捷按鈕 */}
                     <button type="button" onClick={() => setRecordDate(new Date().toISOString().split('T')[0])} className="bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-1 rounded-lg text-[12px] transition shadow-sm">今天</button>
                   </label>
                   <div className="relative w-full bg-gray-50 border-2 border-gray-100 p-4 rounded-[1.2rem] flex items-center shadow-sm cursor-pointer hover:bg-white transition overflow-hidden">
@@ -1807,27 +1872,31 @@ export default function App() {
                   themeClass="border-orange-100" spanClass="text-orange-600" btnClass="bg-orange-400" placeholder="輸入新商家..." 
                 />
                 
-                <div className={`p-6 rounded-[2rem] border-2 border-orange-100 bg-white shadow-sm mb-6`}>
+                <div className={`p-4 sm:p-5 rounded-[2rem] border-2 border-orange-100 bg-white shadow-sm mb-6`}>
                   <h3 className="font-bold text-gray-700 mb-5 text-[18px] flex items-center gap-2">🤖 商家預設規則</h3>
-                  <div className="flex flex-col gap-3 mb-6">
-                    {Object.entries(currentRoom?.autoFillRules || {}).map(([item, merchant]) => (
-                      <div key={item} className="flex justify-between items-center bg-orange-50 p-4 rounded-[1.2rem] border border-orange-100 shadow-sm">
-                        <span className="text-[15px] font-bold text-orange-700">[{item}] ➜ {merchant}</span>
-                        <button onClick={() => handleDeleteRule(item)} className="text-red-400 hover:text-red-600 p-1.5 bg-white rounded-xl shadow-sm"><X size={16} strokeWidth={3}/></button>
+                  <div className="flex flex-col gap-2 mb-6">
+                    {Object.keys(currentRoom?.autoFillRules || {}).map((item, idx, arr) => (
+                      <div key={item} className="flex justify-between items-center bg-orange-50 p-2 sm:p-2.5 rounded-[1.2rem] border border-orange-100 shadow-sm gap-2">
+                        <span className="text-[14px] font-bold text-orange-700 flex-1 min-w-0 truncate pl-1">[{item}] ➜ {currentRoom.autoFillRules[item]}</span>
+                        <div className="flex items-center gap-1 shrink-0 ml-2">
+                            <button onClick={()=>handleMoveRule(item, -1)} disabled={idx===0} className="w-7 h-7 flex items-center justify-center bg-white border border-gray-200 rounded-md text-gray-400 hover:bg-gray-100 hover:text-blue-500 disabled:opacity-30 transition font-black">↑</button>
+                            <button onClick={()=>handleMoveRule(item, 1)} disabled={idx===arr.length-1} className="w-7 h-7 flex items-center justify-center bg-white border border-gray-200 rounded-md text-gray-400 hover:bg-gray-100 hover:text-blue-500 disabled:opacity-30 transition font-black">↓</button>
+                            <button onClick={() => handleDeleteRule(item)} className="w-7 h-7 flex items-center justify-center bg-white border border-gray-200 rounded-md text-gray-400 hover:bg-gray-100 hover:text-red-500 transition"><Trash2 size={12}/></button>
+                        </div>
                       </div>
                     ))}
                   </div>
-                  <div className="flex flex-col gap-3 bg-gray-50 p-5 rounded-[1.5rem] border border-gray-100">
-                     <select value={newRuleItem} onChange={e=>setNewRuleItem(e.target.value)} className="w-full border-2 border-orange-100 p-4 rounded-[1.2rem] font-bold text-[15px] outline-none text-gray-600 shadow-sm cursor-pointer appearance-none bg-white">
+                  <div className="flex flex-col gap-3 bg-gray-50 p-4 sm:p-5 rounded-[1.5rem] border border-gray-100">
+                     <select value={newRuleItem} onChange={e=>setNewRuleItem(e.target.value)} className="w-full border-2 border-orange-100 p-3 sm:p-4 rounded-[1.2rem] font-bold text-[15px] outline-none text-gray-600 shadow-sm cursor-pointer appearance-none bg-white">
                        <option value="">選擇觸發的項目...</option>
                        {Object.values(currentRoom?.categoryItems || {}).flat().map(i => <option key={i} value={i}>{i}</option>)}
                      </select>
-                     <div className="flex gap-2.5 mt-2">
-                       <select value={newRuleMerchant} onChange={e=>setNewRuleMerchant(e.target.value)} className="flex-1 border-2 border-orange-100 p-4 rounded-[1.2rem] font-bold text-[15px] outline-none text-gray-600 shadow-sm cursor-pointer appearance-none bg-white">
+                     <div className="flex gap-2.5 mt-1">
+                       <select value={newRuleMerchant} onChange={e=>setNewRuleMerchant(e.target.value)} className="flex-1 border-2 border-orange-100 p-3 sm:p-4 rounded-[1.2rem] font-bold text-[15px] outline-none text-gray-600 shadow-sm cursor-pointer appearance-none bg-white">
                          <option value="">選擇預設商家...</option>
                          {(currentRoom?.merchants || []).map(m => <option key={m} value={m}>{m}</option>)}
                        </select>
-                       <button onClick={handleAddRule} className="bg-orange-400 text-white px-6 py-3.5 rounded-[1.2rem] text-[15px] font-bold shadow-md transition hover:scale-105 active:scale-95">新增</button>
+                       <button onClick={handleAddRule} className="bg-orange-400 text-white px-5 sm:px-6 py-3 sm:py-3.5 rounded-[1.2rem] text-[15px] font-bold shadow-md transition hover:scale-105 active:scale-95 shrink-0">新增</button>
                      </div>
                   </div>
                 </div>
@@ -1848,45 +1917,52 @@ export default function App() {
                   themeClass="border-indigo-100" spanClass="text-indigo-600" btnClass="bg-indigo-400" placeholder="輸入銀行名稱..." 
                 />
                 
-                <div className={`p-6 rounded-[2rem] border-2 border-blue-100 bg-white shadow-sm mb-6`}>
+                <div className={`p-4 sm:p-5 rounded-[2rem] border-2 border-blue-100 bg-white shadow-sm mb-6`}>
                   <h3 className="font-bold text-gray-700 mb-5 text-[18px] flex items-center gap-2">🤖 付款方式預設規則</h3>
-                  <div className="flex flex-col gap-3 mb-6">
-                    {Object.entries(currentRoom?.methodRules || {}).map(([merchant, rule]) => (
-                      <div key={merchant} className="flex justify-between items-center bg-blue-50 p-4 rounded-[1.2rem] border border-blue-100 shadow-sm">
-                        <span className="text-[15px] font-bold text-blue-700">[{merchant}] ➜ {rule.method} {rule.subMethod ? `(${rule.subMethod})` : ''}</span>
-                        <button onClick={() => handleDeleteMethodRule(merchant)} className="text-red-400 hover:text-red-600 p-1.5 bg-white rounded-xl shadow-sm"><X size={16} strokeWidth={3}/></button>
-                      </div>
-                    ))}
+                  <div className="flex flex-col gap-2 mb-6">
+                    {Object.keys(currentRoom?.methodRules || {}).map((merchant, idx, arr) => {
+                      const rule = currentRoom.methodRules[merchant];
+                      return (
+                        <div key={merchant} className="flex justify-between items-center bg-blue-50 p-2 sm:p-2.5 rounded-[1.2rem] border border-blue-100 shadow-sm gap-2">
+                          <span className="text-[14px] font-bold text-blue-700 flex-1 min-w-0 truncate pl-1">[{merchant}] ➜ {rule.method} {rule.subMethod ? `(${rule.subMethod})` : ''}</span>
+                          <div className="flex items-center gap-1 shrink-0 ml-2">
+                              <button onClick={()=>handleMoveMethodRule(merchant, -1)} disabled={idx===0} className="w-7 h-7 flex items-center justify-center bg-white border border-gray-200 rounded-md text-gray-400 hover:bg-gray-100 hover:text-blue-500 disabled:opacity-30 transition font-black">↑</button>
+                              <button onClick={()=>handleMoveMethodRule(merchant, 1)} disabled={idx===arr.length-1} className="w-7 h-7 flex items-center justify-center bg-white border border-gray-200 rounded-md text-gray-400 hover:bg-gray-100 hover:text-blue-500 disabled:opacity-30 transition font-black">↓</button>
+                              <button onClick={() => handleDeleteMethodRule(merchant)} className="w-7 h-7 flex items-center justify-center bg-white border border-gray-200 rounded-md text-gray-400 hover:bg-gray-100 hover:text-red-500 transition"><Trash2 size={12}/></button>
+                          </div>
+                        </div>
+                      )
+                    })}
                   </div>
-                  <div className="flex flex-col gap-3 bg-gray-50 p-5 rounded-[1.5rem] border border-gray-100">
-                     <select value={newMethodRuleMerchant} onChange={e=>setNewMethodRuleMerchant(e.target.value)} className="w-full border-2 border-blue-100 p-4 rounded-[1.2rem] font-bold text-[15px] outline-none text-gray-600 shadow-sm cursor-pointer appearance-none bg-white">
+                  <div className="flex flex-col gap-3 bg-gray-50 p-4 sm:p-5 rounded-[1.5rem] border border-gray-100">
+                     <select value={newMethodRuleMerchant} onChange={e=>setNewMethodRuleMerchant(e.target.value)} className="w-full border-2 border-blue-100 p-3 sm:p-4 rounded-[1.2rem] font-bold text-[15px] outline-none text-gray-600 shadow-sm cursor-pointer appearance-none bg-white">
                        <option value="">選擇觸發的商家...</option>
                        {(currentRoom?.merchants || []).map(m => <option key={m} value={m}>{m}</option>)}
                      </select>
-                     <div className="flex flex-col gap-3 mt-2">
+                     <div className="flex flex-col gap-3 mt-1">
                        <select value={newMethodRuleMethod} onChange={e=>{
                            setNewMethodRuleMethod(e.target.value);
                            if (e.target.value === '信用卡 / 行動支付' || e.target.value === '信用卡') setNewMethodRuleSubMethod(currentRoom?.creditCards?.[0] || '');
                            else if (e.target.value === '銀行') setNewMethodRuleSubMethod(currentRoom?.bankAccounts?.[0] || '');
                            else setNewMethodRuleSubMethod('');
-                         }} className="w-full border-2 border-blue-100 p-4 rounded-[1.2rem] font-bold text-[15px] outline-none text-gray-600 shadow-sm cursor-pointer appearance-none bg-white">
+                         }} className="w-full border-2 border-blue-100 p-3 sm:p-4 rounded-[1.2rem] font-bold text-[15px] outline-none text-gray-600 shadow-sm cursor-pointer appearance-none bg-white">
                          <option value="">預設付款方式...</option>
                          {(currentRoom?.paymentMethods || []).map(m => <option key={m} value={m}>{m}</option>)}
                        </select>
                        <div className="flex gap-2.5">
                          {(newMethodRuleMethod === '信用卡 / 行動支付' || newMethodRuleMethod === '信用卡') && (
-                           <select value={newMethodRuleSubMethod} onChange={e=>setNewMethodRuleSubMethod(e.target.value)} className="flex-1 border-2 border-blue-100 p-4 rounded-[1.2rem] font-bold text-[15px] outline-none text-gray-600 shadow-sm cursor-pointer appearance-none bg-white">
+                           <select value={newMethodRuleSubMethod} onChange={e=>setNewMethodRuleSubMethod(e.target.value)} className="flex-1 border-2 border-blue-100 p-3 sm:p-4 rounded-[1.2rem] font-bold text-[15px] outline-none text-gray-600 shadow-sm cursor-pointer appearance-none bg-white">
                              <option value="">選擇信用卡...</option>
                              {(currentRoom?.creditCards || []).map(c => <option key={c} value={c}>{c}</option>)}
                            </select>
                          )}
                          {newMethodRuleMethod === '銀行' && (
-                           <select value={newMethodRuleSubMethod} onChange={e=>setNewMethodRuleSubMethod(e.target.value)} className="flex-1 border-2 border-blue-100 p-4 rounded-[1.2rem] font-bold text-[15px] outline-none text-gray-600 shadow-sm cursor-pointer appearance-none bg-white">
+                           <select value={newMethodRuleSubMethod} onChange={e=>setNewMethodRuleSubMethod(e.target.value)} className="flex-1 border-2 border-blue-100 p-3 sm:p-4 rounded-[1.2rem] font-bold text-[15px] outline-none text-gray-600 shadow-sm cursor-pointer appearance-none bg-white">
                              <option value="">選擇銀行...</option>
                              {(currentRoom?.bankAccounts || []).map(c => <option key={c} value={c}>{c}</option>)}
                            </select>
                          )}
-                         <button onClick={handleAddMethodRule} className="bg-blue-400 text-white px-6 py-3.5 rounded-[1.2rem] text-[15px] font-bold shadow-md transition hover:scale-105 active:scale-95 ml-auto">新增規則</button>
+                         <button onClick={handleAddMethodRule} className="bg-blue-400 text-white px-5 sm:px-6 py-3 sm:py-3.5 rounded-[1.2rem] text-[15px] font-bold shadow-md transition hover:scale-105 active:scale-95 ml-auto shrink-0">新增</button>
                        </div>
                      </div>
                   </div>
@@ -1975,7 +2051,6 @@ export default function App() {
               <div>
                 <div className="flex justify-between items-center mb-2 ml-1">
                   <label className="block text-[14px] font-bold text-gray-500">開始日期</label>
-                  {/* 需求 1: 「今天」快捷按鈕 */}
                   <button type="button" onClick={() => setAnalysisStartDate(new Date().toISOString().split('T')[0])} className="text-teal-600 bg-teal-50 hover:bg-teal-100 px-2 py-0.5 rounded-lg text-[12px] font-bold transition">今天</button>
                 </div>
                 <div className="text-[12px] font-bold text-gray-400 mb-1.5 ml-1">({analysisStartDate ? toROCYearStr(analysisStartDate) : ''})</div>
