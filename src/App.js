@@ -304,8 +304,12 @@ export default function App() {
   const [editRecordId, setEditRecordId] = useState(null);
   const [crossRoomRecord, setCrossRoomRecord] = useState(null);
   const [viewingRecord, setViewingRecord] = useState(null); 
-  const [viewingAccountHistory, setViewingAccountHistory] = useState(null); // 需求 1: 檢視帳戶明細用
+  const [viewingAccountHistory, setViewingAccountHistory] = useState(null); // 檢視帳戶明細用
   
+  // 帳戶明細的日期區間篩選
+  const [historyStartDate, setHistoryStartDate] = useState(new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0]);
+  const [historyEndDate, setHistoryEndDate] = useState(new Date().toISOString().split('T')[0]);
+
   const [recordType, setRecordType] = useState('expense');
   const [recordAmount, setRecordAmount] = useState('');
   const [recordDate, setRecordDate] = useState(new Date().toISOString().split('T')[0]);
@@ -328,7 +332,7 @@ export default function App() {
 
   const [settingsTab, setSettingsTab] = useState('expense');
   const [newOptionInputs, setNewOptionInputs] = useState({
-    categories: '', incomeCategories: '', transferCategories: '', payers: '', paymentMethods: '', merchants: '', creditCards: '', bankAccounts: '',
+    categories: '', incomeCategories: '', transferCategories: '', payers: '', paymentMethods: '', merchants: '', creditCards: '', bankAccounts: '', cards: '',
     incomeAccounts: '', transferOutAccounts: '', transferInAccounts: ''
   });
   const [settingSelectedCategory, setSettingSelectedCategory] = useState('');
@@ -511,13 +515,14 @@ export default function App() {
         incomeCategories: ['💰 薪水', '🧧 獎金', '📈 投資', '🎁 其他收入'],
         transferCategories: ['💳 信用卡繳款', '🏠 房貸繳款', '🔄 資金調度', '💰 投資理財'],
         payers: ['全家', '老公', '老婆', '恩恩', '蔚蔚'],
-        paymentMethods: ['現金', '信用卡 / 行動支付', '銀行'],
+        paymentMethods: ['現金', '信用卡 / 行動支付', '銀行', '卡片'],
         creditCards: ['玉山銀行', '國泰世華', '台北富邦', '元大銀行'],
         bankAccounts: ['元大銀行', '台北富邦', '中國信託'],
+        cards: ['悠遊卡', '一卡通', '星巴克隨行卡'],
         merchants: ['早餐店', '小吃店', '飲料店', '加油站', '便利商店', '全聯', '家樂福', '好市多', '蝦皮拍賣'],
-        incomeAccounts: ['現金', '元大銀行', '台北富邦', '中國信託'],
-        transferOutAccounts: ['現金', '玉山銀行', '國泰世華', '元大銀行', '台北富邦', '中國信託'],
-        transferInAccounts: ['現金', '元大銀行', '台北富邦', '中國信託'],
+        incomeAccounts: ['現金', '元大銀行', '台北富邦', '中國信託', '悠遊卡'],
+        transferOutAccounts: ['現金', '玉山銀行', '國泰世華', '元大銀行', '台北富邦', '中國信託', '悠遊卡'],
+        transferInAccounts: ['現金', '元大銀行', '台北富邦', '中國信託', '悠遊卡'],
         initialBalances: { '現金': 0 }
       };
       await setDoc(roomRef, newRoomData);
@@ -794,6 +799,7 @@ export default function App() {
     if (balances['現金'] === undefined) balances['現金'] = 0;
     (currentRoom?.bankAccounts || []).forEach(b => { if (balances[b] === undefined) balances[b] = 0; });
     (currentRoom?.creditCards || []).forEach(c => { if (balances[c] === undefined) balances[c] = 0; });
+    (currentRoom?.cards || []).forEach(c => { if (balances[c] === undefined) balances[c] = 0; }); // 新增卡片
 
     const getAccName = (method, subMethod) => method === '現金' ? '現金' : subMethod;
     const todayStr = new Date().toISOString().split('T')[0];
@@ -861,7 +867,7 @@ export default function App() {
         } else if (settingField === 'paymentMethods') {
             if (r.method === oldItem) { needsUpdate = true; updatedData.method = newItem; }
             if (r.transferToMethod === oldItem) { needsUpdate = true; updatedData.transferToMethod = newItem; }
-        } else if (settingField === 'creditCards' || settingField === 'bankAccounts') {
+        } else if (settingField === 'creditCards' || settingField === 'bankAccounts' || settingField === 'cards') {
             if (r.subMethod === oldItem) { needsUpdate = true; updatedData.subMethod = newItem; }
             if (r.transferToSubMethod === oldItem) { needsUpdate = true; updatedData.transferToSubMethod = newItem; }
         } else if (settingField === 'incomeAccounts' && r.type === 'income' && r.method === oldItem) {
@@ -926,7 +932,7 @@ export default function App() {
             Object.keys(newMethodRules).forEach(k => {
                if (newMethodRules[k].method === oldItem) { newMethodRules[k].method = newItem; rulesChanged = true; }
             });
-         } else if (field === 'creditCards' || field === 'bankAccounts') {
+         } else if (field === 'creditCards' || field === 'bankAccounts' || field === 'cards') {
             Object.keys(newMethodRules).forEach(k => {
                if (newMethodRules[k].subMethod === oldItem) { newMethodRules[k].subMethod = newItem; rulesChanged = true; }
             });
@@ -1062,7 +1068,7 @@ export default function App() {
   const SYNC_GROUPS = [
     { id: 'expense_cats', label: '🌸 支出分類與項目清單', keys: ['categories', 'categoryItems'] },
     { id: 'merchants_rules', label: '🏪 常見商家與預設分類規則', keys: ['merchants', 'autoFillRules'] },
-    { id: 'accounts_rules', label: '💳 帳戶清單與預設付款規則', keys: ['paymentMethods', 'creditCards', 'bankAccounts', 'methodRules'] },
+    { id: 'accounts_rules', label: '💳 帳戶清單與預設付款規則', keys: ['paymentMethods', 'creditCards', 'bankAccounts', 'cards', 'methodRules'] },
     { id: 'payers', label: '👥 家人/對象名單', keys: ['payers'] },
     { id: 'income_settings', label: '📈 收入分類與存入帳戶', keys: ['incomeCategories', 'incomeAccounts'] },
     { id: 'transfer_settings', label: '🔄 轉帳分類與收轉帳戶', keys: ['transferCategories', 'transferOutAccounts', 'transferInAccounts'] }
@@ -1114,11 +1120,13 @@ export default function App() {
       setRecordMethod(method);
       if (method === '信用卡 / 行動支付' || method === '信用卡') setRecordSubMethod(currentRoom?.creditCards?.[0] || '');
       else if (method === '銀行') setRecordSubMethod(currentRoom?.bankAccounts?.[0] || '');
+      else if (method === '卡片') setRecordSubMethod(currentRoom?.cards?.[0] || '');
       else setRecordSubMethod('');
     } else {
       setTransferToMethod(method);
       if (method === '信用卡 / 行動支付' || method === '信用卡') setTransferToSubMethod(currentRoom?.creditCards?.[0] || '');
       else if (method === '銀行') setTransferToSubMethod(currentRoom?.bankAccounts?.[0] || '');
+      else if (method === '卡片') setTransferToSubMethod(currentRoom?.cards?.[0] || '');
       else setTransferToSubMethod('');
     }
   };
@@ -1150,7 +1158,7 @@ export default function App() {
     if (analysisMenus.includes('method') && analysisSubSelections.method.length > 0) {
       if (analysisType === 'expense') {
          if (!analysisSubSelections.method.includes(r.method)) return false;
-         if (['信用卡 / 行動支付', '信用卡', '銀行'].includes(r.method)) {
+         if (['信用卡 / 行動支付', '信用卡', '銀行', '卡片'].includes(r.method)) {
             if (analysisSubSelections.subMethod.length > 0 && !analysisSubSelections.subMethod.includes(r.subMethod)) {
                return false;
             }
@@ -1190,8 +1198,9 @@ export default function App() {
   if (recordAmount && recordDate && recordPayer.length > 0) {
     if (recordType === 'expense') {
       isFormValid = recordCategory && selectedItem && recordMethod;
-      if (recordMethod === '信用卡 / 行動支付' && !recordSubMethod) isFormValid = false;
+      if ((recordMethod === '信用卡 / 行動支付' || recordMethod === '信用卡') && !recordSubMethod) isFormValid = false;
       if (recordMethod === '銀行' && !recordSubMethod) isFormValid = false;
+      if (recordMethod === '卡片' && !recordSubMethod) isFormValid = false;
       if (recordFrequency === '每週' && recordFrequencyDays.length === 0) isFormValid = false;
       if (recordFrequency === '每月' && recordFrequencyDays.length === 0) isFormValid = false;
       if (recordFrequency === '區間' && !recordFrequencyInterval) isFormValid = false;
@@ -1353,7 +1362,9 @@ export default function App() {
     const bankTotal = banks.reduce((sum, b) => sum + (balances[b] || 0), 0);
     const ccs = currentRoom?.creditCards || [];
     const ccTotal = ccs.reduce((sum, c) => sum + (balances[c] || 0), 0);
-    const netWorth = cashBal + bankTotal + ccTotal;
+    const cardsArr = currentRoom?.cards || [];
+    const cardTotal = cardsArr.reduce((sum, c) => sum + (balances[c] || 0), 0);
+    const netWorth = cashBal + bankTotal + ccTotal + cardTotal;
 
     content = (
       <>
@@ -1418,6 +1429,29 @@ export default function App() {
              </div>
           </div>
 
+          <div className="bg-white p-6 rounded-[2rem] shadow-sm border-2 border-teal-50">
+             <div className="flex justify-between items-end mb-5">
+               <h2 className="font-bold text-[18px] text-gray-700 flex items-center gap-2"><CreditCard size={20} className="text-teal-500"/> 卡片餘額</h2>
+               <span className="text-[14px] font-extrabold text-teal-500 bg-teal-50 px-3 py-1.5 rounded-xl">小計: ${cardTotal.toLocaleString()}</span>
+             </div>
+             <div className="space-y-3">
+               {cardsArr.length === 0 && <p className="text-gray-400 text-[15px] font-bold text-center py-5 bg-gray-50 rounded-[1.5rem]">無卡片，請至設定新增</p>}
+               {cardsArr.map(c => {
+                 const bal = balances[c] || 0;
+                 return (
+                   <div key={c} onClick={() => !isEditingBalances && setViewingAccountHistory(c)} className={`flex justify-between items-center bg-gray-50 p-4 rounded-[1.2rem] border border-gray-100 ${!isEditingBalances ? 'cursor-pointer hover:bg-teal-50 hover:border-teal-200 transition' : ''}`}>
+                      <span className="font-bold text-gray-600 text-[16px] truncate pr-2">{c}</span>
+                      {isEditingBalances ? (
+                         <input type="number" className="w-28 text-right border-2 border-teal-200 focus:border-teal-400 p-2 rounded-[1rem] font-bold text-[16px] outline-none transition" value={tempBalances[c] || ''} onChange={e => setTempBalances({...tempBalances, [c]: e.target.value})} placeholder="0" />
+                      ) : (
+                         <span className={`font-black text-[18px] shrink-0 ${bal < 0 ? 'text-red-500' : 'text-gray-800'}`}>${bal.toLocaleString()}</span>
+                      )}
+                   </div>
+                 )
+               })}
+             </div>
+          </div>
+
           <div className="bg-white p-6 rounded-[2rem] shadow-sm border-2 border-orange-50">
              <div className="flex justify-between items-end mb-5">
                <h2 className="font-bold text-[18px] text-gray-700 flex items-center gap-2"><CreditCard size={20} className="text-orange-500"/> 信用卡刷卡金額</h2>
@@ -1443,27 +1477,41 @@ export default function App() {
           </div>
         </main>
 
-        {/* 帳戶明細歷史 Modal */}
+        {/* 帳戶明細歷史 Modal (加入日期區間) */}
         {viewingAccountHistory && (
           <div className="fixed inset-0 bg-black/40 z-[100] flex justify-center items-center p-6 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setViewingAccountHistory(null)}>
-            <div className="bg-white w-full max-w-md max-h-[80vh] flex flex-col rounded-[2rem] p-6 shadow-2xl relative" onClick={e => e.stopPropagation()}>
+            <div className="bg-white w-full max-w-md max-h-[85vh] flex flex-col rounded-[2rem] p-6 shadow-2xl relative" onClick={e => e.stopPropagation()}>
               <button onClick={() => setViewingAccountHistory(null)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 bg-gray-100 p-2 rounded-full transition"><X size={20}/></button>
               <h3 className="font-black text-xl text-gray-800 mb-4 border-b border-gray-100 pb-3 flex items-center gap-2">
                 <Wallet size={20} className="text-indigo-500" /> {viewingAccountHistory} 明細
               </h3>
               
+              <div className="grid grid-cols-2 gap-3 mb-4">
+                  <div>
+                    <label className="block text-[12px] font-bold text-gray-500 mb-1">開始日期</label>
+                    <input type="date" value={historyStartDate} onChange={e=>setHistoryStartDate(e.target.value)} className="w-full bg-gray-50 border border-gray-200 p-2 rounded-xl text-[14px] font-bold text-gray-700 outline-none focus:border-indigo-300 transition" />
+                  </div>
+                  <div>
+                    <label className="block text-[12px] font-bold text-gray-500 mb-1">結束日期</label>
+                    <input type="date" value={historyEndDate} onChange={e=>setHistoryEndDate(e.target.value)} className="w-full bg-gray-50 border border-gray-200 p-2 rounded-xl text-[14px] font-bold text-gray-700 outline-none focus:border-indigo-300 transition" />
+                  </div>
+              </div>
+
               <div className="flex-1 overflow-y-auto space-y-3 pr-2 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
                 {(() => {
                   const todayStr = new Date().toISOString().split('T')[0];
                   const accHistory = records.filter(r => {
+                     // 需求 2: 使用選擇的日期區間，且不得超過今日
+                     if (r.date > historyEndDate || r.date < historyStartDate) return false;
                      if (r.date > todayStr) return false;
+                     
                      const getAccName = (method, subMethod) => method === '現金' ? '現金' : subMethod;
                      const fromAcc = getAccName(r.method, r.subMethod);
                      const toAcc = getAccName(r.transferToMethod, r.transferToSubMethod);
                      return fromAcc === viewingAccountHistory || toAcc === viewingAccountHistory;
-                  }).sort((a, b) => b.timestamp - a.timestamp); // 越新的在越上面
+                  }).sort((a, b) => b.timestamp - a.timestamp); 
 
-                  if (accHistory.length === 0) return <p className="text-center text-gray-400 font-bold py-10">此帳戶尚無歷史明細</p>;
+                  if (accHistory.length === 0) return <p className="text-center text-gray-400 font-bold py-10">此區間尚無明細</p>;
 
                   return accHistory.map(exp => {
                     const isIncome = exp.type === 'income';
@@ -1855,9 +1903,10 @@ export default function App() {
 
                   <div className="mb-2 z-10">
                     <label className="flex items-center gap-1.5 text-[15px] font-bold text-gray-500 mb-2.5 ml-1"><CreditCard size={16} className="text-gray-400" /> 付款方式 💳</label>
-                    <div className="flex bg-gray-50 rounded-[1.2rem] p-1.5 border border-gray-100 mb-4 shadow-inner min-h-[60px]">
+                    {/* 新增卡片：將單排改為 2x2 網格，讓項目可以大且清晰 */}
+                    <div className="grid grid-cols-2 gap-2 bg-gray-50 rounded-[1.2rem] p-2 border border-gray-100 mb-4 shadow-inner">
                       {(currentRoom?.paymentMethods || []).map(opt => (
-                        <button key={opt} type="button" onClick={() => handleMethodSelect(opt)} className={`flex-1 py-1.5 px-1 rounded-[1rem] text-[13px] md:text-[14px] leading-snug font-extrabold transition-all duration-200 flex flex-col items-center justify-center ${recordMethod === opt ? 'bg-white text-blue-600 shadow-md border border-gray-100 transform scale-100' : 'text-gray-400 hover:text-gray-600 scale-95'}`}>
+                        <button key={opt} type="button" onClick={() => handleMethodSelect(opt)} className={`py-2 px-2 rounded-[1rem] text-[14px] leading-snug font-extrabold transition-all duration-200 flex flex-col items-center justify-center ${recordMethod === opt ? 'bg-white text-blue-600 shadow-md border border-gray-100 transform scale-100' : 'text-gray-400 hover:text-gray-600 scale-95'}`}>
                           {opt.includes(' / ') ? (
                             <>
                               <span>{opt.split(' / ')[0]}</span>
@@ -1877,6 +1926,11 @@ export default function App() {
                     {recordMethod === '銀行' && (
                       <div className="z-10 relative">
                         <CustomDropdown options={currentRoom?.bankAccounts || []} value={recordSubMethod} onChange={setRecordSubMethod} placeholder="選擇扣款銀行" />
+                      </div>
+                    )}
+                    {recordMethod === '卡片' && (
+                      <div className="z-10 relative">
+                        <CustomDropdown options={currentRoom?.cards || []} value={recordSubMethod} onChange={setRecordSubMethod} placeholder="選擇卡片" />
                       </div>
                     )}
                   </div>
@@ -1943,7 +1997,6 @@ export default function App() {
             <p className="text-purple-500 font-bold bg-purple-50 border border-purple-100 inline-block px-5 py-3 rounded-full text-[13px] shadow-sm leading-relaxed">💡 在此編輯的項目，全家人的畫面都會同步更新喔！</p>
           </div>
           
-          {/* 需求 3: 同步設定按鈕 */}
           <button onClick={() => setSyncSettingsModalOpen(true)} className="w-full bg-gradient-to-r from-indigo-500 to-blue-500 text-white p-4 rounded-[1.5rem] font-bold text-[16px] shadow-md hover:shadow-lg transition flex justify-center items-center gap-2 mb-6 active:scale-95">
              <RefreshCw size={20} /> 🔄 複製設定至其他房間
           </button>
@@ -2032,6 +2085,12 @@ export default function App() {
                   onUpdate={(newList, oldItem, newItem) => updateSettingField('bankAccounts', newList, oldItem, newItem)} 
                   themeClass="border-indigo-100" spanClass="text-indigo-600" btnClass="bg-indigo-400" placeholder="輸入銀行名稱..." 
                 />
+                {/* 需求 1: 設定頁新增卡片選單 */}
+                <SettingBlock 
+                  title="💳 儲值卡/電子票證清單" items={currentRoom?.cards || []} 
+                  onUpdate={(newList, oldItem, newItem) => updateSettingField('cards', newList, oldItem, newItem)} 
+                  themeClass="border-teal-100" spanClass="text-teal-600" btnClass="bg-teal-400" placeholder="輸入卡片名稱..." 
+                />
                 
                 <div className={`p-4 sm:p-5 rounded-[2rem] border-2 border-blue-100 bg-white shadow-sm mb-6`}>
                   <h3 className="font-bold text-gray-700 mb-5 text-[18px] flex items-center gap-2">🤖 付款方式預設規則</h3>
@@ -2060,6 +2119,7 @@ export default function App() {
                            setNewMethodRuleMethod(e.target.value);
                            if (e.target.value === '信用卡 / 行動支付' || e.target.value === '信用卡') setNewMethodRuleSubMethod(currentRoom?.creditCards?.[0] || '');
                            else if (e.target.value === '銀行') setNewMethodRuleSubMethod(currentRoom?.bankAccounts?.[0] || '');
+                           else if (e.target.value === '卡片') setNewMethodRuleSubMethod(currentRoom?.cards?.[0] || '');
                            else setNewMethodRuleSubMethod('');
                          }} className="w-full border-2 border-blue-100 p-3 sm:p-4 rounded-[1.2rem] font-bold text-[15px] outline-none text-gray-600 shadow-sm cursor-pointer appearance-none bg-white">
                          <option value="">預設付款方式...</option>
@@ -2076,6 +2136,12 @@ export default function App() {
                            <select value={newMethodRuleSubMethod} onChange={e=>setNewMethodRuleSubMethod(e.target.value)} className="flex-1 border-2 border-blue-100 p-3 sm:p-4 rounded-[1.2rem] font-bold text-[15px] outline-none text-gray-600 shadow-sm cursor-pointer appearance-none bg-white">
                              <option value="">選擇銀行...</option>
                              {(currentRoom?.bankAccounts || []).map(c => <option key={c} value={c}>{c}</option>)}
+                           </select>
+                         )}
+                         {newMethodRuleMethod === '卡片' && (
+                           <select value={newMethodRuleSubMethod} onChange={e=>setNewMethodRuleSubMethod(e.target.value)} className="flex-1 border-2 border-blue-100 p-3 sm:p-4 rounded-[1.2rem] font-bold text-[15px] outline-none text-gray-600 shadow-sm cursor-pointer appearance-none bg-white">
+                             <option value="">選擇卡片...</option>
+                             {(currentRoom?.cards || []).map(c => <option key={c} value={c}>{c}</option>)}
                            </select>
                          )}
                          <button onClick={handleAddMethodRule} className="bg-blue-400 text-white px-5 sm:px-6 py-3 sm:py-3.5 rounded-[1.2rem] text-[15px] font-bold shadow-md transition hover:scale-105 active:scale-95 ml-auto shrink-0">新增</button>
@@ -2122,62 +2188,6 @@ export default function App() {
             )}
           </div>
         </main>
-
-        {/* 需求 3: 跨房間同步設定 Modal */}
-        {syncSettingsModalOpen && (
-          <div className="fixed inset-0 bg-black/40 z-[100] flex justify-center items-end sm:items-center p-0 sm:p-6 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setSyncSettingsModalOpen(false)}>
-            <div className="bg-white w-full max-w-md rounded-t-[2rem] sm:rounded-[2rem] p-6 shadow-2xl relative animate-in slide-in-from-bottom-10" onClick={e => e.stopPropagation()}>
-              <button onClick={() => setSyncSettingsModalOpen(false)} className="absolute top-5 right-5 text-gray-400 hover:text-gray-600 bg-gray-100 p-2 rounded-full transition"><X size={20}/></button>
-              <h3 className="font-black text-xl text-gray-800 mb-2 flex items-center gap-2">🔄 複製設定至其他房間</h3>
-              <p className="text-[14px] text-gray-500 font-bold mb-5 leading-relaxed">選擇目標房間及想同步的項目，系統會將目前的設定合併到目標房間中。</p>
-              
-              <div className="space-y-5">
-                <div>
-                   <label className="block text-[14px] font-bold text-gray-500 mb-2 ml-1">選擇目標房間</label>
-                   <select value={syncTargetRoom} onChange={e => setSyncTargetRoom(e.target.value)} className="w-full border-2 border-indigo-100 bg-indigo-50 text-indigo-700 p-4 rounded-[1.2rem] font-bold text-[15px] outline-none shadow-sm cursor-pointer appearance-none">
-                     <option value="">請選擇要同步過去的房間...</option>
-                     {savedRooms.filter(r => r.id !== activeRoomId).map(r => (
-                        <option key={r.id} value={r.id}>{r.name} ({r.id})</option>
-                     ))}
-                   </select>
-                   {savedRooms.filter(r => r.id !== activeRoomId).length === 0 && <p className="text-red-400 text-xs mt-2 font-bold ml-1">無其他已儲存房間可選</p>}
-                </div>
-
-                <div>
-                   <label className="block text-[14px] font-bold text-gray-500 mb-2 ml-1">勾選要同步的項目群組</label>
-                   <div className="grid grid-cols-1 gap-2.5 max-h-[35vh] overflow-y-auto pr-1">
-                      {SYNC_GROUPS.map(group => {
-                        const isChecked = selectedSyncGroups.includes(group.id);
-                        return (
-                          <button 
-                            key={group.id} type="button"
-                            onClick={() => {
-                              if (isChecked) setSelectedSyncGroups(selectedSyncGroups.filter(id => id !== group.id));
-                              else setSelectedSyncGroups([...selectedSyncGroups, group.id]);
-                            }}
-                            className={`flex items-center text-left p-3.5 rounded-[1rem] border-2 transition-all ${isChecked ? 'border-blue-400 bg-blue-50 text-blue-700' : 'border-gray-100 bg-gray-50 text-gray-600 hover:border-blue-200'}`}
-                          >
-                            <div className={`w-5 h-5 rounded-md flex justify-center items-center mr-3 border-2 transition-colors ${isChecked ? 'bg-blue-500 border-blue-500' : 'border-gray-300 bg-white'}`}>
-                               {isChecked && <Check size={14} className="text-white stroke-[3]"/>}
-                            </div>
-                            <span className="font-bold text-[14px]">{group.label}</span>
-                          </button>
-                        )
-                      })}
-                   </div>
-                </div>
-                
-                <button 
-                  onClick={handleSyncSettings}
-                  disabled={!syncTargetRoom || selectedSyncGroups.length === 0}
-                  className="w-full bg-blue-500 text-white font-black text-[16px] py-4 rounded-[1.2rem] transition-all hover:bg-blue-600 disabled:opacity-50 disabled:active:scale-100 active:scale-95 shadow-md mt-2"
-                >
-                  確認同步
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
       </>
     );
   }
@@ -2299,6 +2309,9 @@ export default function App() {
                         )}
                         {analysisSubSelections.method.includes('銀行') && (
                           <PillGroupMulti label="🏦 選擇銀行" options={currentRoom?.bankAccounts || []} values={analysisSubSelections.subMethod} onChange={(vals) => setAnalysisSubSelections({...analysisSubSelections, subMethod: vals})} />
+                        )}
+                        {analysisSubSelections.method.includes('卡片') && (
+                          <PillGroupMulti label="💳 選擇卡片" options={currentRoom?.cards || []} values={analysisSubSelections.subMethod} onChange={(vals) => setAnalysisSubSelections({...analysisSubSelections, subMethod: vals})} />
                         )}
                       </>
                     ) : analysisType === 'income' ? (
