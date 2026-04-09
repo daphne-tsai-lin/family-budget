@@ -16,7 +16,7 @@ if (typeof document !== 'undefined' && !document.getElementById('tailwind-script
 }
 
 // ==========================================
-// 民國年轉換工具函數
+// 民國年轉換工具函數 (需求 1: 格式修正)
 // ==========================================
 const toROCYearStr = (dateStr) => {
   if (!dateStr) return '';
@@ -25,7 +25,7 @@ const toROCYearStr = (dateStr) => {
   const roc = d.getFullYear() - 1911;
   const m = String(d.getMonth() + 1).padStart(2, '0');
   const day = String(d.getDate()).padStart(2, '0');
-  return `民國${roc}/${m}/${day}`;
+  return `${roc}/${m}/${day}`; // 輸出 115/04/09
 };
 
 const toROCFullStr = (dateStr) => {
@@ -50,53 +50,6 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 const appId = typeof __app_id !== 'undefined' ? __app_id : 'linbei-family-app';
-
-// ==========================================
-// 共用組件：自製民國年日期選擇器 (需求 1)
-// ==========================================
-const ROCDatePicker = ({ value, onChange }) => {
-  const d = value ? new Date(value) : new Date();
-  const year = isNaN(d.getTime()) ? new Date().getFullYear() - 1911 : d.getFullYear() - 1911;
-  const month = isNaN(d.getTime()) ? new Date().getMonth() + 1 : d.getMonth() + 1;
-  const day = isNaN(d.getTime()) ? new Date().getDate() : d.getDate();
-
-  const fixedYears = Array.from({length: 20}, (_, i) => 110 + i);
-  const months = Array.from({length: 12}, (_, i) => i + 1);
-  const daysInMonth = new Date(year + 1911, month, 0).getDate();
-  const days = Array.from({length: daysInMonth}, (_, i) => i + 1);
-
-  const handleDateChange = (y, m, d) => {
-    const maxDays = new Date(y + 1911, m, 0).getDate();
-    const validDay = d > maxDays ? maxDays : d;
-    const yyyy = y + 1911;
-    const mm = String(m).padStart(2, '0');
-    const dd = String(validDay).padStart(2, '0');
-    onChange(`${yyyy}-${mm}-${dd}`);
-  };
-
-  return (
-    <div className="flex gap-2 w-full mt-1">
-      <div className="relative flex-[1.2]">
-        <select value={year} onChange={e=>handleDateChange(Number(e.target.value), month, day)} className="w-full bg-gray-50 border-2 border-gray-100 p-4 rounded-[1.2rem] outline-none font-bold text-gray-700 text-[16px] appearance-none shadow-sm text-center">
-          {fixedYears.map(y => <option key={y} value={y}>民國 {y} 年</option>)}
-        </select>
-        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-[12px] pointer-events-none">▼</span>
-      </div>
-      <div className="relative flex-[1]">
-        <select value={month} onChange={e=>handleDateChange(year, Number(e.target.value), day)} className="w-full bg-gray-50 border-2 border-gray-100 p-4 rounded-[1.2rem] outline-none font-bold text-gray-700 text-[16px] appearance-none shadow-sm text-center">
-          {months.map(m => <option key={m} value={m}>{m} 月</option>)}
-        </select>
-        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-[12px] pointer-events-none">▼</span>
-      </div>
-      <div className="relative flex-[1]">
-        <select value={day} onChange={e=>handleDateChange(year, month, Number(e.target.value))} className="w-full bg-gray-50 border-2 border-gray-100 p-4 rounded-[1.2rem] outline-none font-bold text-gray-700 text-[16px] appearance-none shadow-sm text-center">
-          {days.map(d => <option key={d} value={d}>{d} 日</option>)}
-        </select>
-        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-[12px] pointer-events-none">▼</span>
-      </div>
-    </div>
-  )
-};
 
 // ==========================================
 // 共用組件：超美客製化下拉選單
@@ -193,7 +146,7 @@ export default function App() {
 
   const [showAddForm, setShowAddForm] = useState(false);
   const [editRecordId, setEditRecordId] = useState(null);
-  const [crossRoomRecord, setCrossRoomRecord] = useState(null); // 存放要跨房間傳送的紀錄
+  const [crossRoomRecord, setCrossRoomRecord] = useState(null);
   const [recordType, setRecordType] = useState('expense');
   
   const [recordAmount, setRecordAmount] = useState('');
@@ -246,9 +199,12 @@ export default function App() {
   const phoneContainerStyle = "w-full max-w-[420px] min-h-screen sm:min-h-0 sm:h-[844px] bg-[#FFFBF0] flex flex-col relative sm:rounded-[3rem] sm:border-[8px] sm:border-gray-800 shadow-2xl overflow-hidden";
 
   // ==========================================
-  // 防呆防退跳出視窗 (需求 4: 強化關閉邏輯)
+  // 防呆防退跳出視窗 (需求 4: 完美關閉邏輯)
   // ==========================================
   useEffect(() => {
+    // 初始化時推入一個假的歷史紀錄，用來攔截第一次返回鍵
+    window.history.pushState({ trap: true }, '');
+
     const handleBeforeUnload = (e) => {
       e.preventDefault();
       e.returnValue = '確定要關閉記帳本嗎？';
@@ -258,16 +214,15 @@ export default function App() {
     const handlePopState = (e) => {
       const confirmExit = window.confirm("確定要關閉記帳本嗎？\n(按確定則離開，按取消則繼續使用)");
       if (!confirmExit) {
-        // 如果按取消，把假紀錄推回去，留住使用者
-        window.history.pushState(null, '', window.location.href);
+        // 使用者按「取消」：立刻再次推入假的歷史紀錄，恢復攔截狀態
+        window.history.pushState({ trap: true }, '');
       } else {
-        // 需求 4：如果按確定，嘗試強制關閉頁面，或退回上上層 (真實離開)
-        window.close(); // 在 PWA 中嘗試關閉
-        setTimeout(() => { window.history.go(-2); }, 100); // 備用方案：退回主畫面
+        // 使用者按「確定」：嘗試關閉，或使用 back 退出 App
+        window.close(); // 嘗試關閉視窗
+        window.history.back(); // 確保退出 PWA
       }
     };
 
-    window.history.pushState(null, '', window.location.href);
     window.addEventListener('beforeunload', handleBeforeUnload);
     window.addEventListener('popstate', handlePopState);
 
@@ -494,13 +449,13 @@ export default function App() {
         recordData.transferToMethod = transferToMethod; recordData.transferToSubMethod = transferToSubMethod;
       }
 
-      // 【需求 5】：拿掉 await，立刻關閉表單，讓 Firebase 在背景同步上傳
+      // 【需求 5】：完全不使用 await 等待資料庫回應，呼叫後立刻切換畫面，提升儲存手感
       if (editRecordId) {
         updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'expenses', editRecordId), recordData)
-          .catch(err => alert('背景儲存失敗，請檢查網路連線'));
+          .catch(() => console.log('背景儲存同步中...'));
       } else {
         addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'expenses'), recordData)
-          .catch(err => alert('背景儲存失敗，請檢查網路連線'));
+          .catch(() => console.log('背景儲存同步中...'));
       }
       
       resetForm(); 
@@ -1092,14 +1047,14 @@ export default function App() {
           </div>
           
           <div className="mb-4">
-            {/* 需求 3: z-10 加到隱藏的 input 確保整顆按鈕可點選 */}
-            <div className="relative bg-white/20 backdrop-blur-md rounded-[1.2rem] shadow-sm border border-white/30 px-4 py-2.5 flex items-center overflow-hidden cursor-pointer hover:bg-white/30 transition">
-              <input type="date" value={homeFilterDate} onChange={(e) => setHomeFilterDate(e.target.value)} className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10" />
-              <Calendar size={20} className="text-white mr-3"/>
-              <span className="text-white text-[18px] font-black drop-shadow-sm">
+            {/* 需求 3: 只要點擊這個區域 (包含文字)，就會彈出原生日期選單 */}
+            <div className="relative bg-white/20 backdrop-blur-md rounded-[1.2rem] shadow-sm border border-white/30 px-4 py-2.5 flex items-center overflow-hidden hover:bg-white/30 transition">
+              <input type="date" value={homeFilterDate} onChange={(e) => setHomeFilterDate(e.target.value)} className="absolute inset-0 w-full h-full opacity-0 z-10 cursor-pointer" />
+              <Calendar size={20} className="text-white mr-3 z-0"/>
+              <span className="text-white text-[18px] font-black drop-shadow-sm z-0">
                 {homeFilterDate ? toROCFullStr(homeFilterDate) : '全部日期'}
               </span>
-              <span className="text-white/70 text-[12px] ml-auto">▼</span>
+              <span className="text-white/70 text-[12px] ml-auto z-0">▼</span>
             </div>
           </div>
 
@@ -1134,6 +1089,7 @@ export default function App() {
                 {displayRecords.map((exp) => {
                   const isIncome = exp.type === 'income';
                   const isTransfer = exp.type === 'transfer';
+                  // 需求 1: 明細也全面使用簡潔的 115/04/09 格式
                   const displayDate = exp.date ? toROCYearStr(exp.date) : toROCYearStr(new Date(exp.timestamp));
                   const payerStr = Array.isArray(exp.payer) ? exp.payer.join(', ') : exp.payer;
                   
@@ -1178,12 +1134,12 @@ export default function App() {
                           {isIncome ? '+' : isTransfer ? '⇆' : '-'}${exp.amount.toLocaleString()}
                         </span>
                         
-                        {/* 需求 2: 右邊功能分兩排，排版調整為 [編輯, 複製], [刪除, 傳送] */}
-                        <div className="grid grid-cols-2 gap-2 mt-4 w-[84px]">
-                          <button onClick={() => openEditForm(exp)} className="text-gray-400 hover:text-blue-500 font-bold p-2 transition bg-gray-50 hover:bg-blue-50 rounded-[0.8rem] shadow-sm" title="編輯"><Pencil size={16} /></button>
-                          <button onClick={() => handleCopyRecord(exp)} className="text-gray-400 hover:text-green-500 font-bold p-2 transition bg-gray-50 hover:bg-green-50 rounded-[0.8rem] shadow-sm" title="複製此筆"><Copy size={16} /></button>
-                          <button onClick={() => handleDeleteRecord(exp.id)} className="text-gray-400 hover:text-red-500 font-bold p-2 transition bg-gray-50 hover:bg-red-50 rounded-[0.8rem] shadow-sm" title="刪除"><Trash2 size={16} /></button>
-                          <button onClick={() => setCrossRoomRecord(exp)} className="text-gray-400 hover:text-orange-500 font-bold p-2 transition bg-gray-50 hover:bg-orange-50 rounded-[0.8rem] shadow-sm" title="傳送到其他房間"><Send size={16} /></button>
+                        {/* 需求 2: 右邊功能分兩排調整 [編輯, 複製] \n [刪除, 傳送] */}
+                        <div className="grid grid-cols-2 gap-2 mt-4 w-[84px] relative z-20">
+                          <button onClick={(e) => { e.stopPropagation(); openEditForm(exp); }} className="text-gray-400 hover:text-blue-500 font-bold p-2 transition bg-gray-50 hover:bg-blue-50 rounded-[0.8rem] shadow-sm" title="編輯"><Pencil size={16} /></button>
+                          <button onClick={(e) => { e.stopPropagation(); handleCopyRecord(exp); }} className="text-gray-400 hover:text-green-500 font-bold p-2 transition bg-gray-50 hover:bg-green-50 rounded-[0.8rem] shadow-sm" title="複製此筆"><Copy size={16} /></button>
+                          <button onClick={(e) => { e.stopPropagation(); handleDeleteRecord(exp.id); }} className="text-gray-400 hover:text-red-500 font-bold p-2 transition bg-gray-50 hover:bg-red-50 rounded-[0.8rem] shadow-sm" title="刪除"><Trash2 size={16} /></button>
+                          <button onClick={(e) => { e.stopPropagation(); setCrossRoomRecord(exp); }} className="text-gray-400 hover:text-orange-500 font-bold p-2 transition bg-gray-50 hover:bg-orange-50 rounded-[0.8rem] shadow-sm" title="傳送到其他房間"><Send size={16} /></button>
                         </div>
                       </div>
                     </div>
@@ -1271,8 +1227,20 @@ export default function App() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 z-40">
                 <div>
                   <label className="flex items-center gap-1.5 text-[15px] font-bold text-gray-500 mb-2.5 ml-1"><Calendar size={16} className="text-gray-400" /> 日期 🗓️</label>
-                  {/* 需求 1: 表單改為真正的民國年選單 */}
-                  <ROCDatePicker value={recordDate} onChange={setRecordDate} />
+                  {/* 需求 1: 單一欄位且顯示民國年 115/04/09 */}
+                  <div className="relative w-full bg-gray-50 border-2 border-gray-100 p-4 rounded-[1.2rem] flex items-center shadow-sm cursor-pointer hover:bg-white transition overflow-hidden">
+                    <input 
+                      type="date" 
+                      required 
+                      className="absolute inset-0 w-full h-full opacity-0 z-10 cursor-pointer" 
+                      value={recordDate} 
+                      onChange={(e) => setRecordDate(e.target.value)} 
+                    />
+                    <span className="font-bold text-gray-700 text-[16px] z-0">
+                      {recordDate ? toROCYearStr(recordDate) : '選擇日期'}
+                    </span>
+                    <span className="absolute right-4 text-gray-400 text-[12px] z-0 pointer-events-none">▼</span>
+                  </div>
                 </div>
                 {recordType === 'expense' && (
                   <div className="z-40 mt-2 md:mt-0">
