@@ -832,8 +832,69 @@ export default function App() {
   };
 
   // ==========================================
-  // 選項設定更新與規則管理
+  // 選項設定更新與規則管理 (需求 2: 歷史連動更新)
   // ==========================================
+  const syncHistoricalData = async (settingField, oldItem, newItem) => {
+    const updatesList = [];
+    for (let r of records) {
+        let updatedData = {};
+        let needsUpdate = false;
+
+        if (settingField === 'categories' && r.type === 'expense' && r.category === oldItem) {
+            needsUpdate = true; updatedData.category = newItem;
+        } else if (settingField === 'incomeCategories' && r.type === 'income' && r.category === oldItem) {
+            needsUpdate = true; updatedData.category = newItem;
+        } else if (settingField === 'transferCategories' && r.type === 'transfer' && r.category === oldItem) {
+            needsUpdate = true; updatedData.category = newItem;
+        } else if (settingField === 'merchants' && r.merchant === oldItem) {
+            needsUpdate = true; updatedData.merchant = newItem;
+        } else if (settingField === 'payers') {
+            if (Array.isArray(r.payer) && r.payer.includes(oldItem)) {
+                needsUpdate = true;
+                updatedData.payer = r.payer.map(p => p === oldItem ? newItem : p);
+            } else if (r.payer === oldItem) {
+                needsUpdate = true; updatedData.payer = [newItem];
+            }
+        } else if (settingField === 'paymentMethods') {
+            if (r.method === oldItem) { needsUpdate = true; updatedData.method = newItem; }
+            if (r.transferToMethod === oldItem) { needsUpdate = true; updatedData.transferToMethod = newItem; }
+        } else if (settingField === 'creditCards' || settingField === 'bankAccounts') {
+            if (r.subMethod === oldItem) { needsUpdate = true; updatedData.subMethod = newItem; }
+            if (r.transferToSubMethod === oldItem) { needsUpdate = true; updatedData.transferToSubMethod = newItem; }
+        } else if (settingField === 'incomeAccounts' && r.type === 'income' && r.method === oldItem) {
+            needsUpdate = true; updatedData.method = newItem;
+        } else if (settingField === 'transferOutAccounts' && r.type === 'transfer' && r.method === oldItem) {
+            needsUpdate = true; updatedData.method = newItem;
+        } else if (settingField === 'transferInAccounts' && r.type === 'transfer' && r.transferToMethod === oldItem) {
+            needsUpdate = true; updatedData.transferToMethod = newItem;
+        }
+
+        if (needsUpdate) {
+            updatesList.push({
+                ref: doc(db, 'artifacts', appId, 'public', 'data', 'expenses', r.id),
+                data: updatedData
+            });
+        }
+    }
+
+    if (updatesList.length > 0) {
+        let batch = writeBatch(db);
+        let count = 0;
+        for (const update of updatesList) {
+            batch.update(update.ref, update.data);
+            count++;
+            if (count === 450) {
+                await batch.commit();
+                batch = writeBatch(db);
+                count = 0;
+            }
+        }
+        if (count > 0) {
+            await batch.commit();
+        }
+    }
+  };
+
   const updateSettingField = async (field, newList, oldItem, newItem) => {
     if (!currentRoom || !user || !activeRoomId) return;
     try {
@@ -844,15 +905,49 @@ export default function App() {
          updates[`categoryItems.${oldItem}`] = deleteField();
       }
       await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', activeRoomId), updates);
+
+      // 需求 2: 連動更新歷史資料
+      if (oldItem && newItem && oldItem !== newItem) {
+         await syncHistoricalData(field, oldItem, newItem);
+      }
     } catch (err) { 
       alert('更新失敗：請檢查網路連線'); 
     }
   };
 
-  const updateCategoryItemsField = async (category, newList) => {
+  const updateCategoryItemsField = async (category, newList, oldItem, newItem) => {
     if (!currentRoom || !category || !user || !activeRoomId) return;
     try {
       await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', activeRoomId), { [`categoryItems.${category}`]: newList });
+
+      // 連動更新子項目的歷史資料
+      if (oldItem && newItem && oldItem !== newItem) {
+         const updatesList = [];
+         for (let r of records) {
+             if (r.type === 'expense' && r.category === category && r.title === oldItem) {
+                 updatesList.push({
+                     ref: doc(db, 'artifacts', appId, 'public', 'data', 'expenses', r.id),
+                     data: { title: newItem }
+                 });
+             }
+         }
+         if (updatesList.length > 0) {
+            let batch = writeBatch(db);
+            let count = 0;
+            for (const update of updatesList) {
+                batch.update(update.ref, update.data);
+                count++;
+                if (count === 450) {
+                    await batch.commit();
+                    batch = writeBatch(db);
+                    count = 0;
+                }
+            }
+            if (count > 0) {
+                await batch.commit();
+            }
+         }
+      }
     } catch (err) { 
       alert('更新失敗：請檢查網路連線'); 
     }
@@ -1245,14 +1340,17 @@ export default function App() {
           </div>
           
           <div className="mb-4">
-            <div className="relative bg-white/20 backdrop-blur-md rounded-[1.2rem] shadow-sm border border-white/30 px-4 py-2.5 flex items-center overflow-hidden hover:bg-white/30 transition">
-              {/* 需求 3: z-10 覆蓋整個按鈕 */}
-              <input type="date" value={homeFilterDate} onChange={(e) => setHomeFilterDate(e.target.value)} className="absolute inset-0 w-full h-full opacity-0 z-10 cursor-pointer" />
-              <Calendar size={20} className="text-white mr-3 z-0"/>
-              <span className="text-white text-[18px] font-black drop-shadow-sm z-0">
-                {homeFilterDate ? toROCFullStr(homeFilterDate) : '全部日期'}
-              </span>
-              <span className="text-white/70 text-[12px] ml-auto z-0">▼</span>
+            {/* 需求 1: 加上「今天」快捷按鈕 */}
+            <div className="flex items-center gap-2 w-full">
+              <div className="relative bg-white/20 backdrop-blur-md rounded-[1.2rem] shadow-sm border border-white/30 px-4 py-2.5 flex items-center overflow-hidden hover:bg-white/30 transition flex-1">
+                <input type="date" value={homeFilterDate} onChange={(e) => setHomeFilterDate(e.target.value)} className="absolute inset-0 w-full h-full opacity-0 z-10 cursor-pointer" />
+                <Calendar size={20} className="text-white mr-3 z-0"/>
+                <span className="text-white text-[18px] font-black drop-shadow-sm z-0">
+                  {homeFilterDate ? toROCFullStr(homeFilterDate) : '全部日期'}
+                </span>
+                <span className="text-white/70 text-[12px] ml-auto z-0">▼</span>
+              </div>
+              <button onClick={() => setHomeFilterDate(new Date().toISOString().split('T')[0])} className="bg-white/20 hover:bg-white/30 text-white px-4 py-2.5 rounded-[1.2rem] transition font-bold text-[15px] shadow-sm backdrop-blur-sm whitespace-nowrap">今天</button>
             </div>
           </div>
 
@@ -1335,7 +1433,6 @@ export default function App() {
                           {isIncome ? '+' : isTransfer ? '⇆' : '-'}${exp.amount.toLocaleString()}
                         </span>
                         
-                        {/* 需求 2: 排版調整為 [編輯, 複製] \n [刪除, 傳送] */}
                         <div className="grid grid-cols-2 gap-2 mt-4 w-[84px] relative z-20">
                           <button onClick={(e) => { e.stopPropagation(); openEditForm(exp); }} className="text-gray-400 hover:text-blue-500 font-bold p-2 transition bg-gray-50 hover:bg-blue-50 rounded-[0.8rem] shadow-sm" title="編輯"><Pencil size={16} /></button>
                           <button onClick={(e) => { e.stopPropagation(); handleCopyRecord(exp); }} className="text-gray-400 hover:text-green-500 font-bold p-2 transition bg-gray-50 hover:bg-green-50 rounded-[0.8rem] shadow-sm" title="複製此筆"><Copy size={16} /></button>
@@ -1505,10 +1602,13 @@ export default function App() {
             </div>
 
             <div className={`bg-white rounded-[2rem] p-6 shadow-sm border-2 ${themeBorder}`}>
-              {/* 需求 1 & 4: 日期單一欄位且顯示民國年，與頻率同一排 */}
               <div className="grid grid-cols-2 gap-3 mb-6 z-40">
                 <div>
-                  <label className="flex items-center gap-1.5 text-[15px] font-bold text-gray-500 mb-2.5 ml-1"><Calendar size={16} className="text-gray-400" /> 日期 🗓️</label>
+                  <label className="flex items-center justify-between text-[15px] font-bold text-gray-500 mb-2.5 ml-1 w-full pr-1">
+                    <span className="flex items-center gap-1.5"><Calendar size={16} className="text-gray-400" /> 日期 🗓️</span>
+                    {/* 需求 1: 「今天」快捷按鈕 */}
+                    <button type="button" onClick={() => setRecordDate(new Date().toISOString().split('T')[0])} className="bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-1 rounded-lg text-[12px] transition shadow-sm">今天</button>
+                  </label>
                   <div className="relative w-full bg-gray-50 border-2 border-gray-100 p-4 rounded-[1.2rem] flex items-center shadow-sm cursor-pointer hover:bg-white transition overflow-hidden">
                     <input 
                       type="date" 
@@ -1652,23 +1752,6 @@ export default function App() {
   }
   // --- 設定畫面 ---
   else if (view === 'settings') {
-    const renderSetting = (title, field, placeholder, themeClass, spanClass, btnClass) => (
-      <div key={field} className={`p-6 rounded-[2rem] border-2 ${themeClass} bg-white shadow-sm mb-6`}>
-        <h3 className="font-bold text-gray-700 mb-4 text-[18px] flex items-center gap-2">{title}</h3>
-        <div className="flex flex-wrap gap-2.5 mb-5">
-          {(currentRoom?.[field] || []).map(item => (
-            <span key={item} className={`px-4 py-2.5 rounded-[1rem] text-[15px] font-bold flex items-center gap-1.5 shadow-sm ${spanClass}`}>
-              {item} <button onClick={() => handleDeleteOption(field, item)} className="hover:opacity-60 transition ml-1"><X size={16} strokeWidth={3} /></button>
-            </span>
-          ))}
-        </div>
-        <div className="flex gap-2.5">
-          <input type="text" value={newOptionInputs[field]} onChange={(e) => setNewOptionInputs({...newOptionInputs, [field]: e.target.value})} placeholder={placeholder} className={`flex-1 border-2 ${themeClass} bg-gray-50 rounded-[1.2rem] p-4 outline-none focus:bg-white transition text-[15px] font-bold`} onKeyPress={(e) => e.key === 'Enter' && handleAddOption(field)} />
-          <button onClick={() => handleAddOption(field)} className={`${btnClass} text-white px-6 py-3.5 rounded-[1.2rem] text-[15px] font-bold shadow-md transition hover:scale-105 active:scale-95`}>新增</button>
-        </div>
-      </div>
-    );
-
     content = (
       <>
         <header className="bg-gradient-to-r from-purple-400 to-pink-400 px-6 py-6 shadow-md shrink-0 z-10 rounded-b-[2rem] border-b-4 border-white/20">
@@ -1710,7 +1793,7 @@ export default function App() {
                     <SettingBlock 
                       title={`[${settingSelectedCategory}] 的項目`} 
                       items={currentRoom?.categoryItems?.[settingSelectedCategory] || []} 
-                      onUpdate={(newList) => updateCategoryItemsField(settingSelectedCategory, newList)} 
+                      onUpdate={(newList, oldItem, newItem) => updateCategoryItemsField(settingSelectedCategory, newList, oldItem, newItem)} 
                       themeClass="border-pink-50 mt-4" spanClass="text-pink-600" btnClass="bg-pink-400" placeholder="新增項目..." 
                     />
                   )}
@@ -1719,7 +1802,7 @@ export default function App() {
                 <SettingBlock 
                   title="🏪 常見商家" 
                   items={currentRoom?.merchants || []} 
-                  onUpdate={(newList) => updateSettingField('merchants', newList)} 
+                  onUpdate={(newList, oldItem, newItem) => updateSettingField('merchants', newList, oldItem, newItem)} 
                   themeClass="border-orange-100" spanClass="text-orange-600" btnClass="bg-orange-400" placeholder="輸入新商家..." 
                 />
                 
@@ -1750,17 +1833,17 @@ export default function App() {
 
                 <SettingBlock 
                   title="👥 對象" items={currentRoom?.payers || []} 
-                  onUpdate={(newList) => updateSettingField('payers', newList)} 
+                  onUpdate={(newList, oldItem, newItem) => updateSettingField('payers', newList, oldItem, newItem)} 
                   themeClass="border-gray-200" spanClass="text-gray-700" btnClass="bg-gray-800" placeholder="輸入新人名..." 
                 />
                 <SettingBlock 
                   title="💳 信用卡清單" items={currentRoom?.creditCards || []} 
-                  onUpdate={(newList) => updateSettingField('creditCards', newList)} 
+                  onUpdate={(newList, oldItem, newItem) => updateSettingField('creditCards', newList, oldItem, newItem)} 
                   themeClass="border-blue-100" spanClass="text-blue-600" btnClass="bg-blue-400" placeholder="輸入信用卡銀行..." 
                 />
                 <SettingBlock 
                   title="🏦 銀行帳戶清單" items={currentRoom?.bankAccounts || []} 
-                  onUpdate={(newList) => updateSettingField('bankAccounts', newList)} 
+                  onUpdate={(newList, oldItem, newItem) => updateSettingField('bankAccounts', newList, oldItem, newItem)} 
                   themeClass="border-indigo-100" spanClass="text-indigo-600" btnClass="bg-indigo-400" placeholder="輸入銀行名稱..." 
                 />
                 
@@ -1814,12 +1897,12 @@ export default function App() {
               <>
                 <SettingBlock 
                   title="💰 收入主分類" items={currentRoom?.incomeCategories || []} 
-                  onUpdate={(newList) => updateSettingField('incomeCategories', newList)} 
+                  onUpdate={(newList, oldItem, newItem) => updateSettingField('incomeCategories', newList, oldItem, newItem)} 
                   themeClass="border-green-100" spanClass="text-green-600" btnClass="bg-green-400" placeholder="輸入收入分類..." 
                 />
                 <SettingBlock 
                   title="🏦 存入帳戶" items={currentRoom?.incomeAccounts || []} 
-                  onUpdate={(newList) => updateSettingField('incomeAccounts', newList)} 
+                  onUpdate={(newList, oldItem, newItem) => updateSettingField('incomeAccounts', newList, oldItem, newItem)} 
                   themeClass="border-green-100" spanClass="text-green-600" btnClass="bg-green-400" placeholder="輸入存入帳戶..." 
                 />
               </>
@@ -1829,17 +1912,17 @@ export default function App() {
               <>
                 <SettingBlock 
                   title="🔄 轉帳主分類" items={currentRoom?.transferCategories || []} 
-                  onUpdate={(newList) => updateSettingField('transferCategories', newList)} 
+                  onUpdate={(newList, oldItem, newItem) => updateSettingField('transferCategories', newList, oldItem, newItem)} 
                   themeClass="border-blue-100" spanClass="text-blue-600" btnClass="bg-blue-400" placeholder="輸入轉帳分類..." 
                 />
                 <SettingBlock 
                   title="📤 轉出帳戶" items={currentRoom?.transferOutAccounts || []} 
-                  onUpdate={(newList) => updateSettingField('transferOutAccounts', newList)} 
+                  onUpdate={(newList, oldItem, newItem) => updateSettingField('transferOutAccounts', newList, oldItem, newItem)} 
                   themeClass="border-blue-100" spanClass="text-blue-600" btnClass="bg-blue-400" placeholder="輸入轉出帳戶..." 
                 />
                 <SettingBlock 
                   title="📥 轉入帳戶" items={currentRoom?.transferInAccounts || []} 
-                  onUpdate={(newList) => updateSettingField('transferInAccounts', newList)} 
+                  onUpdate={(newList, oldItem, newItem) => updateSettingField('transferInAccounts', newList, oldItem, newItem)} 
                   themeClass="border-blue-100" spanClass="text-blue-600" btnClass="bg-blue-400" placeholder="輸入轉入帳戶..." 
                 />
               </>
@@ -1889,12 +1972,19 @@ export default function App() {
 
             <div className="grid grid-cols-2 gap-4 mb-6">
               <div>
-                <label className="block text-[14px] font-bold text-gray-500 mb-2 ml-1">開始日期</label>
+                <div className="flex justify-between items-center mb-2 ml-1">
+                  <label className="block text-[14px] font-bold text-gray-500">開始日期</label>
+                  {/* 需求 1: 「今天」快捷按鈕 */}
+                  <button type="button" onClick={() => setAnalysisStartDate(new Date().toISOString().split('T')[0])} className="text-teal-600 bg-teal-50 hover:bg-teal-100 px-2 py-0.5 rounded-lg text-[12px] font-bold transition">今天</button>
+                </div>
                 <div className="text-[12px] font-bold text-gray-400 mb-1.5 ml-1">({analysisStartDate ? toROCYearStr(analysisStartDate) : ''})</div>
                 <input type="date" value={analysisStartDate} onChange={e => setAnalysisStartDate(e.target.value)} className="w-full bg-gray-50 border-2 border-gray-100 p-4 rounded-[1.2rem] outline-none font-bold text-gray-700 text-[15px] focus:bg-white focus:border-teal-300 transition shadow-sm" />
               </div>
               <div>
-                <label className="block text-[14px] font-bold text-gray-500 mb-2 ml-1">結束日期</label>
+                <div className="flex justify-between items-center mb-2 ml-1">
+                  <label className="block text-[14px] font-bold text-gray-500">結束日期</label>
+                  <button type="button" onClick={() => setAnalysisEndDate(new Date().toISOString().split('T')[0])} className="text-teal-600 bg-teal-50 hover:bg-teal-100 px-2 py-0.5 rounded-lg text-[12px] font-bold transition">今天</button>
+                </div>
                 <div className="text-[12px] font-bold text-gray-400 mb-1.5 ml-1">({analysisEndDate ? toROCYearStr(analysisEndDate) : ''})</div>
                 <input type="date" value={analysisEndDate} onChange={e => setAnalysisEndDate(e.target.value)} className="w-full bg-gray-50 border-2 border-gray-100 p-4 rounded-[1.2rem] outline-none font-bold text-gray-700 text-[15px] focus:bg-white focus:border-teal-300 transition shadow-sm" />
               </div>
