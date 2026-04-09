@@ -1,6 +1,6 @@
 /* eslint-disable */
 import React, { useState, useEffect, useRef } from 'react';
-import { LogOut, AlertCircle, Settings, Trash2, X, Sparkles, Home, Plus, Pencil, BarChart, Calendar, Store, Tag, User, CreditCard, RefreshCw, Wallet, PiggyBank, PieChart as LucidePieChart, Download, Copy, Send, Landmark, ArrowRightLeft, Check } from 'lucide-react';
+import { LogOut, AlertCircle, Settings, Trash2, X, Sparkles, Home, Plus, Pencil, BarChart, Calendar, Store, Tag, User, CreditCard, RefreshCw, Wallet, PiggyBank, PieChart as LucidePieChart, Download, Upload, Copy, Send, Landmark, ArrowRightLeft, Check } from 'lucide-react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'firebase/auth';
 import { getFirestore, collection, doc, setDoc, getDoc, updateDoc, onSnapshot, addDoc, deleteDoc, deleteField, writeBatch } from 'firebase/firestore';
@@ -358,6 +358,7 @@ export default function App() {
   const [selectedSyncGroups, setSelectedSyncGroups] = useState([]);
 
   const amountInputRef = useRef(null);
+  const fileInputRef = useRef(null); // 用於匯入資料的隱藏輸入框
 
   const globalWrapperStyle = "min-h-screen bg-gray-100 sm:py-8 flex justify-center items-center font-sans text-[15px]";
   const phoneContainerStyle = "w-full max-w-[480px] min-h-screen sm:min-h-0 sm:h-[844px] bg-[#FFFBF0] flex flex-col relative sm:rounded-[3rem] sm:border-[8px] sm:border-gray-800 shadow-2xl overflow-hidden";
@@ -441,6 +442,19 @@ export default function App() {
     return () => { unsubscribeRoom(); unsubscribeExpenses(); };
   }, [user, activeRoomId]);
 
+  // 自動升級舊有房間的 "銀行" 選項至 "銀行 / 電子票證"
+  useEffect(() => {
+    if (currentRoom && currentRoom.paymentMethods && activeRoomId) {
+      const hasOld = currentRoom.paymentMethods.includes('銀行') || currentRoom.paymentMethods.includes('銀行 / 儲值卡');
+      if (hasOld) {
+        const newMethods = currentRoom.paymentMethods.map(m => (m === '銀行' || m === '銀行 / 儲值卡') ? '銀行 / 電子票證' : m);
+        updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', activeRoomId), {
+          paymentMethods: newMethods
+        }).catch(console.error);
+      }
+    }
+  }, [currentRoom, activeRoomId]);
+
   useEffect(() => {
     if (showAddForm && amountInputRef.current) {
       setTimeout(() => amountInputRef.current.focus(), 50);
@@ -498,7 +512,7 @@ export default function App() {
         name: roomName, pin: roomPin, createdBy: user.uid, createdAt: Date.now(),
         categories: ['🍔 飲食', '🚗 交通', '🏠 居住', '💡 水電瓦斯', '🎉 娛樂', '👶 育兒'],
         categoryItems: {
-          '🍔 飲食': ['早餐', '午餐', '晚餐', '飲料', '宵細', '買菜'],
+          '🍔 飲食': ['早餐', '午餐', '晚餐', '飲料', '宵夜', '買菜'],
           '🚗 交通': ['加油', '大眾運輸', '停車', '保養'],
           '🏠 居住': ['房租', '日用品', '維修'],
           '💡 水電瓦斯': ['水費', '電費', '瓦斯費', '電信費']
@@ -513,8 +527,7 @@ export default function App() {
         incomeCategories: ['💰 薪水', '🧧 獎金', '📈 投資', '🎁 其他收入'],
         transferCategories: ['💳 信用卡繳款', '🏠 房貸繳款', '🔄 資金調度', '💰 投資理財'],
         payers: ['全家', '老公', '老婆', '恩恩', '蔚蔚'],
-        // 更改付款方式，移除多餘的卡片按鈕，並改為 銀行/儲值卡
-        paymentMethods: ['現金', '信用卡 / 行動支付', '銀行 / 儲值卡'],
+        paymentMethods: ['現金', '信用卡 / 行動支付', '銀行 / 電子票證'],
         creditCards: ['玉山銀行', '國泰世華', '台北富邦', '元大銀行'],
         bankAccounts: ['元大銀行', '台北富邦', '中國信託', '悠遊卡', '一卡通'],
         merchants: ['早餐店', '小吃店', '飲料店', '加油站', '便利商店', '全聯', '家樂福', '好市多', '蝦皮拍賣'],
@@ -778,6 +791,7 @@ export default function App() {
     }
   };
 
+  // 匯出 JSON 資料
   const handleBackup = () => {
     const dataStr = JSON.stringify(records, null, 2);
     const blob = new Blob([dataStr], { type: 'application/json' });
@@ -787,6 +801,53 @@ export default function App() {
     a.download = `${currentRoom?.name}_記帳備份_${new Date().toISOString().split('T')[0]}.json`;
     a.click();
     alert('✅ 雲端備份檔已成功下載！');
+  };
+
+  // 匯入 JSON 資料
+  const handleImport = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        const importedData = JSON.parse(event.target.result);
+        if (!Array.isArray(importedData)) throw new Error('檔案格式不正確，需為陣列');
+        
+        if (!window.confirm(`確定要匯入 ${importedData.length} 筆資料嗎？\n(將會與目前的紀錄無縫合併)`)) return;
+
+        setIsLoading(true);
+        const batch = writeBatch(db);
+        let opsCount = 0;
+        let totalImported = 0;
+
+        for (const record of importedData) {
+          if (opsCount >= 490) {
+            await batch.commit();
+            opsCount = 0;
+          }
+          const { id, ...dataToCopy } = record; 
+          dataToCopy.roomId = activeRoomId; 
+          dataToCopy.groupId = null; // 匯入的資料視為一次性歷史，切斷群組連動
+          if (dataToCopy.frequency !== '一次') dataToCopy.frequency = '一次';
+          
+          const newRef = doc(collection(db, 'artifacts', appId, 'public', 'data', 'expenses'));
+          batch.set(newRef, dataToCopy);
+          opsCount++;
+          totalImported++;
+        }
+        if (opsCount > 0) {
+          await batch.commit();
+        }
+        alert(`✅ 成功匯入 ${totalImported} 筆資料！`);
+      } catch (err) {
+        alert('匯入失敗：' + err.message);
+      } finally {
+        setIsLoading(false);
+        if (fileInputRef.current) fileInputRef.current.value = null;
+      }
+    };
+    reader.readAsText(file);
   };
 
   // ==========================================
@@ -1112,17 +1173,17 @@ export default function App() {
     }
   };
 
-  // 相容舊資料，支援 "銀行 / 儲值卡" 或 "銀行 / 卡片"
+  // 兼容相容：包含 銀行 / 電子票證
   const handleMethodSelect = (method, isTransferTo = false) => {
     if (!isTransferTo) {
       setRecordMethod(method);
       if (method === '信用卡 / 行動支付' || method === '信用卡') setRecordSubMethod(currentRoom?.creditCards?.[0] || '');
-      else if (method === '銀行 / 儲值卡' || method === '銀行 / 卡片' || method === '銀行') setRecordSubMethod(currentRoom?.bankAccounts?.[0] || '');
+      else if (method === '銀行 / 電子票證' || method === '銀行 / 儲值卡' || method === '銀行 / 卡片' || method === '銀行') setRecordSubMethod(currentRoom?.bankAccounts?.[0] || '');
       else setRecordSubMethod('');
     } else {
       setTransferToMethod(method);
       if (method === '信用卡 / 行動支付' || method === '信用卡') setTransferToSubMethod(currentRoom?.creditCards?.[0] || '');
-      else if (method === '銀行 / 儲值卡' || method === '銀行 / 卡片' || method === '銀行') setTransferToSubMethod(currentRoom?.bankAccounts?.[0] || '');
+      else if (method === '銀行 / 電子票證' || method === '銀行 / 儲值卡' || method === '銀行 / 卡片' || method === '銀行') setTransferToSubMethod(currentRoom?.bankAccounts?.[0] || '');
       else setTransferToSubMethod('');
     }
   };
@@ -1154,7 +1215,7 @@ export default function App() {
     if (analysisMenus.includes('method') && analysisSubSelections.method.length > 0) {
       if (analysisType === 'expense') {
          if (!analysisSubSelections.method.includes(r.method)) return false;
-         if (['信用卡 / 行動支付', '信用卡', '銀行 / 儲值卡', '銀行 / 卡片', '銀行'].includes(r.method)) {
+         if (['信用卡 / 行動支付', '信用卡', '銀行 / 電子票證', '銀行 / 儲值卡', '銀行 / 卡片', '銀行'].includes(r.method)) {
             if (analysisSubSelections.subMethod.length > 0 && !analysisSubSelections.subMethod.includes(r.subMethod)) {
                return false;
             }
@@ -1195,7 +1256,7 @@ export default function App() {
     if (recordType === 'expense') {
       isFormValid = recordCategory && selectedItem && recordMethod;
       if ((recordMethod === '信用卡 / 行動支付' || recordMethod === '信用卡') && !recordSubMethod) isFormValid = false;
-      if ((recordMethod === '銀行 / 儲值卡' || recordMethod === '銀行 / 卡片' || recordMethod === '銀行') && !recordSubMethod) isFormValid = false;
+      if ((recordMethod === '銀行 / 電子票證' || recordMethod === '銀行 / 儲值卡' || recordMethod === '銀行 / 卡片' || recordMethod === '銀行') && !recordSubMethod) isFormValid = false;
       if (recordFrequency === '每週' && recordFrequencyDays.length === 0) isFormValid = false;
       if (recordFrequency === '每月' && recordFrequencyDays.length === 0) isFormValid = false;
       if (recordFrequency === '區間' && !recordFrequencyInterval) isFormValid = false;
@@ -1401,11 +1462,11 @@ export default function App() {
 
           <div className="bg-white p-6 rounded-[2rem] shadow-sm border-2 border-blue-50">
              <div className="flex justify-between items-end mb-5">
-               <h2 className="font-bold text-[18px] text-gray-700 flex items-center gap-2"><Landmark size={20} className="text-blue-500"/> 銀行/儲值卡餘額</h2>
+               <h2 className="font-bold text-[18px] text-gray-700 flex items-center gap-2"><Landmark size={20} className="text-blue-500"/> 銀行/電子票證餘額</h2>
                <span className="text-[14px] font-extrabold text-blue-500 bg-blue-50 px-3 py-1.5 rounded-xl">小計: ${bankTotal.toLocaleString()}</span>
              </div>
              <div className="space-y-3">
-               {banks.length === 0 && <p className="text-gray-400 text-[15px] font-bold text-center py-5 bg-gray-50 rounded-[1.5rem]">無銀行/儲值卡，請至設定新增</p>}
+               {banks.length === 0 && <p className="text-gray-400 text-[15px] font-bold text-center py-5 bg-gray-50 rounded-[1.5rem]">無銀行/電子票證，請至設定新增</p>}
                {banks.map(b => {
                  const bal = balances[b] || 0;
                  return (
@@ -1447,7 +1508,7 @@ export default function App() {
           </div>
         </main>
 
-        {/* 帳戶明細歷史 Modal */}
+        {/* 帳戶明細歷史 Modal (加入日期區間) */}
         {viewingAccountHistory && (
           <div className="fixed inset-0 bg-black/40 z-[100] flex justify-center items-center p-6 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setViewingAccountHistory(null)}>
             <div className="bg-white w-full max-w-md max-h-[85vh] flex flex-col rounded-[2rem] p-6 shadow-2xl relative" onClick={e => e.stopPropagation()}>
@@ -1471,6 +1532,7 @@ export default function App() {
                 {(() => {
                   const todayStr = new Date().toISOString().split('T')[0];
                   const accHistory = records.filter(r => {
+                     // 使用選擇的日期區間，且不得超過今日
                      if (r.date > historyEndDate || r.date < historyStartDate) return false;
                      if (r.date > todayStr) return false;
                      
@@ -1527,6 +1589,7 @@ export default function App() {
               </p>
             </div>
             <div className="flex items-center gap-2">
+              <button onClick={() => fileInputRef.current?.click()} className="p-2.5 bg-white/20 hover:bg-white/30 text-white rounded-[1rem] transition backdrop-blur-sm" title="匯入資料"><Upload size={18} /></button>
               <button onClick={handleBackup} className="p-2.5 bg-white/20 hover:bg-white/30 text-white rounded-[1rem] transition backdrop-blur-sm" title="備份雲端資料"><Download size={18} /></button>
               <button onClick={() => { setSettingsTab('expense'); setView('settings'); }} className="p-2.5 bg-white/20 hover:bg-white/30 text-white rounded-[1rem] transition backdrop-blur-sm" title="設定"><Settings size={18} /></button>
               <button onClick={() => { setActiveRoomId(null); setView('login'); setRoomPin(''); }} className="p-2.5 bg-white/20 hover:bg-white/30 text-white rounded-[1rem] transition backdrop-blur-sm" title="登出"><LogOut size={18} /></button>
@@ -1891,9 +1954,9 @@ export default function App() {
                         <CustomDropdown options={currentRoom?.creditCards || []} value={recordSubMethod} onChange={setRecordSubMethod} placeholder="選擇信用卡" />
                       </div>
                     )}
-                    {(recordMethod === '銀行 / 儲值卡' || recordMethod === '銀行 / 卡片' || recordMethod === '銀行') && (
+                    {(recordMethod === '銀行 / 電子票證' || recordMethod === '銀行 / 儲值卡' || recordMethod === '銀行 / 卡片' || recordMethod === '銀行') && (
                       <div className="z-10 relative">
-                        <CustomDropdown options={currentRoom?.bankAccounts || []} value={recordSubMethod} onChange={setRecordSubMethod} placeholder="選擇銀行/儲值卡" />
+                        <CustomDropdown options={currentRoom?.bankAccounts || []} value={recordSubMethod} onChange={setRecordSubMethod} placeholder="選擇銀行/電子票證" />
                       </div>
                     )}
                   </div>
@@ -2046,7 +2109,7 @@ export default function App() {
                 <SettingBlock 
                   title="🏦 銀行/電子票證清單" items={currentRoom?.bankAccounts || []} 
                   onUpdate={(newList, oldItem, newItem) => updateSettingField('bankAccounts', newList, oldItem, newItem)} 
-                  themeClass="border-indigo-100" spanClass="text-indigo-600" btnClass="bg-indigo-400" placeholder="輸入銀行/儲值卡名稱..." 
+                  themeClass="border-indigo-100" spanClass="text-indigo-600" btnClass="bg-indigo-400" placeholder="輸入銀行/電子票證名稱..." 
                 />
                 
                 <div className={`p-4 sm:p-5 rounded-[2rem] border-2 border-blue-100 bg-white shadow-sm mb-6`}>
@@ -2075,7 +2138,7 @@ export default function App() {
                        <select value={newMethodRuleMethod} onChange={e=>{
                            setNewMethodRuleMethod(e.target.value);
                            if (e.target.value === '信用卡 / 行動支付' || e.target.value === '信用卡') setNewMethodRuleSubMethod(currentRoom?.creditCards?.[0] || '');
-                           else if (e.target.value === '銀行 / 儲值卡' || e.target.value === '銀行 / 卡片' || e.target.value === '銀行') setNewMethodRuleSubMethod(currentRoom?.bankAccounts?.[0] || '');
+                           else if (e.target.value === '銀行 / 電子票證' || e.target.value === '銀行 / 儲值卡' || e.target.value === '銀行 / 卡片' || e.target.value === '銀行') setNewMethodRuleSubMethod(currentRoom?.bankAccounts?.[0] || '');
                            else setNewMethodRuleSubMethod('');
                          }} className="w-full border-2 border-blue-100 p-3 sm:p-4 rounded-[1.2rem] font-bold text-[15px] outline-none text-gray-600 shadow-sm cursor-pointer appearance-none bg-white">
                          <option value="">預設付款方式...</option>
@@ -2088,9 +2151,9 @@ export default function App() {
                              {(currentRoom?.creditCards || []).map(c => <option key={c} value={c}>{c}</option>)}
                            </select>
                          )}
-                         {(newMethodRuleMethod === '銀行 / 儲值卡' || newMethodRuleMethod === '銀行 / 卡片' || newMethodRuleMethod === '銀行') && (
+                         {(newMethodRuleMethod === '銀行 / 電子票證' || newMethodRuleMethod === '銀行 / 儲值卡' || newMethodRuleMethod === '銀行 / 卡片' || newMethodRuleMethod === '銀行') && (
                            <select value={newMethodRuleSubMethod} onChange={e=>setNewMethodRuleSubMethod(e.target.value)} className="flex-1 border-2 border-blue-100 p-3 sm:p-4 rounded-[1.2rem] font-bold text-[15px] outline-none text-gray-600 shadow-sm cursor-pointer appearance-none bg-white">
-                             <option value="">選擇銀行/儲值卡...</option>
+                             <option value="">選擇銀行/電子票證...</option>
                              {(currentRoom?.bankAccounts || []).map(c => <option key={c} value={c}>{c}</option>)}
                            </select>
                          )}
@@ -2257,8 +2320,8 @@ export default function App() {
                         {(analysisSubSelections.method.includes('信用卡 / 行動支付') || analysisSubSelections.method.includes('信用卡')) && (
                           <PillGroupMulti label="💳 選擇信用卡" options={currentRoom?.creditCards || []} values={analysisSubSelections.subMethod} onChange={(vals) => setAnalysisSubSelections({...analysisSubSelections, subMethod: vals})} />
                         )}
-                        {(analysisSubSelections.method.includes('銀行 / 儲值卡') || analysisSubSelections.method.includes('銀行 / 卡片') || analysisSubSelections.method.includes('銀行')) && (
-                          <PillGroupMulti label="🏦 選擇銀行/儲值卡" options={currentRoom?.bankAccounts || []} values={analysisSubSelections.subMethod} onChange={(vals) => setAnalysisSubSelections({...analysisSubSelections, subMethod: vals})} />
+                        {(analysisSubSelections.method.includes('銀行 / 電子票證') || analysisSubSelections.method.includes('銀行 / 儲值卡') || analysisSubSelections.method.includes('銀行 / 卡片') || analysisSubSelections.method.includes('銀行')) && (
+                          <PillGroupMulti label="🏦 選擇銀行/電子票證" options={currentRoom?.bankAccounts || []} values={analysisSubSelections.subMethod} onChange={(vals) => setAnalysisSubSelections({...analysisSubSelections, subMethod: vals})} />
                         )}
                       </>
                     ) : analysisType === 'income' ? (
@@ -2300,6 +2363,9 @@ export default function App() {
   return (
     <div className={globalWrapperStyle}>
       <div className={phoneContainerStyle}>
+        {/* 隱藏的匯入檔案上傳框 */}
+        <input type="file" accept=".json" style={{display: 'none'}} ref={fileInputRef} onChange={handleImport} />
+        
         {content}
         
         {/* 底部導覽列只在首頁顯示，並改為 3 個按鈕 (左:帳戶, 中:大大的+, 右:統計) */}
