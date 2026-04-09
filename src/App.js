@@ -304,9 +304,8 @@ export default function App() {
   const [editRecordId, setEditRecordId] = useState(null);
   const [crossRoomRecord, setCrossRoomRecord] = useState(null);
   const [viewingRecord, setViewingRecord] = useState(null); 
-  const [viewingAccountHistory, setViewingAccountHistory] = useState(null); // 檢視帳戶明細用
+  const [viewingAccountHistory, setViewingAccountHistory] = useState(null); 
   
-  // 帳戶明細的日期區間篩選
   const [historyStartDate, setHistoryStartDate] = useState(new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0]);
   const [historyEndDate, setHistoryEndDate] = useState(new Date().toISOString().split('T')[0]);
 
@@ -332,7 +331,7 @@ export default function App() {
 
   const [settingsTab, setSettingsTab] = useState('expense');
   const [newOptionInputs, setNewOptionInputs] = useState({
-    categories: '', incomeCategories: '', transferCategories: '', payers: '', paymentMethods: '', merchants: '', creditCards: '', bankAccounts: '', cards: '',
+    categories: '', incomeCategories: '', transferCategories: '', payers: '', paymentMethods: '', merchants: '', creditCards: '', bankAccounts: '',
     incomeAccounts: '', transferOutAccounts: '', transferInAccounts: ''
   });
   const [settingSelectedCategory, setSettingSelectedCategory] = useState('');
@@ -354,7 +353,6 @@ export default function App() {
   const [isEditingBalances, setIsEditingBalances] = useState(false);
   const [tempBalances, setTempBalances] = useState({});
   
-  // 同步設定 Modal State
   const [syncSettingsModalOpen, setSyncSettingsModalOpen] = useState(false);
   const [syncTargetRoom, setSyncTargetRoom] = useState('');
   const [selectedSyncGroups, setSelectedSyncGroups] = useState([]);
@@ -500,7 +498,7 @@ export default function App() {
         name: roomName, pin: roomPin, createdBy: user.uid, createdAt: Date.now(),
         categories: ['🍔 飲食', '🚗 交通', '🏠 居住', '💡 水電瓦斯', '🎉 娛樂', '👶 育兒'],
         categoryItems: {
-          '🍔 飲食': ['早餐', '午餐', '晚餐', '飲料', '宵夜', '買菜'],
+          '🍔 飲食': ['早餐', '午餐', '晚餐', '飲料', '宵細', '買菜'],
           '🚗 交通': ['加油', '大眾運輸', '停車', '保養'],
           '🏠 居住': ['房租', '日用品', '維修'],
           '💡 水電瓦斯': ['水費', '電費', '瓦斯費', '電信費']
@@ -515,10 +513,10 @@ export default function App() {
         incomeCategories: ['💰 薪水', '🧧 獎金', '📈 投資', '🎁 其他收入'],
         transferCategories: ['💳 信用卡繳款', '🏠 房貸繳款', '🔄 資金調度', '💰 投資理財'],
         payers: ['全家', '老公', '老婆', '恩恩', '蔚蔚'],
-        paymentMethods: ['現金', '信用卡 / 行動支付', '銀行', '卡片'],
+        // 更改付款方式，移除多餘的卡片按鈕，並改為 銀行/儲值卡
+        paymentMethods: ['現金', '信用卡 / 行動支付', '銀行 / 儲值卡'],
         creditCards: ['玉山銀行', '國泰世華', '台北富邦', '元大銀行'],
-        bankAccounts: ['元大銀行', '台北富邦', '中國信託'],
-        cards: ['悠遊卡', '一卡通', '星巴克隨行卡'],
+        bankAccounts: ['元大銀行', '台北富邦', '中國信託', '悠遊卡', '一卡通'],
         merchants: ['早餐店', '小吃店', '飲料店', '加油站', '便利商店', '全聯', '家樂福', '好市多', '蝦皮拍賣'],
         incomeAccounts: ['現金', '元大銀行', '台北富邦', '中國信託', '悠遊卡'],
         transferOutAccounts: ['現金', '玉山銀行', '國泰世華', '元大銀行', '台北富邦', '中國信託', '悠遊卡'],
@@ -799,7 +797,6 @@ export default function App() {
     if (balances['現金'] === undefined) balances['現金'] = 0;
     (currentRoom?.bankAccounts || []).forEach(b => { if (balances[b] === undefined) balances[b] = 0; });
     (currentRoom?.creditCards || []).forEach(c => { if (balances[c] === undefined) balances[c] = 0; });
-    (currentRoom?.cards || []).forEach(c => { if (balances[c] === undefined) balances[c] = 0; }); // 新增卡片
 
     const getAccName = (method, subMethod) => method === '現金' ? '現金' : subMethod;
     const todayStr = new Date().toISOString().split('T')[0];
@@ -867,7 +864,7 @@ export default function App() {
         } else if (settingField === 'paymentMethods') {
             if (r.method === oldItem) { needsUpdate = true; updatedData.method = newItem; }
             if (r.transferToMethod === oldItem) { needsUpdate = true; updatedData.transferToMethod = newItem; }
-        } else if (settingField === 'creditCards' || settingField === 'bankAccounts' || settingField === 'cards') {
+        } else if (settingField === 'creditCards' || settingField === 'bankAccounts') {
             if (r.subMethod === oldItem) { needsUpdate = true; updatedData.subMethod = newItem; }
             if (r.transferToSubMethod === oldItem) { needsUpdate = true; updatedData.transferToSubMethod = newItem; }
         } else if (settingField === 'incomeAccounts' && r.type === 'income' && r.method === oldItem) {
@@ -932,7 +929,7 @@ export default function App() {
             Object.keys(newMethodRules).forEach(k => {
                if (newMethodRules[k].method === oldItem) { newMethodRules[k].method = newItem; rulesChanged = true; }
             });
-         } else if (field === 'creditCards' || field === 'bankAccounts' || field === 'cards') {
+         } else if (field === 'creditCards' || field === 'bankAccounts') {
             Object.keys(newMethodRules).forEach(k => {
                if (newMethodRules[k].subMethod === oldItem) { newMethodRules[k].subMethod = newItem; rulesChanged = true; }
             });
@@ -1068,7 +1065,7 @@ export default function App() {
   const SYNC_GROUPS = [
     { id: 'expense_cats', label: '🌸 支出分類與項目清單', keys: ['categories', 'categoryItems'] },
     { id: 'merchants_rules', label: '🏪 常見商家與預設分類規則', keys: ['merchants', 'autoFillRules'] },
-    { id: 'accounts_rules', label: '💳 帳戶清單與預設付款規則', keys: ['paymentMethods', 'creditCards', 'bankAccounts', 'cards', 'methodRules'] },
+    { id: 'accounts_rules', label: '💳 帳戶清單與預設付款規則', keys: ['paymentMethods', 'creditCards', 'bankAccounts', 'methodRules'] },
     { id: 'payers', label: '👥 家人/對象名單', keys: ['payers'] },
     { id: 'income_settings', label: '📈 收入分類與存入帳戶', keys: ['incomeCategories', 'incomeAccounts'] },
     { id: 'transfer_settings', label: '🔄 轉帳分類與收轉帳戶', keys: ['transferCategories', 'transferOutAccounts', 'transferInAccounts'] }
@@ -1115,18 +1112,17 @@ export default function App() {
     }
   };
 
+  // 相容舊資料，支援 "銀行 / 儲值卡" 或 "銀行 / 卡片"
   const handleMethodSelect = (method, isTransferTo = false) => {
     if (!isTransferTo) {
       setRecordMethod(method);
       if (method === '信用卡 / 行動支付' || method === '信用卡') setRecordSubMethod(currentRoom?.creditCards?.[0] || '');
-      else if (method === '銀行') setRecordSubMethod(currentRoom?.bankAccounts?.[0] || '');
-      else if (method === '卡片') setRecordSubMethod(currentRoom?.cards?.[0] || '');
+      else if (method === '銀行 / 儲值卡' || method === '銀行 / 卡片' || method === '銀行') setRecordSubMethod(currentRoom?.bankAccounts?.[0] || '');
       else setRecordSubMethod('');
     } else {
       setTransferToMethod(method);
       if (method === '信用卡 / 行動支付' || method === '信用卡') setTransferToSubMethod(currentRoom?.creditCards?.[0] || '');
-      else if (method === '銀行') setTransferToSubMethod(currentRoom?.bankAccounts?.[0] || '');
-      else if (method === '卡片') setTransferToSubMethod(currentRoom?.cards?.[0] || '');
+      else if (method === '銀行 / 儲值卡' || method === '銀行 / 卡片' || method === '銀行') setTransferToSubMethod(currentRoom?.bankAccounts?.[0] || '');
       else setTransferToSubMethod('');
     }
   };
@@ -1158,7 +1154,7 @@ export default function App() {
     if (analysisMenus.includes('method') && analysisSubSelections.method.length > 0) {
       if (analysisType === 'expense') {
          if (!analysisSubSelections.method.includes(r.method)) return false;
-         if (['信用卡 / 行動支付', '信用卡', '銀行', '卡片'].includes(r.method)) {
+         if (['信用卡 / 行動支付', '信用卡', '銀行 / 儲值卡', '銀行 / 卡片', '銀行'].includes(r.method)) {
             if (analysisSubSelections.subMethod.length > 0 && !analysisSubSelections.subMethod.includes(r.subMethod)) {
                return false;
             }
@@ -1199,8 +1195,7 @@ export default function App() {
     if (recordType === 'expense') {
       isFormValid = recordCategory && selectedItem && recordMethod;
       if ((recordMethod === '信用卡 / 行動支付' || recordMethod === '信用卡') && !recordSubMethod) isFormValid = false;
-      if (recordMethod === '銀行' && !recordSubMethod) isFormValid = false;
-      if (recordMethod === '卡片' && !recordSubMethod) isFormValid = false;
+      if ((recordMethod === '銀行 / 儲值卡' || recordMethod === '銀行 / 卡片' || recordMethod === '銀行') && !recordSubMethod) isFormValid = false;
       if (recordFrequency === '每週' && recordFrequencyDays.length === 0) isFormValid = false;
       if (recordFrequency === '每月' && recordFrequencyDays.length === 0) isFormValid = false;
       if (recordFrequency === '區間' && !recordFrequencyInterval) isFormValid = false;
@@ -1362,9 +1357,7 @@ export default function App() {
     const bankTotal = banks.reduce((sum, b) => sum + (balances[b] || 0), 0);
     const ccs = currentRoom?.creditCards || [];
     const ccTotal = ccs.reduce((sum, c) => sum + (balances[c] || 0), 0);
-    const cardsArr = currentRoom?.cards || [];
-    const cardTotal = cardsArr.reduce((sum, c) => sum + (balances[c] || 0), 0);
-    const netWorth = cashBal + bankTotal + ccTotal + cardTotal;
+    const netWorth = cashBal + bankTotal + ccTotal;
 
     content = (
       <>
@@ -1408,11 +1401,11 @@ export default function App() {
 
           <div className="bg-white p-6 rounded-[2rem] shadow-sm border-2 border-blue-50">
              <div className="flex justify-between items-end mb-5">
-               <h2 className="font-bold text-[18px] text-gray-700 flex items-center gap-2"><Landmark size={20} className="text-blue-500"/> 銀行餘額</h2>
+               <h2 className="font-bold text-[18px] text-gray-700 flex items-center gap-2"><Landmark size={20} className="text-blue-500"/> 銀行/儲值卡餘額</h2>
                <span className="text-[14px] font-extrabold text-blue-500 bg-blue-50 px-3 py-1.5 rounded-xl">小計: ${bankTotal.toLocaleString()}</span>
              </div>
              <div className="space-y-3">
-               {banks.length === 0 && <p className="text-gray-400 text-[15px] font-bold text-center py-5 bg-gray-50 rounded-[1.5rem]">無銀行帳戶，請至設定新增</p>}
+               {banks.length === 0 && <p className="text-gray-400 text-[15px] font-bold text-center py-5 bg-gray-50 rounded-[1.5rem]">無銀行/儲值卡，請至設定新增</p>}
                {banks.map(b => {
                  const bal = balances[b] || 0;
                  return (
@@ -1420,29 +1413,6 @@ export default function App() {
                       <span className="font-bold text-gray-600 text-[16px] truncate pr-2">{b}</span>
                       {isEditingBalances ? (
                          <input type="number" className="w-28 text-right border-2 border-blue-200 focus:border-blue-400 p-2 rounded-[1rem] font-bold text-[16px] outline-none transition" value={tempBalances[b] || ''} onChange={e => setTempBalances({...tempBalances, [b]: e.target.value})} placeholder="0" />
-                      ) : (
-                         <span className={`font-black text-[18px] shrink-0 ${bal < 0 ? 'text-red-500' : 'text-gray-800'}`}>${bal.toLocaleString()}</span>
-                      )}
-                   </div>
-                 )
-               })}
-             </div>
-          </div>
-
-          <div className="bg-white p-6 rounded-[2rem] shadow-sm border-2 border-teal-50">
-             <div className="flex justify-between items-end mb-5">
-               <h2 className="font-bold text-[18px] text-gray-700 flex items-center gap-2"><CreditCard size={20} className="text-teal-500"/> 卡片餘額</h2>
-               <span className="text-[14px] font-extrabold text-teal-500 bg-teal-50 px-3 py-1.5 rounded-xl">小計: ${cardTotal.toLocaleString()}</span>
-             </div>
-             <div className="space-y-3">
-               {cardsArr.length === 0 && <p className="text-gray-400 text-[15px] font-bold text-center py-5 bg-gray-50 rounded-[1.5rem]">無卡片，請至設定新增</p>}
-               {cardsArr.map(c => {
-                 const bal = balances[c] || 0;
-                 return (
-                   <div key={c} onClick={() => !isEditingBalances && setViewingAccountHistory(c)} className={`flex justify-between items-center bg-gray-50 p-4 rounded-[1.2rem] border border-gray-100 ${!isEditingBalances ? 'cursor-pointer hover:bg-teal-50 hover:border-teal-200 transition' : ''}`}>
-                      <span className="font-bold text-gray-600 text-[16px] truncate pr-2">{c}</span>
-                      {isEditingBalances ? (
-                         <input type="number" className="w-28 text-right border-2 border-teal-200 focus:border-teal-400 p-2 rounded-[1rem] font-bold text-[16px] outline-none transition" value={tempBalances[c] || ''} onChange={e => setTempBalances({...tempBalances, [c]: e.target.value})} placeholder="0" />
                       ) : (
                          <span className={`font-black text-[18px] shrink-0 ${bal < 0 ? 'text-red-500' : 'text-gray-800'}`}>${bal.toLocaleString()}</span>
                       )}
@@ -1477,7 +1447,7 @@ export default function App() {
           </div>
         </main>
 
-        {/* 帳戶明細歷史 Modal (加入日期區間) */}
+        {/* 帳戶明細歷史 Modal */}
         {viewingAccountHistory && (
           <div className="fixed inset-0 bg-black/40 z-[100] flex justify-center items-center p-6 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setViewingAccountHistory(null)}>
             <div className="bg-white w-full max-w-md max-h-[85vh] flex flex-col rounded-[2rem] p-6 shadow-2xl relative" onClick={e => e.stopPropagation()}>
@@ -1501,7 +1471,6 @@ export default function App() {
                 {(() => {
                   const todayStr = new Date().toISOString().split('T')[0];
                   const accHistory = records.filter(r => {
-                     // 需求 2: 使用選擇的日期區間，且不得超過今日
                      if (r.date > historyEndDate || r.date < historyStartDate) return false;
                      if (r.date > todayStr) return false;
                      
@@ -1903,10 +1872,9 @@ export default function App() {
 
                   <div className="mb-2 z-10">
                     <label className="flex items-center gap-1.5 text-[15px] font-bold text-gray-500 mb-2.5 ml-1"><CreditCard size={16} className="text-gray-400" /> 付款方式 💳</label>
-                    {/* 新增卡片：將單排改為 2x2 網格，讓項目可以大且清晰 */}
-                    <div className="grid grid-cols-2 gap-2 bg-gray-50 rounded-[1.2rem] p-2 border border-gray-100 mb-4 shadow-inner">
+                    <div className="flex bg-gray-50 rounded-[1.2rem] p-1.5 border border-gray-100 mb-4 shadow-inner min-h-[60px]">
                       {(currentRoom?.paymentMethods || []).map(opt => (
-                        <button key={opt} type="button" onClick={() => handleMethodSelect(opt)} className={`py-2 px-2 rounded-[1rem] text-[14px] leading-snug font-extrabold transition-all duration-200 flex flex-col items-center justify-center ${recordMethod === opt ? 'bg-white text-blue-600 shadow-md border border-gray-100 transform scale-100' : 'text-gray-400 hover:text-gray-600 scale-95'}`}>
+                        <button key={opt} type="button" onClick={() => handleMethodSelect(opt)} className={`flex-1 py-1.5 px-1 rounded-[1rem] text-[13px] md:text-[14px] leading-snug font-extrabold transition-all duration-200 flex flex-col items-center justify-center ${recordMethod === opt ? 'bg-white text-blue-600 shadow-md border border-gray-100 transform scale-100' : 'text-gray-400 hover:text-gray-600 scale-95'}`}>
                           {opt.includes(' / ') ? (
                             <>
                               <span>{opt.split(' / ')[0]}</span>
@@ -1923,14 +1891,9 @@ export default function App() {
                         <CustomDropdown options={currentRoom?.creditCards || []} value={recordSubMethod} onChange={setRecordSubMethod} placeholder="選擇信用卡" />
                       </div>
                     )}
-                    {recordMethod === '銀行' && (
+                    {(recordMethod === '銀行 / 儲值卡' || recordMethod === '銀行 / 卡片' || recordMethod === '銀行') && (
                       <div className="z-10 relative">
-                        <CustomDropdown options={currentRoom?.bankAccounts || []} value={recordSubMethod} onChange={setRecordSubMethod} placeholder="選擇扣款銀行" />
-                      </div>
-                    )}
-                    {recordMethod === '卡片' && (
-                      <div className="z-10 relative">
-                        <CustomDropdown options={currentRoom?.cards || []} value={recordSubMethod} onChange={setRecordSubMethod} placeholder="選擇卡片" />
+                        <CustomDropdown options={currentRoom?.bankAccounts || []} value={recordSubMethod} onChange={setRecordSubMethod} placeholder="選擇銀行/儲值卡" />
                       </div>
                     )}
                   </div>
@@ -2081,15 +2044,9 @@ export default function App() {
                   themeClass="border-blue-100" spanClass="text-blue-600" btnClass="bg-blue-400" placeholder="輸入信用卡銀行..." 
                 />
                 <SettingBlock 
-                  title="🏦 銀行帳戶清單" items={currentRoom?.bankAccounts || []} 
+                  title="🏦 銀行/電子票證清單" items={currentRoom?.bankAccounts || []} 
                   onUpdate={(newList, oldItem, newItem) => updateSettingField('bankAccounts', newList, oldItem, newItem)} 
-                  themeClass="border-indigo-100" spanClass="text-indigo-600" btnClass="bg-indigo-400" placeholder="輸入銀行名稱..." 
-                />
-                {/* 需求 1: 設定頁新增卡片選單 */}
-                <SettingBlock 
-                  title="💳 儲值卡/電子票證清單" items={currentRoom?.cards || []} 
-                  onUpdate={(newList, oldItem, newItem) => updateSettingField('cards', newList, oldItem, newItem)} 
-                  themeClass="border-teal-100" spanClass="text-teal-600" btnClass="bg-teal-400" placeholder="輸入卡片名稱..." 
+                  themeClass="border-indigo-100" spanClass="text-indigo-600" btnClass="bg-indigo-400" placeholder="輸入銀行/儲值卡名稱..." 
                 />
                 
                 <div className={`p-4 sm:p-5 rounded-[2rem] border-2 border-blue-100 bg-white shadow-sm mb-6`}>
@@ -2118,8 +2075,7 @@ export default function App() {
                        <select value={newMethodRuleMethod} onChange={e=>{
                            setNewMethodRuleMethod(e.target.value);
                            if (e.target.value === '信用卡 / 行動支付' || e.target.value === '信用卡') setNewMethodRuleSubMethod(currentRoom?.creditCards?.[0] || '');
-                           else if (e.target.value === '銀行') setNewMethodRuleSubMethod(currentRoom?.bankAccounts?.[0] || '');
-                           else if (e.target.value === '卡片') setNewMethodRuleSubMethod(currentRoom?.cards?.[0] || '');
+                           else if (e.target.value === '銀行 / 儲值卡' || e.target.value === '銀行 / 卡片' || e.target.value === '銀行') setNewMethodRuleSubMethod(currentRoom?.bankAccounts?.[0] || '');
                            else setNewMethodRuleSubMethod('');
                          }} className="w-full border-2 border-blue-100 p-3 sm:p-4 rounded-[1.2rem] font-bold text-[15px] outline-none text-gray-600 shadow-sm cursor-pointer appearance-none bg-white">
                          <option value="">預設付款方式...</option>
@@ -2132,16 +2088,10 @@ export default function App() {
                              {(currentRoom?.creditCards || []).map(c => <option key={c} value={c}>{c}</option>)}
                            </select>
                          )}
-                         {newMethodRuleMethod === '銀行' && (
+                         {(newMethodRuleMethod === '銀行 / 儲值卡' || newMethodRuleMethod === '銀行 / 卡片' || newMethodRuleMethod === '銀行') && (
                            <select value={newMethodRuleSubMethod} onChange={e=>setNewMethodRuleSubMethod(e.target.value)} className="flex-1 border-2 border-blue-100 p-3 sm:p-4 rounded-[1.2rem] font-bold text-[15px] outline-none text-gray-600 shadow-sm cursor-pointer appearance-none bg-white">
-                             <option value="">選擇銀行...</option>
+                             <option value="">選擇銀行/儲值卡...</option>
                              {(currentRoom?.bankAccounts || []).map(c => <option key={c} value={c}>{c}</option>)}
-                           </select>
-                         )}
-                         {newMethodRuleMethod === '卡片' && (
-                           <select value={newMethodRuleSubMethod} onChange={e=>setNewMethodRuleSubMethod(e.target.value)} className="flex-1 border-2 border-blue-100 p-3 sm:p-4 rounded-[1.2rem] font-bold text-[15px] outline-none text-gray-600 shadow-sm cursor-pointer appearance-none bg-white">
-                             <option value="">選擇卡片...</option>
-                             {(currentRoom?.cards || []).map(c => <option key={c} value={c}>{c}</option>)}
                            </select>
                          )}
                          <button onClick={handleAddMethodRule} className="bg-blue-400 text-white px-5 sm:px-6 py-3 sm:py-3.5 rounded-[1.2rem] text-[15px] font-bold shadow-md transition hover:scale-105 active:scale-95 ml-auto shrink-0">新增</button>
@@ -2307,11 +2257,8 @@ export default function App() {
                         {(analysisSubSelections.method.includes('信用卡 / 行動支付') || analysisSubSelections.method.includes('信用卡')) && (
                           <PillGroupMulti label="💳 選擇信用卡" options={currentRoom?.creditCards || []} values={analysisSubSelections.subMethod} onChange={(vals) => setAnalysisSubSelections({...analysisSubSelections, subMethod: vals})} />
                         )}
-                        {analysisSubSelections.method.includes('銀行') && (
-                          <PillGroupMulti label="🏦 選擇銀行" options={currentRoom?.bankAccounts || []} values={analysisSubSelections.subMethod} onChange={(vals) => setAnalysisSubSelections({...analysisSubSelections, subMethod: vals})} />
-                        )}
-                        {analysisSubSelections.method.includes('卡片') && (
-                          <PillGroupMulti label="💳 選擇卡片" options={currentRoom?.cards || []} values={analysisSubSelections.subMethod} onChange={(vals) => setAnalysisSubSelections({...analysisSubSelections, subMethod: vals})} />
+                        {(analysisSubSelections.method.includes('銀行 / 儲值卡') || analysisSubSelections.method.includes('銀行 / 卡片') || analysisSubSelections.method.includes('銀行')) && (
+                          <PillGroupMulti label="🏦 選擇銀行/儲值卡" options={currentRoom?.bankAccounts || []} values={analysisSubSelections.subMethod} onChange={(vals) => setAnalysisSubSelections({...analysisSubSelections, subMethod: vals})} />
                         )}
                       </>
                     ) : analysisType === 'income' ? (
