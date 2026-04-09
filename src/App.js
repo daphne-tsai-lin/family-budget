@@ -16,7 +16,7 @@ if (typeof document !== 'undefined' && !document.getElementById('tailwind-script
 }
 
 // ==========================================
-// 民國年轉換工具函數 (需求 1: 格式修正)
+// 民國年轉換工具函數
 // ==========================================
 const toROCYearStr = (dateStr) => {
   if (!dateStr) return '';
@@ -147,6 +147,7 @@ export default function App() {
   const [showAddForm, setShowAddForm] = useState(false);
   const [editRecordId, setEditRecordId] = useState(null);
   const [crossRoomRecord, setCrossRoomRecord] = useState(null);
+  const [viewingRecord, setViewingRecord] = useState(null); // 需求 2: 檢視單筆詳細資料
   const [recordType, setRecordType] = useState('expense');
   
   const [recordAmount, setRecordAmount] = useState('');
@@ -199,10 +200,9 @@ export default function App() {
   const phoneContainerStyle = "w-full max-w-[420px] min-h-screen sm:min-h-0 sm:h-[844px] bg-[#FFFBF0] flex flex-col relative sm:rounded-[3rem] sm:border-[8px] sm:border-gray-800 shadow-2xl overflow-hidden";
 
   // ==========================================
-  // 防呆防退跳出視窗 (需求 4: 完美關閉邏輯)
+  // 防呆防退跳出視窗
   // ==========================================
   useEffect(() => {
-    // 初始化時推入一個假的歷史紀錄，用來攔截第一次返回鍵
     window.history.pushState({ trap: true }, '');
 
     const handleBeforeUnload = (e) => {
@@ -214,12 +214,10 @@ export default function App() {
     const handlePopState = (e) => {
       const confirmExit = window.confirm("確定要關閉記帳本嗎？\n(按確定則離開，按取消則繼續使用)");
       if (!confirmExit) {
-        // 使用者按「取消」：立刻再次推入假的歷史紀錄，恢復攔截狀態
         window.history.pushState({ trap: true }, '');
       } else {
-        // 使用者按「確定」：嘗試關閉，或使用 back 退出 App
-        window.close(); // 嘗試關閉視窗
-        window.history.back(); // 確保退出 PWA
+        window.close(); 
+        window.history.back(); 
       }
     };
 
@@ -272,8 +270,8 @@ export default function App() {
       const roomRecords = allData
         .filter(exp => exp.roomId === activeRoomId)
         .sort((a, b) => {
-          if (a.date !== b.date) return new Date(b.date) - new Date(a.date);
-          return (b.timestamp || 0) - (a.timestamp || 0);
+          // 需求 1: 按建檔時間排序, 從舊到新 (由小到大)
+          return (a.timestamp || 0) - (b.timestamp || 0);
         });
       setRecords(roomRecords);
     });
@@ -423,7 +421,7 @@ export default function App() {
   };
 
   // ==========================================
-  // 紀錄 CRUD (需求 5: 樂觀存檔 Optimistic UI)
+  // 紀錄 CRUD
   // ==========================================
   const handleSaveRecord = (e) => {
     e.preventDefault();
@@ -449,7 +447,6 @@ export default function App() {
         recordData.transferToMethod = transferToMethod; recordData.transferToSubMethod = transferToSubMethod;
       }
 
-      // 【需求 5】：完全不使用 await 等待資料庫回應，呼叫後立刻切換畫面，提升儲存手感
       if (editRecordId) {
         updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'expenses', editRecordId), recordData)
           .catch(() => console.log('背景儲存同步中...'));
@@ -850,13 +847,12 @@ export default function App() {
 
   let content = null;
 
-  // --- 登入畫面 (需求 6：專屬林北的小財庫) ---
+  // --- 登入畫面 ---
   if (view === 'login') {
     content = (
       <div className="flex flex-col items-center justify-center flex-1 p-6 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
         <div className="flex flex-col items-center mb-8 w-full mt-4">
           <div className="bg-gradient-to-tr from-[#FFF4B8] to-[#FFD580] p-6 rounded-[2rem] mb-6 shadow-md"><Sparkles size={48} className="text-white drop-shadow-sm" strokeWidth={2.5} /></div>
-          {/* 需求 6 */}
           <h1 className="text-2xl font-black text-gray-800 mb-2 flex items-center gap-2">❤️ 林北一家 🏠</h1>
           <p className="text-[15px] font-bold text-gray-500">林北的小財庫</p>
         </div>
@@ -1047,7 +1043,6 @@ export default function App() {
           </div>
           
           <div className="mb-4">
-            {/* 需求 3: 只要點擊這個區域 (包含文字)，就會彈出原生日期選單 */}
             <div className="relative bg-white/20 backdrop-blur-md rounded-[1.2rem] shadow-sm border border-white/30 px-4 py-2.5 flex items-center overflow-hidden hover:bg-white/30 transition">
               <input type="date" value={homeFilterDate} onChange={(e) => setHomeFilterDate(e.target.value)} className="absolute inset-0 w-full h-full opacity-0 z-10 cursor-pointer" />
               <Calendar size={20} className="text-white mr-3 z-0"/>
@@ -1089,7 +1084,6 @@ export default function App() {
                 {displayRecords.map((exp) => {
                   const isIncome = exp.type === 'income';
                   const isTransfer = exp.type === 'transfer';
-                  // 需求 1: 明細也全面使用簡潔的 115/04/09 格式
                   const displayDate = exp.date ? toROCYearStr(exp.date) : toROCYearStr(new Date(exp.timestamp));
                   const payerStr = Array.isArray(exp.payer) ? exp.payer.join(', ') : exp.payer;
                   
@@ -1097,12 +1091,17 @@ export default function App() {
                   if (freqDisplay === '區間') freqDisplay = exp.frequencyInterval === '自訂' ? exp.frequencyCustomText : exp.frequencyInterval;
                   
                   return (
-                    <div key={exp.id} className="bg-white p-4 sm:p-5 rounded-[1.5rem] shadow-sm border border-gray-100 flex justify-between items-center group relative hover:shadow-md transition duration-300">
+                    <div key={exp.id} onClick={() => setViewingRecord(exp)} className="bg-white p-4 sm:p-5 rounded-[1.5rem] shadow-sm border border-gray-100 flex justify-between items-start group relative hover:shadow-md transition duration-300 cursor-pointer">
                       <div className={`absolute left-0 top-1/2 -translate-y-1/2 h-1/2 w-1.5 rounded-r-lg ${isIncome ? 'bg-green-400' : isTransfer ? 'bg-blue-400' : 'bg-orange-400'}`}></div>
                       
                       <div className="flex-1 pl-4 pr-2 overflow-hidden">
-                        <p className="text-[13px] font-bold text-gray-400 mb-2.5 flex items-center gap-2">
-                          {displayDate} 
+                        {/* 需求 3: 左上角顯示建檔時間 */}
+                        <div className="text-[11px] font-bold text-gray-400 mb-2">
+                          建檔: {toROCYearStr(exp.timestamp)} {new Date(exp.timestamp).toLocaleTimeString('zh-TW', { hour12: false, hour: '2-digit', minute: '2-digit' })}
+                        </div>
+
+                        <p className="text-[13px] font-bold text-gray-500 mb-2.5 flex items-center gap-2">
+                          消費日: {displayDate} 
                           {freqDisplay && freqDisplay !== '一次' && <span className="bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-md">{freqDisplay}</span>}
                           {exp.addedByRole && <span className="bg-gray-100 px-2 py-0.5 rounded-md text-gray-500">{exp.addedByRole}</span>}
                         </p>
@@ -1134,7 +1133,7 @@ export default function App() {
                           {isIncome ? '+' : isTransfer ? '⇆' : '-'}${exp.amount.toLocaleString()}
                         </span>
                         
-                        {/* 需求 2: 右邊功能分兩排調整 [編輯, 複製] \n [刪除, 傳送] */}
+                        {/* 需求 2: 右邊功能分兩排 第一排[編輯, 複製] 第二排[刪除, 傳送] */}
                         <div className="grid grid-cols-2 gap-2 mt-4 w-[84px] relative z-20">
                           <button onClick={(e) => { e.stopPropagation(); openEditForm(exp); }} className="text-gray-400 hover:text-blue-500 font-bold p-2 transition bg-gray-50 hover:bg-blue-50 rounded-[0.8rem] shadow-sm" title="編輯"><Pencil size={16} /></button>
                           <button onClick={(e) => { e.stopPropagation(); handleCopyRecord(exp); }} className="text-gray-400 hover:text-green-500 font-bold p-2 transition bg-gray-50 hover:bg-green-50 rounded-[0.8rem] shadow-sm" title="複製此筆"><Copy size={16} /></button>
@@ -1149,6 +1148,86 @@ export default function App() {
             )}
           </div>
         </main>
+
+        {/* 查看明細詳細內容 Modal (需求 2) */}
+        {viewingRecord && (
+          <div className="fixed inset-0 bg-black/40 z-[100] flex justify-center items-center p-6 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setViewingRecord(null)}>
+            <div className="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl relative" onClick={e => e.stopPropagation()}>
+              <button onClick={() => setViewingRecord(null)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 bg-gray-100 p-2 rounded-full transition"><X size={20}/></button>
+              <h3 className="font-black text-xl text-gray-800 mb-4 border-b border-gray-100 pb-3">詳細紀錄</h3>
+              <div className="space-y-3 text-[15px] text-gray-600 font-bold max-h-[60vh] overflow-y-auto pr-2 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+                <div className="flex justify-between items-center bg-gray-50 p-3 rounded-xl border border-gray-100">
+                   <span className="text-gray-400">類型</span>
+                   <span className={`${viewingRecord.type === 'income' ? 'text-green-500' : viewingRecord.type === 'transfer' ? 'text-blue-500' : 'text-orange-500'} font-black text-[16px]`}>
+                     {viewingRecord.type === 'income' ? '收入' : viewingRecord.type === 'transfer' ? '轉帳' : '支出'}
+                   </span>
+                </div>
+                <div className="flex justify-between items-center bg-gray-50 p-3 rounded-xl border border-gray-100">
+                   <span className="text-gray-400">金額</span>
+                   <span className="text-[22px] text-gray-800 font-black">${viewingRecord.amount.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between items-center border-b border-gray-100 pb-2 pt-1">
+                   <span className="text-gray-400">消費日期</span>
+                   <span className="text-gray-800">{toROCYearStr(viewingRecord.date)}</span>
+                </div>
+                <div className="flex justify-between items-center border-b border-gray-100 pb-2">
+                   <span className="text-gray-400">建檔時間</span>
+                   <span className="text-gray-800 text-[13px]">{toROCYearStr(viewingRecord.timestamp)} {new Date(viewingRecord.timestamp).toLocaleTimeString('zh-TW', {hour12: false, hour: '2-digit', minute:'2-digit'})}</span>
+                </div>
+                <div className="flex justify-between items-center border-b border-gray-100 pb-2">
+                   <span className="text-gray-400">分類</span>
+                   <span className="text-gray-800">{viewingRecord.category}</span>
+                </div>
+                {viewingRecord.type !== 'transfer' && (
+                  <div className="flex justify-between items-center border-b border-gray-100 pb-2">
+                     <span className="text-gray-400">項目</span>
+                     <span className="text-gray-800">{viewingRecord.title}</span>
+                  </div>
+                )}
+                {viewingRecord.merchant && viewingRecord.merchant !== '未指定' && (
+                  <div className="flex justify-between items-center border-b border-gray-100 pb-2">
+                     <span className="text-gray-400">商家</span>
+                     <span className="text-gray-800">{viewingRecord.merchant}</span>
+                  </div>
+                )}
+                {viewingRecord.payer && viewingRecord.payer.length > 0 && (
+                  <div className="flex justify-between items-center border-b border-gray-100 pb-2">
+                     <span className="text-gray-400">對象</span>
+                     <span className="text-gray-800">{Array.isArray(viewingRecord.payer) ? viewingRecord.payer.join(', ') : viewingRecord.payer}</span>
+                  </div>
+                )}
+                {viewingRecord.method && viewingRecord.method !== '未指定' && (
+                  <div className="flex justify-between items-center border-b border-gray-100 pb-2">
+                     <span className="text-gray-400">{viewingRecord.type === 'transfer' ? '轉出帳戶' : '付款方式'}</span>
+                     <span className="text-gray-800">{viewingRecord.method} {viewingRecord.subMethod ? `(${viewingRecord.subMethod})` : ''}</span>
+                  </div>
+                )}
+                {viewingRecord.transferToMethod && (
+                  <div className="flex justify-between items-center border-b border-gray-100 pb-2">
+                     <span className="text-gray-400">轉入帳戶</span>
+                     <span className="text-gray-800">{viewingRecord.transferToMethod} {viewingRecord.transferToSubMethod ? `(${viewingRecord.transferToSubMethod})` : ''}</span>
+                  </div>
+                )}
+                {viewingRecord.frequency && viewingRecord.frequency !== '一次' && (
+                  <div className="flex justify-between items-center border-b border-gray-100 pb-2">
+                     <span className="text-gray-400">頻率</span>
+                     <span className="text-gray-800">{viewingRecord.frequency}</span>
+                  </div>
+                )}
+                <div className="flex justify-between items-center border-b border-gray-100 pb-2">
+                   <span className="text-gray-400">建立者</span>
+                   <span className="text-gray-800">{viewingRecord.addedByRole}</span>
+                </div>
+                {viewingRecord.note && (
+                  <div className="pt-2">
+                     <span className="text-gray-400 block mb-1">備註</span>
+                     <span className="text-gray-800 block bg-gray-50 p-3 rounded-xl border border-gray-100">{viewingRecord.note}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* 傳送紀錄至其他房間的 Modal */}
         {crossRoomRecord && (
@@ -1224,10 +1303,10 @@ export default function App() {
             </div>
 
             <div className={`bg-white rounded-[2rem] p-6 shadow-sm border-2 ${themeBorder}`}>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 z-40">
+              {/* 需求 4: 日期與頻率整合在同一排，使用 grid-cols-2 */}
+              <div className="grid grid-cols-2 gap-3 mb-6 z-40">
                 <div>
                   <label className="flex items-center gap-1.5 text-[15px] font-bold text-gray-500 mb-2.5 ml-1"><Calendar size={16} className="text-gray-400" /> 日期 🗓️</label>
-                  {/* 需求 1: 單一欄位且顯示民國年 115/04/09 */}
                   <div className="relative w-full bg-gray-50 border-2 border-gray-100 p-4 rounded-[1.2rem] flex items-center shadow-sm cursor-pointer hover:bg-white transition overflow-hidden">
                     <input 
                       type="date" 
@@ -1239,11 +1318,11 @@ export default function App() {
                     <span className="font-bold text-gray-700 text-[16px] z-0">
                       {recordDate ? toROCYearStr(recordDate) : '選擇日期'}
                     </span>
-                    <span className="absolute right-4 text-gray-400 text-[12px] z-0 pointer-events-none">▼</span>
+                    <span className="absolute right-3 text-gray-400 text-[12px] z-0 pointer-events-none">▼</span>
                   </div>
                 </div>
                 {recordType === 'expense' && (
-                  <div className="z-40 mt-2 md:mt-0">
+                  <div className="z-40">
                     <CustomDropdown label="頻率 🔄" icon={RefreshCw} options={['一次', '每週', '每月', '區間']} value={recordFrequency} onChange={setRecordFrequency} placeholder="選擇頻率" />
                   </div>
                 )}
@@ -1678,7 +1757,7 @@ export default function App() {
       <div className={phoneContainerStyle}>
         {content}
         
-        {/* 需求 2 & 4: 底部導覽列只在首頁顯示，並改為 3 個按鈕 (左:帳戶, 中:大大的+, 右:統計) */}
+        {/* 底部導覽列只在首頁顯示，並改為 3 個按鈕 (左:帳戶, 中:大大的+, 右:統計) */}
         {user && view === 'room' && !showAddForm && (
           <div className="absolute bottom-0 left-0 w-full bg-white/95 backdrop-blur-xl p-3 pb-8 sm:pb-6 rounded-t-[2.5rem] shadow-[0_-15px_40px_rgba(0,0,0,0.08)] flex justify-between items-center z-20 border-t border-gray-100 px-8">
             
