@@ -33,7 +33,9 @@ const toROCFullStr = (dateStr) => {
   const d = new Date(dateStr);
   if (isNaN(d.getTime())) return dateStr;
   const days = ['日', '一', '二', '三', '四', '五', '六'];
-  return `民國 ${d.getFullYear() - 1911} 年 ${d.getMonth() + 1} 月 ${d.getDate()} 日 (週${days[d.getDay()]})`;
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${d.getFullYear() - 1911}年${m}月${day}日(週${days[d.getDay()]})`;
 };
 
 // ==========================================
@@ -1340,17 +1342,16 @@ export default function App() {
           </div>
           
           <div className="mb-4">
-            {/* 需求 1: 加上「今天」快捷按鈕 */}
             <div className="flex items-center gap-2 w-full">
-              <div className="relative bg-white/20 backdrop-blur-md rounded-[1.2rem] shadow-sm border border-white/30 px-4 py-2.5 flex items-center overflow-hidden hover:bg-white/30 transition flex-1">
+              <div className="relative bg-white/20 backdrop-blur-md rounded-[1.2rem] shadow-sm border border-white/30 px-3 py-2.5 flex items-center overflow-hidden hover:bg-white/30 transition flex-1">
                 <input type="date" value={homeFilterDate} onChange={(e) => setHomeFilterDate(e.target.value)} className="absolute inset-0 w-full h-full opacity-0 z-10 cursor-pointer" />
-                <Calendar size={20} className="text-white mr-3 z-0"/>
-                <span className="text-white text-[18px] font-black drop-shadow-sm z-0">
+                <Calendar size={18} className="text-white mr-2 shrink-0 z-0"/>
+                <span className="text-white text-[16px] font-black drop-shadow-sm z-0 truncate">
                   {homeFilterDate ? toROCFullStr(homeFilterDate) : '全部日期'}
                 </span>
-                <span className="text-white/70 text-[12px] ml-auto z-0">▼</span>
+                <span className="text-white/70 text-[12px] ml-auto pl-2 shrink-0 z-0">▼</span>
               </div>
-              <button onClick={() => setHomeFilterDate(new Date().toISOString().split('T')[0])} className="bg-white/20 hover:bg-white/30 text-white px-4 py-2.5 rounded-[1.2rem] transition font-bold text-[15px] shadow-sm backdrop-blur-sm whitespace-nowrap">今天</button>
+              <button onClick={() => setHomeFilterDate(new Date().toISOString().split('T')[0])} className="shrink-0 bg-white/20 hover:bg-white/30 text-white px-4 py-2.5 rounded-[1.2rem] transition font-bold text-[15px] shadow-sm backdrop-blur-sm whitespace-nowrap">今天</button>
             </div>
           </div>
 
