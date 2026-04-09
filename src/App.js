@@ -1,6 +1,6 @@
 /* eslint-disable */
 import React, { useState, useEffect, useRef } from 'react';
-import { LogOut, AlertCircle, Settings, Trash2, X, Sparkles, Home, Plus, Pencil, BarChart, Calendar, Store, Tag, User, CreditCard, RefreshCw, Wallet, PiggyBank, PieChart as LucidePieChart, Download, Copy, Send, Landmark, ArrowRightLeft } from 'lucide-react';
+import { LogOut, AlertCircle, Settings, Trash2, X, Sparkles, Home, Plus, Pencil, BarChart, Calendar, Store, Tag, User, CreditCard, RefreshCw, Wallet, PiggyBank, PieChart as LucidePieChart, Download, Copy, Send, Landmark, ArrowRightLeft, Check } from 'lucide-react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'firebase/auth';
 import { getFirestore, collection, doc, setDoc, getDoc, updateDoc, onSnapshot, addDoc, deleteDoc, deleteField, writeBatch } from 'firebase/firestore';
@@ -350,7 +350,7 @@ export default function App() {
   const [isEditingBalances, setIsEditingBalances] = useState(false);
   const [tempBalances, setTempBalances] = useState({});
   
-  // 需求 3: 同步設定 Modal State
+  // 同步設定 Modal State
   const [syncSettingsModalOpen, setSyncSettingsModalOpen] = useState(false);
   const [syncTargetRoom, setSyncTargetRoom] = useState('');
   const [selectedSyncGroups, setSelectedSyncGroups] = useState([]);
@@ -581,7 +581,7 @@ export default function App() {
   };
 
   // ==========================================
-  // 紀錄 CRUD (需求 2: 週期紀錄修改邏輯優化)
+  // 紀錄 CRUD
   // ==========================================
   const handleSaveRecord = (e) => {
     e.preventDefault();
@@ -616,7 +616,7 @@ export default function App() {
 
       const batch = writeBatch(db);
       let opsCount = 0;
-      const todayStr = new Date().toISOString().split('T')[0]; // 取得今日字串
+      const todayStr = new Date().toISOString().split('T')[0]; 
 
       if (!isEditing) {
         const curRef = doc(collection(db, 'artifacts', appId, 'public', 'data', 'expenses'));
@@ -639,7 +639,6 @@ export default function App() {
         opsCount++;
 
         if (currentGroupId) {
-          // 需求 2: 刪除「今天(含)」之後的所有同群組未來排程 (不包含目前正在編輯的這筆)
           const futureRecords = records.filter(r => r.groupId === currentGroupId && r.date >= todayStr && r.id !== editRecordId);
           futureRecords.forEach(r => {
             if(opsCount >= 490) return;
@@ -648,10 +647,8 @@ export default function App() {
             opsCount++;
           });
 
-          // 若修改後仍為週期紀錄，則重新依新規則產生未來排程
           if (recordFrequency !== '一次') {
              const futureDates = generateFutureDates(recordDate, recordFrequency, recordFrequencyDays, recordFrequencyInterval, recordFrequencyCustomText, 1);
-             // 過濾：只要新產生的日期 > recordDate (避免重複建立今天/當下設定日)，且必須 >= todayStr (避免回填過去的紀錄)
              futureDates.filter(d => d > recordDate && d >= todayStr).forEach(d => {
                if(opsCount >= 490) return;
                const futRef = doc(collection(db, 'artifacts', appId, 'public', 'data', 'expenses'));
@@ -790,7 +787,7 @@ export default function App() {
   };
 
   // ==========================================
-  // 帳戶餘額 (只計算至今日)
+  // 帳戶餘額 
   // ==========================================
   const getBalances = () => {
     const balances = { ...currentRoom?.initialBalances };
@@ -1060,7 +1057,7 @@ export default function App() {
   }
 
   // ==========================================
-  // 需求 3: 跨房間設定同步邏輯
+  // 同步設定邏輯
   // ==========================================
   const SYNC_GROUPS = [
     { id: 'expense_cats', label: '🌸 支出分類與項目清單', keys: ['categories', 'categoryItems'] },
@@ -1083,23 +1080,20 @@ export default function App() {
       const targetData = targetSnap.data();
       const updates = {};
       
-      // 蒐集所有要同步的 keys
       const keysToSync = selectedSyncGroups.flatMap(groupId => SYNC_GROUPS.find(g => g.id === groupId).keys);
 
       keysToSync.forEach(opt => {
          if (Array.isArray(currentRoom[opt])) {
-            // 合併陣列，去除重複
             const existing = targetData[opt] || [];
             updates[opt] = [...new Set([...existing, ...currentRoom[opt]])];
          } else if (typeof currentRoom[opt] === 'object' && currentRoom[opt] !== null) {
-            // 合併物件 (例如 categoryItems, autoFillRules)
             const existing = targetData[opt] || {};
             const merged = { ...existing };
             for (const key in currentRoom[opt]) {
                if (Array.isArray(currentRoom[opt][key])) {
                    merged[key] = [...new Set([...(existing[key] || []), ...currentRoom[opt][key]])];
                } else {
-                   merged[key] = currentRoom[opt][key]; // 覆寫或新增字串/物件
+                   merged[key] = currentRoom[opt][key]; 
                }
             }
             updates[opt] = merged;
@@ -1388,7 +1382,7 @@ export default function App() {
              <p className={`text-[42px] font-black relative z-10 ${netWorth < 0 ? 'text-red-500' : 'text-indigo-700'}`}>${netWorth.toLocaleString()}</p>
           </div>
 
-          {/* 需求 1: 帳戶列可點擊 */}
+          {/* 帳戶列可點擊 */}
           <div className="bg-white p-6 rounded-[2rem] shadow-sm border-2 border-emerald-50">
              <h2 className="font-bold text-[18px] text-gray-700 mb-5 flex items-center gap-2"><Wallet size={20} className="text-emerald-500"/> 現金餘額</h2>
              <div onClick={() => !isEditingBalances && setViewingAccountHistory('現金')} className={`flex justify-between items-center bg-gray-50 p-4 rounded-[1.2rem] border border-gray-100 ${!isEditingBalances ? 'cursor-pointer hover:bg-emerald-50 hover:border-emerald-200 transition' : ''}`}>
@@ -1449,7 +1443,7 @@ export default function App() {
           </div>
         </main>
 
-        {/* 需求 1: 帳戶明細歷史 Modal */}
+        {/* 帳戶明細歷史 Modal */}
         {viewingAccountHistory && (
           <div className="fixed inset-0 bg-black/40 z-[100] flex justify-center items-center p-6 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setViewingAccountHistory(null)}>
             <div className="bg-white w-full max-w-md max-h-[80vh] flex flex-col rounded-[2rem] p-6 shadow-2xl relative" onClick={e => e.stopPropagation()}>
@@ -1476,7 +1470,6 @@ export default function App() {
                     const isTransfer = exp.type === 'transfer';
                     const getAccName = (method, subMethod) => method === '現金' ? '現金' : subMethod;
                     
-                    // 判斷這筆交易對「這個帳戶」而言是扣款還是進帳
                     let isPositive = false;
                     if (isIncome && getAccName(exp.method, exp.subMethod) === viewingAccountHistory) isPositive = true;
                     if (isTransfer && getAccName(exp.transferToMethod, exp.transferToSubMethod) === viewingAccountHistory) isPositive = true;
@@ -1507,47 +1500,48 @@ export default function App() {
   else if (view === 'room' && !showAddForm) {
     content = (
       <>
-        <header className="bg-gradient-to-r from-pink-400 to-orange-400 px-6 py-6 shadow-md shrink-0 z-10 rounded-b-[2rem] border-b-4 border-white/20">
-          <div className="flex justify-between items-center mb-6">
+        {/* 上方粉底區塊間距縮小 */}
+        <header className="bg-gradient-to-r from-pink-400 to-orange-400 px-5 py-4 sm:pt-6 sm:pb-5 shadow-md shrink-0 z-10 rounded-b-[2rem] border-b-4 border-white/20">
+          <div className="flex justify-between items-center mb-3">
             <div className="flex flex-col">
-              <h1 className="text-[22px] font-black text-white drop-shadow-md mb-1">{currentRoom?.name || '共同記帳本'}</h1>
-              <p className="text-white/90 text-[15px] font-extrabold flex items-center gap-2 drop-shadow-sm">
+              <h1 className="text-[20px] font-black text-white drop-shadow-md mb-0.5">{currentRoom?.name || '共同記帳本'}</h1>
+              <p className="text-white/90 text-[14px] font-extrabold flex items-center gap-1.5 drop-shadow-sm">
                 <span className="w-2.5 h-2.5 rounded-full bg-green-300 inline-block shadow-sm"></span> {currentUserRole}
               </p>
             </div>
-            <div className="flex items-center gap-2.5">
-              <button onClick={handleBackup} className="p-3 bg-white/20 hover:bg-white/30 text-white rounded-[1rem] transition backdrop-blur-sm" title="備份雲端資料"><Download size={20} /></button>
-              <button onClick={() => { setSettingsTab('expense'); setView('settings'); }} className="p-3 bg-white/20 hover:bg-white/30 text-white rounded-[1rem] transition backdrop-blur-sm" title="設定"><Settings size={20} /></button>
-              <button onClick={() => { setActiveRoomId(null); setView('login'); setRoomPin(''); }} className="p-3 bg-white/20 hover:bg-white/30 text-white rounded-[1rem] transition backdrop-blur-sm" title="登出"><LogOut size={20} /></button>
+            <div className="flex items-center gap-2">
+              <button onClick={handleBackup} className="p-2.5 bg-white/20 hover:bg-white/30 text-white rounded-[1rem] transition backdrop-blur-sm" title="備份雲端資料"><Download size={18} /></button>
+              <button onClick={() => { setSettingsTab('expense'); setView('settings'); }} className="p-2.5 bg-white/20 hover:bg-white/30 text-white rounded-[1rem] transition backdrop-blur-sm" title="設定"><Settings size={18} /></button>
+              <button onClick={() => { setActiveRoomId(null); setView('login'); setRoomPin(''); }} className="p-2.5 bg-white/20 hover:bg-white/30 text-white rounded-[1rem] transition backdrop-blur-sm" title="登出"><LogOut size={18} /></button>
             </div>
           </div>
           
-          <div className="mb-4">
+          <div className="mb-3">
             <div className="flex items-center gap-2 w-full">
-              <div className="relative bg-white/20 backdrop-blur-md rounded-[1.2rem] shadow-sm border border-white/30 px-3 py-2.5 flex items-center overflow-hidden hover:bg-white/30 transition flex-1">
+              <div className="relative bg-white/20 backdrop-blur-md rounded-[1rem] shadow-sm border border-white/30 px-3 py-2 flex items-center overflow-hidden hover:bg-white/30 transition flex-1">
                 <input type="date" value={homeFilterDate} onChange={(e) => setHomeFilterDate(e.target.value)} className="absolute inset-0 w-full h-full opacity-0 z-10 cursor-pointer" />
-                <Calendar size={18} className="text-white mr-2 shrink-0 z-0"/>
-                <span className="text-white text-[16px] font-black drop-shadow-sm z-0 truncate">
+                <Calendar size={16} className="text-white mr-2 shrink-0 z-0"/>
+                <span className="text-white text-[15px] font-black drop-shadow-sm z-0 truncate">
                   {homeFilterDate ? toROCFullStr(homeFilterDate) : '全部日期'}
                 </span>
                 <span className="text-white/70 text-[12px] ml-auto pl-2 shrink-0 z-0">▼</span>
               </div>
-              <button onClick={() => setHomeFilterDate(new Date().toISOString().split('T')[0])} className="shrink-0 bg-white/20 hover:bg-white/30 text-white px-4 py-2.5 rounded-[1.2rem] transition font-bold text-[15px] shadow-sm backdrop-blur-sm whitespace-nowrap">今天</button>
+              <button onClick={() => setHomeFilterDate(new Date().toISOString().split('T')[0])} className="shrink-0 bg-white/20 hover:bg-white/30 text-white px-3.5 py-2 rounded-[1rem] transition font-bold text-[14px] shadow-sm backdrop-blur-sm whitespace-nowrap">今天</button>
             </div>
           </div>
 
-          <div className="flex justify-between items-end bg-white/95 backdrop-blur-xl p-5 rounded-[1.5rem] shadow-lg mt-2">
+          <div className="flex justify-between items-end bg-white/95 backdrop-blur-xl p-4 rounded-[1.2rem] shadow-lg">
              <div className="flex flex-col">
-                <span className="text-gray-400 text-[13px] font-bold mb-1">總支出</span>
-                <span className="text-pink-500 font-black text-[18px]"> ${totalExpense.toLocaleString()}</span>
+                <span className="text-gray-400 text-[12px] font-bold mb-1">總支出</span>
+                <span className="text-pink-500 font-black text-[16px]"> ${totalExpense.toLocaleString()}</span>
              </div>
              <div className="flex flex-col items-center">
-                <span className="text-gray-400 text-[13px] font-bold mb-1">總收入</span>
-                <span className="text-green-500 font-black text-[18px]"> ${totalIncome.toLocaleString()}</span>
+                <span className="text-gray-400 text-[12px] font-bold mb-1">總收入</span>
+                <span className="text-green-500 font-black text-[16px]"> ${totalIncome.toLocaleString()}</span>
              </div>
              <div className="flex flex-col items-end">
-                <span className="text-gray-400 text-[13px] font-bold mb-1">總結餘</span>
-                <span className={`font-black text-[24px] leading-tight ${netBalance < 0 ? 'text-red-500' : 'text-gray-800'}`}>${netBalance.toLocaleString()}</span>
+                <span className="text-gray-400 text-[12px] font-bold mb-1">總結餘</span>
+                <span className={`font-black text-[20px] leading-none ${netBalance < 0 ? 'text-red-500' : 'text-gray-800'}`}>${netBalance.toLocaleString()}</span>
              </div>
           </div>
         </header>
