@@ -1,6 +1,6 @@
 /* eslint-disable */
 import React, { useState, useEffect, useRef } from 'react';
-import { LogOut, AlertCircle, Settings, Trash2, X, Sparkles, Home, Plus, Pencil, BarChart, Calendar, Store, Tag, User, CreditCard, RefreshCw, Wallet, PiggyBank, PieChart as LucidePieChart, Download, Copy, Send, Landmark } from 'lucide-react';
+import { LogOut, AlertCircle, Settings, Trash2, X, Sparkles, Home, Plus, Pencil, BarChart, Calendar, Store, Tag, User, CreditCard, RefreshCw, Wallet, PiggyBank, PieChart as LucidePieChart, Download, Copy, Send, Landmark, ArrowRightLeft } from 'lucide-react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'firebase/auth';
 import { getFirestore, collection, doc, setDoc, getDoc, updateDoc, onSnapshot, addDoc, deleteDoc, deleteField, writeBatch } from 'firebase/firestore';
@@ -109,7 +109,7 @@ const db = getFirestore(app);
 const appId = typeof __app_id !== 'undefined' ? __app_id : 'linbei-family-app';
 
 // ==========================================
-// 共用組件：選項管理區塊 (支援編輯與排序，版面加寬按鈕緊湊)
+// 共用組件：選項管理區塊
 // ==========================================
 const SettingBlock = ({ title, items, onUpdate, themeClass, spanClass, btnClass, placeholder }) => {
   const [newItem, setNewItem] = useState('');
@@ -304,8 +304,9 @@ export default function App() {
   const [editRecordId, setEditRecordId] = useState(null);
   const [crossRoomRecord, setCrossRoomRecord] = useState(null);
   const [viewingRecord, setViewingRecord] = useState(null); 
-  const [recordType, setRecordType] = useState('expense');
+  const [viewingAccountHistory, setViewingAccountHistory] = useState(null); // 需求 1: 檢視帳戶明細用
   
+  const [recordType, setRecordType] = useState('expense');
   const [recordAmount, setRecordAmount] = useState('');
   const [recordDate, setRecordDate] = useState(new Date().toISOString().split('T')[0]);
   const [recordFrequency, setRecordFrequency] = useState('一次');
@@ -334,7 +335,6 @@ export default function App() {
   const [newCategoryItemInput, setNewCategoryItemInput] = useState('');
   const [newRuleItem, setNewRuleItem] = useState('');
   const [newRuleMerchant, setNewRuleMerchant] = useState('');
-  
   const [newMethodRuleMerchant, setNewMethodRuleMerchant] = useState('');
   const [newMethodRuleMethod, setNewMethodRuleMethod] = useState('');
   const [newMethodRuleSubMethod, setNewMethodRuleSubMethod] = useState('');
@@ -349,11 +349,15 @@ export default function App() {
 
   const [isEditingBalances, setIsEditingBalances] = useState(false);
   const [tempBalances, setTempBalances] = useState({});
+  
+  // 需求 3: 同步設定 Modal State
+  const [syncSettingsModalOpen, setSyncSettingsModalOpen] = useState(false);
+  const [syncTargetRoom, setSyncTargetRoom] = useState('');
+  const [selectedSyncGroups, setSelectedSyncGroups] = useState([]);
 
   const amountInputRef = useRef(null);
 
   const globalWrapperStyle = "min-h-screen bg-gray-100 sm:py-8 flex justify-center items-center font-sans text-[15px]";
-  // 需求 2 & 3: 加寬版面 max-w-[480px]
   const phoneContainerStyle = "w-full max-w-[480px] min-h-screen sm:min-h-0 sm:h-[844px] bg-[#FFFBF0] flex flex-col relative sm:rounded-[3rem] sm:border-[8px] sm:border-gray-800 shadow-2xl overflow-hidden";
 
   // ==========================================
@@ -577,7 +581,7 @@ export default function App() {
   };
 
   // ==========================================
-  // 紀錄 CRUD
+  // 紀錄 CRUD (需求 2: 週期紀錄修改邏輯優化)
   // ==========================================
   const handleSaveRecord = (e) => {
     e.preventDefault();
@@ -612,6 +616,7 @@ export default function App() {
 
       const batch = writeBatch(db);
       let opsCount = 0;
+      const todayStr = new Date().toISOString().split('T')[0]; // 取得今日字串
 
       if (!isEditing) {
         const curRef = doc(collection(db, 'artifacts', appId, 'public', 'data', 'expenses'));
@@ -634,7 +639,8 @@ export default function App() {
         opsCount++;
 
         if (currentGroupId) {
-          const futureRecords = records.filter(r => r.groupId === currentGroupId && r.date > recordDate && r.id !== editRecordId);
+          // 需求 2: 刪除「今天(含)」之後的所有同群組未來排程 (不包含目前正在編輯的這筆)
+          const futureRecords = records.filter(r => r.groupId === currentGroupId && r.date >= todayStr && r.id !== editRecordId);
           futureRecords.forEach(r => {
             if(opsCount >= 490) return;
             const delRef = doc(db, 'artifacts', appId, 'public', 'data', 'expenses', r.id);
@@ -642,9 +648,11 @@ export default function App() {
             opsCount++;
           });
 
+          // 若修改後仍為週期紀錄，則重新依新規則產生未來排程
           if (recordFrequency !== '一次') {
              const futureDates = generateFutureDates(recordDate, recordFrequency, recordFrequencyDays, recordFrequencyInterval, recordFrequencyCustomText, 1);
-             futureDates.filter(d => d > recordDate).forEach(d => {
+             // 過濾：只要新產生的日期 > recordDate (避免重複建立今天/當下設定日)，且必須 >= todayStr (避免回填過去的紀錄)
+             futureDates.filter(d => d > recordDate && d >= todayStr).forEach(d => {
                if(opsCount >= 490) return;
                const futRef = doc(collection(db, 'artifacts', appId, 'public', 'data', 'expenses'));
                const ts = new Date(d + 'T07:00:00').getTime();
@@ -655,7 +663,7 @@ export default function App() {
         } else {
            if (recordFrequency !== '一次') {
              const futureDates = generateFutureDates(recordDate, recordFrequency, recordFrequencyDays, recordFrequencyInterval, recordFrequencyCustomText, 1);
-             futureDates.filter(d => d > recordDate).forEach(d => {
+             futureDates.filter(d => d > recordDate && d >= todayStr).forEach(d => {
                if(opsCount >= 490) return;
                const futRef = doc(collection(db, 'artifacts', appId, 'public', 'data', 'expenses'));
                const ts = new Date(d + 'T07:00:00').getTime();
@@ -782,7 +790,7 @@ export default function App() {
   };
 
   // ==========================================
-  // 帳戶餘額 (需求 1: 只計算至今日)
+  // 帳戶餘額 (只計算至今日)
   // ==========================================
   const getBalances = () => {
     const balances = { ...currentRoom?.initialBalances };
@@ -791,12 +799,10 @@ export default function App() {
     (currentRoom?.creditCards || []).forEach(c => { if (balances[c] === undefined) balances[c] = 0; });
 
     const getAccName = (method, subMethod) => method === '現金' ? '現金' : subMethod;
-
     const todayStr = new Date().toISOString().split('T')[0];
 
     records.forEach(r => {
-      // 需求 1: 餘額計算不計入未來的排程
-      if (r.date > todayStr) return;
+      if (r.date > todayStr) return; // 不計入未來排程
 
       const amt = Number(r.amount) || 0;
       if (r.type === 'expense' || !r.type) {
@@ -905,7 +911,6 @@ export default function App() {
          updates[`categoryItems.${oldItem}`] = deleteField();
       }
 
-      // 需求 3: 連動更新預設規則
       if (oldItem && newItem && oldItem !== newItem) {
          let rulesChanged = false;
          let newAutoFill = { ...currentRoom.autoFillRules };
@@ -994,7 +999,6 @@ export default function App() {
     }
   };
 
-  // 需求 3: 預設規則上下順序移動
   const handleMoveRule = async (itemKey, dir) => {
       if (!user) return;
       const keys = Object.keys(currentRoom.autoFillRules || {});
@@ -1054,6 +1058,62 @@ export default function App() {
       await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', activeRoomId), { methodRules: newRules });
     } catch (err) { alert('刪除失敗：請檢查網路連線'); }
   }
+
+  // ==========================================
+  // 需求 3: 跨房間設定同步邏輯
+  // ==========================================
+  const SYNC_GROUPS = [
+    { id: 'expense_cats', label: '🌸 支出分類與項目清單', keys: ['categories', 'categoryItems'] },
+    { id: 'merchants_rules', label: '🏪 常見商家與預設分類規則', keys: ['merchants', 'autoFillRules'] },
+    { id: 'accounts_rules', label: '💳 帳戶清單與預設付款規則', keys: ['paymentMethods', 'creditCards', 'bankAccounts', 'methodRules'] },
+    { id: 'payers', label: '👥 家人/對象名單', keys: ['payers'] },
+    { id: 'income_settings', label: '📈 收入分類與存入帳戶', keys: ['incomeCategories', 'incomeAccounts'] },
+    { id: 'transfer_settings', label: '🔄 轉帳分類與收轉帳戶', keys: ['transferCategories', 'transferOutAccounts', 'transferInAccounts'] }
+  ];
+
+  const handleSyncSettings = async () => {
+    if (!syncTargetRoom || selectedSyncGroups.length === 0) return alert('請選擇目標房間及要同步的項目');
+    if (!window.confirm('確定要將勾選的設定同步到目標房間嗎？\n(原本目標房間的設定會被保留並合併)')) return;
+
+    try {
+      const targetRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', syncTargetRoom);
+      const targetSnap = await getDoc(targetRef);
+      if (!targetSnap.exists()) return alert('找不到目標房間');
+      
+      const targetData = targetSnap.data();
+      const updates = {};
+      
+      // 蒐集所有要同步的 keys
+      const keysToSync = selectedSyncGroups.flatMap(groupId => SYNC_GROUPS.find(g => g.id === groupId).keys);
+
+      keysToSync.forEach(opt => {
+         if (Array.isArray(currentRoom[opt])) {
+            // 合併陣列，去除重複
+            const existing = targetData[opt] || [];
+            updates[opt] = [...new Set([...existing, ...currentRoom[opt]])];
+         } else if (typeof currentRoom[opt] === 'object' && currentRoom[opt] !== null) {
+            // 合併物件 (例如 categoryItems, autoFillRules)
+            const existing = targetData[opt] || {};
+            const merged = { ...existing };
+            for (const key in currentRoom[opt]) {
+               if (Array.isArray(currentRoom[opt][key])) {
+                   merged[key] = [...new Set([...(existing[key] || []), ...currentRoom[opt][key]])];
+               } else {
+                   merged[key] = currentRoom[opt][key]; // 覆寫或新增字串/物件
+               }
+            }
+            updates[opt] = merged;
+         }
+      });
+
+      await updateDoc(targetRef, updates);
+      alert('✅ 設定同步成功！');
+      setSyncSettingsModalOpen(false);
+      setSelectedSyncGroups([]);
+    } catch (e) {
+      alert('同步失敗：' + e.message);
+    }
+  };
 
   const handleMethodSelect = (method, isTransferTo = false) => {
     if (!isTransferTo) {
@@ -1318,15 +1378,20 @@ export default function App() {
         </header>
 
         <main className="p-5 space-y-6 flex-1 overflow-y-auto pb-[100px] [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+          <div className="text-center mb-1">
+            <p className="text-indigo-500 font-bold bg-indigo-50 border border-indigo-100 inline-block px-5 py-3 rounded-full text-[13px] shadow-sm leading-relaxed">👉 點擊各帳戶列即可查看歷史明細</p>
+          </div>
+
           <div className="bg-white p-6 rounded-[2rem] border-2 border-indigo-100 text-center shadow-sm relative overflow-hidden">
              <div className="absolute -right-6 -top-6 bg-indigo-50 w-24 h-24 rounded-full opacity-50"></div>
              <p className="text-indigo-400 font-extrabold text-[15px] mb-2 relative z-10">💰 總資產淨值</p>
              <p className={`text-[42px] font-black relative z-10 ${netWorth < 0 ? 'text-red-500' : 'text-indigo-700'}`}>${netWorth.toLocaleString()}</p>
           </div>
 
+          {/* 需求 1: 帳戶列可點擊 */}
           <div className="bg-white p-6 rounded-[2rem] shadow-sm border-2 border-emerald-50">
              <h2 className="font-bold text-[18px] text-gray-700 mb-5 flex items-center gap-2"><Wallet size={20} className="text-emerald-500"/> 現金餘額</h2>
-             <div className="flex justify-between items-center bg-gray-50 p-4 rounded-[1.2rem] border border-gray-100">
+             <div onClick={() => !isEditingBalances && setViewingAccountHistory('現金')} className={`flex justify-between items-center bg-gray-50 p-4 rounded-[1.2rem] border border-gray-100 ${!isEditingBalances ? 'cursor-pointer hover:bg-emerald-50 hover:border-emerald-200 transition' : ''}`}>
                 <span className="font-bold text-gray-600 text-[16px]">現金</span>
                 {isEditingBalances ? (
                    <input type="number" className="w-28 text-right border-2 border-emerald-200 focus:border-emerald-400 p-2 rounded-[1rem] font-bold text-[16px] outline-none transition" value={tempBalances['現金'] || ''} onChange={e => setTempBalances({...tempBalances, '現金': e.target.value})} placeholder="0" />
@@ -1346,7 +1411,7 @@ export default function App() {
                {banks.map(b => {
                  const bal = balances[b] || 0;
                  return (
-                   <div key={b} className="flex justify-between items-center bg-gray-50 p-4 rounded-[1.2rem] border border-gray-100">
+                   <div key={b} onClick={() => !isEditingBalances && setViewingAccountHistory(b)} className={`flex justify-between items-center bg-gray-50 p-4 rounded-[1.2rem] border border-gray-100 ${!isEditingBalances ? 'cursor-pointer hover:bg-blue-50 hover:border-blue-200 transition' : ''}`}>
                       <span className="font-bold text-gray-600 text-[16px] truncate pr-2">{b}</span>
                       {isEditingBalances ? (
                          <input type="number" className="w-28 text-right border-2 border-blue-200 focus:border-blue-400 p-2 rounded-[1rem] font-bold text-[16px] outline-none transition" value={tempBalances[b] || ''} onChange={e => setTempBalances({...tempBalances, [b]: e.target.value})} placeholder="0" />
@@ -1369,7 +1434,7 @@ export default function App() {
                {ccs.map(c => {
                  const bal = balances[c] || 0;
                  return (
-                   <div key={c} className="flex justify-between items-center bg-gray-50 p-4 rounded-[1.2rem] border border-gray-100">
+                   <div key={c} onClick={() => !isEditingBalances && setViewingAccountHistory(c)} className={`flex justify-between items-center bg-gray-50 p-4 rounded-[1.2rem] border border-gray-100 ${!isEditingBalances ? 'cursor-pointer hover:bg-orange-50 hover:border-orange-200 transition' : ''}`}>
                       <span className="font-bold text-gray-600 text-[16px] truncate pr-2">{c}</span>
                       {isEditingBalances ? (
                          <input type="number" className="w-28 text-right border-2 border-orange-200 focus:border-orange-400 p-2 rounded-[1rem] font-bold text-[16px] outline-none transition" value={tempBalances[c] || ''} onChange={e => setTempBalances({...tempBalances, [c]: e.target.value})} placeholder="0" />
@@ -1383,6 +1448,58 @@ export default function App() {
              <p className="text-[13px] font-bold text-orange-400 mt-5 bg-orange-50 p-3.5 rounded-[1.2rem] text-center leading-relaxed">* 信用卡金額通常為負數（代表應繳卡費或負債），轉帳繳費後金額會回升。</p>
           </div>
         </main>
+
+        {/* 需求 1: 帳戶明細歷史 Modal */}
+        {viewingAccountHistory && (
+          <div className="fixed inset-0 bg-black/40 z-[100] flex justify-center items-center p-6 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setViewingAccountHistory(null)}>
+            <div className="bg-white w-full max-w-md max-h-[80vh] flex flex-col rounded-[2rem] p-6 shadow-2xl relative" onClick={e => e.stopPropagation()}>
+              <button onClick={() => setViewingAccountHistory(null)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 bg-gray-100 p-2 rounded-full transition"><X size={20}/></button>
+              <h3 className="font-black text-xl text-gray-800 mb-4 border-b border-gray-100 pb-3 flex items-center gap-2">
+                <Wallet size={20} className="text-indigo-500" /> {viewingAccountHistory} 明細
+              </h3>
+              
+              <div className="flex-1 overflow-y-auto space-y-3 pr-2 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+                {(() => {
+                  const todayStr = new Date().toISOString().split('T')[0];
+                  const accHistory = records.filter(r => {
+                     if (r.date > todayStr) return false;
+                     const getAccName = (method, subMethod) => method === '現金' ? '現金' : subMethod;
+                     const fromAcc = getAccName(r.method, r.subMethod);
+                     const toAcc = getAccName(r.transferToMethod, r.transferToSubMethod);
+                     return fromAcc === viewingAccountHistory || toAcc === viewingAccountHistory;
+                  }).sort((a, b) => b.timestamp - a.timestamp); // 越新的在越上面
+
+                  if (accHistory.length === 0) return <p className="text-center text-gray-400 font-bold py-10">此帳戶尚無歷史明細</p>;
+
+                  return accHistory.map(exp => {
+                    const isIncome = exp.type === 'income';
+                    const isTransfer = exp.type === 'transfer';
+                    const getAccName = (method, subMethod) => method === '現金' ? '現金' : subMethod;
+                    
+                    // 判斷這筆交易對「這個帳戶」而言是扣款還是進帳
+                    let isPositive = false;
+                    if (isIncome && getAccName(exp.method, exp.subMethod) === viewingAccountHistory) isPositive = true;
+                    if (isTransfer && getAccName(exp.transferToMethod, exp.transferToSubMethod) === viewingAccountHistory) isPositive = true;
+
+                    return (
+                      <div key={exp.id} className="bg-gray-50 p-3.5 rounded-[1.2rem] border border-gray-100 flex justify-between items-center">
+                        <div className="overflow-hidden pr-2">
+                           <div className="text-[12px] font-bold text-gray-400 mb-1">{toROCYearStr(exp.date)}</div>
+                           <div className="font-black text-[15px] text-gray-700 truncate">
+                              {isTransfer ? `轉帳: ${exp.method}➜${exp.transferToMethod}` : exp.title}
+                           </div>
+                        </div>
+                        <div className={`font-black text-[18px] shrink-0 ${isPositive ? 'text-green-500' : 'text-gray-800'}`}>
+                           {isPositive ? '+' : '-'}${exp.amount.toLocaleString()}
+                        </div>
+                      </div>
+                    )
+                  });
+                })()}
+              </div>
+            </div>
+          </div>
+        )}
       </>
     );
   }
@@ -1832,6 +1949,11 @@ export default function App() {
             <p className="text-purple-500 font-bold bg-purple-50 border border-purple-100 inline-block px-5 py-3 rounded-full text-[13px] shadow-sm leading-relaxed">💡 在此編輯的項目，全家人的畫面都會同步更新喔！</p>
           </div>
           
+          {/* 需求 3: 同步設定按鈕 */}
+          <button onClick={() => setSyncSettingsModalOpen(true)} className="w-full bg-gradient-to-r from-indigo-500 to-blue-500 text-white p-4 rounded-[1.5rem] font-bold text-[16px] shadow-md hover:shadow-lg transition flex justify-center items-center gap-2 mb-6 active:scale-95">
+             <RefreshCw size={20} /> 🔄 複製設定至其他房間
+          </button>
+
           <div className="flex bg-white rounded-[1.5rem] p-2 border-2 border-gray-100 mb-6 shadow-sm">
              <button onClick={() => setSettingsTab('expense')} className={`flex-1 py-3 px-1 rounded-[1.2rem] text-[16px] font-extrabold transition-all duration-200 truncate ${settingsTab === 'expense' ? 'bg-orange-400 text-white shadow-md transform scale-100' : 'text-gray-400 hover:text-gray-600 bg-gray-50 scale-95'}`}>支出</button>
              <button onClick={() => setSettingsTab('income')} className={`flex-1 py-3 px-1 rounded-[1.2rem] text-[16px] font-extrabold transition-all duration-200 truncate ${settingsTab === 'income' ? 'bg-green-500 text-white shadow-md transform scale-100' : 'text-gray-400 hover:text-gray-600 bg-gray-50 scale-95'}`}>收入</button>
@@ -2006,6 +2128,62 @@ export default function App() {
             )}
           </div>
         </main>
+
+        {/* 需求 3: 跨房間同步設定 Modal */}
+        {syncSettingsModalOpen && (
+          <div className="fixed inset-0 bg-black/40 z-[100] flex justify-center items-end sm:items-center p-0 sm:p-6 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setSyncSettingsModalOpen(false)}>
+            <div className="bg-white w-full max-w-md rounded-t-[2rem] sm:rounded-[2rem] p-6 shadow-2xl relative animate-in slide-in-from-bottom-10" onClick={e => e.stopPropagation()}>
+              <button onClick={() => setSyncSettingsModalOpen(false)} className="absolute top-5 right-5 text-gray-400 hover:text-gray-600 bg-gray-100 p-2 rounded-full transition"><X size={20}/></button>
+              <h3 className="font-black text-xl text-gray-800 mb-2 flex items-center gap-2">🔄 複製設定至其他房間</h3>
+              <p className="text-[14px] text-gray-500 font-bold mb-5 leading-relaxed">選擇目標房間及想同步的項目，系統會將目前的設定合併到目標房間中。</p>
+              
+              <div className="space-y-5">
+                <div>
+                   <label className="block text-[14px] font-bold text-gray-500 mb-2 ml-1">選擇目標房間</label>
+                   <select value={syncTargetRoom} onChange={e => setSyncTargetRoom(e.target.value)} className="w-full border-2 border-indigo-100 bg-indigo-50 text-indigo-700 p-4 rounded-[1.2rem] font-bold text-[15px] outline-none shadow-sm cursor-pointer appearance-none">
+                     <option value="">請選擇要同步過去的房間...</option>
+                     {savedRooms.filter(r => r.id !== activeRoomId).map(r => (
+                        <option key={r.id} value={r.id}>{r.name} ({r.id})</option>
+                     ))}
+                   </select>
+                   {savedRooms.filter(r => r.id !== activeRoomId).length === 0 && <p className="text-red-400 text-xs mt-2 font-bold ml-1">無其他已儲存房間可選</p>}
+                </div>
+
+                <div>
+                   <label className="block text-[14px] font-bold text-gray-500 mb-2 ml-1">勾選要同步的項目群組</label>
+                   <div className="grid grid-cols-1 gap-2.5 max-h-[35vh] overflow-y-auto pr-1">
+                      {SYNC_GROUPS.map(group => {
+                        const isChecked = selectedSyncGroups.includes(group.id);
+                        return (
+                          <button 
+                            key={group.id} type="button"
+                            onClick={() => {
+                              if (isChecked) setSelectedSyncGroups(selectedSyncGroups.filter(id => id !== group.id));
+                              else setSelectedSyncGroups([...selectedSyncGroups, group.id]);
+                            }}
+                            className={`flex items-center text-left p-3.5 rounded-[1rem] border-2 transition-all ${isChecked ? 'border-blue-400 bg-blue-50 text-blue-700' : 'border-gray-100 bg-gray-50 text-gray-600 hover:border-blue-200'}`}
+                          >
+                            <div className={`w-5 h-5 rounded-md flex justify-center items-center mr-3 border-2 transition-colors ${isChecked ? 'bg-blue-500 border-blue-500' : 'border-gray-300 bg-white'}`}>
+                               {isChecked && <Check size={14} className="text-white stroke-[3]"/>}
+                            </div>
+                            <span className="font-bold text-[14px]">{group.label}</span>
+                          </button>
+                        )
+                      })}
+                   </div>
+                </div>
+                
+                <button 
+                  onClick={handleSyncSettings}
+                  disabled={!syncTargetRoom || selectedSyncGroups.length === 0}
+                  className="w-full bg-blue-500 text-white font-black text-[16px] py-4 rounded-[1.2rem] transition-all hover:bg-blue-600 disabled:opacity-50 disabled:active:scale-100 active:scale-95 shadow-md mt-2"
+                >
+                  確認同步
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </>
     );
   }
