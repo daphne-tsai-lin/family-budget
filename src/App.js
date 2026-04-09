@@ -52,6 +52,53 @@ const db = getFirestore(app);
 const appId = typeof __app_id !== 'undefined' ? __app_id : 'linbei-family-app';
 
 // ==========================================
+// 共用組件：自製民國年日期選擇器
+// ==========================================
+const ROCDatePicker = ({ value, onChange }) => {
+  const d = value ? new Date(value) : new Date();
+  const year = isNaN(d.getTime()) ? new Date().getFullYear() - 1911 : d.getFullYear() - 1911;
+  const month = isNaN(d.getTime()) ? new Date().getMonth() + 1 : d.getMonth() + 1;
+  const day = isNaN(d.getTime()) ? new Date().getDate() : d.getDate();
+
+  const fixedYears = Array.from({length: 20}, (_, i) => 110 + i);
+  const months = Array.from({length: 12}, (_, i) => i + 1);
+  const daysInMonth = new Date(year + 1911, month, 0).getDate();
+  const days = Array.from({length: daysInMonth}, (_, i) => i + 1);
+
+  const handleDateChange = (y, m, d) => {
+    const maxDays = new Date(y + 1911, m, 0).getDate();
+    const validDay = d > maxDays ? maxDays : d;
+    const yyyy = y + 1911;
+    const mm = String(m).padStart(2, '0');
+    const dd = String(validDay).padStart(2, '0');
+    onChange(`${yyyy}-${mm}-${dd}`);
+  };
+
+  return (
+    <div className="flex gap-2 w-full mt-1">
+      <div className="relative flex-[1.2]">
+        <select value={year} onChange={e=>handleDateChange(Number(e.target.value), month, day)} className="w-full bg-gray-50 border-2 border-gray-100 p-4 rounded-[1.2rem] outline-none font-bold text-gray-700 text-[16px] appearance-none shadow-sm text-center">
+          {fixedYears.map(y => <option key={y} value={y}>民國 {y} 年</option>)}
+        </select>
+        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-[12px] pointer-events-none">▼</span>
+      </div>
+      <div className="relative flex-[1]">
+        <select value={month} onChange={e=>handleDateChange(year, Number(e.target.value), day)} className="w-full bg-gray-50 border-2 border-gray-100 p-4 rounded-[1.2rem] outline-none font-bold text-gray-700 text-[16px] appearance-none shadow-sm text-center">
+          {months.map(m => <option key={m} value={m}>{m} 月</option>)}
+        </select>
+        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-[12px] pointer-events-none">▼</span>
+      </div>
+      <div className="relative flex-[1]">
+        <select value={day} onChange={e=>handleDateChange(year, month, Number(e.target.value))} className="w-full bg-gray-50 border-2 border-gray-100 p-4 rounded-[1.2rem] outline-none font-bold text-gray-700 text-[16px] appearance-none shadow-sm text-center">
+          {days.map(d => <option key={d} value={d}>{d} 日</option>)}
+        </select>
+        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-[12px] pointer-events-none">▼</span>
+      </div>
+    </div>
+  )
+};
+
+// ==========================================
 // 共用組件：超美客製化下拉選單
 // ==========================================
 const CustomDropdown = ({ label, icon: Icon, options, value, onChange, placeholder }) => {
@@ -147,7 +194,7 @@ export default function App() {
   const [showAddForm, setShowAddForm] = useState(false);
   const [editRecordId, setEditRecordId] = useState(null);
   const [crossRoomRecord, setCrossRoomRecord] = useState(null);
-  const [viewingRecord, setViewingRecord] = useState(null); // 需求 2: 檢視單筆詳細資料
+  const [viewingRecord, setViewingRecord] = useState(null); 
   const [recordType, setRecordType] = useState('expense');
   
   const [recordAmount, setRecordAmount] = useState('');
@@ -270,7 +317,6 @@ export default function App() {
       const roomRecords = allData
         .filter(exp => exp.roomId === activeRoomId)
         .sort((a, b) => {
-          // 需求 1: 按建檔時間排序, 從舊到新 (由小到大)
           return (a.timestamp || 0) - (b.timestamp || 0);
         });
       setRecords(roomRecords);
@@ -1303,7 +1349,7 @@ export default function App() {
             </div>
 
             <div className={`bg-white rounded-[2rem] p-6 shadow-sm border-2 ${themeBorder}`}>
-              {/* 需求 4: 日期與頻率整合在同一排，使用 grid-cols-2 */}
+              {/* 日期與頻率整合在同一排 */}
               <div className="grid grid-cols-2 gap-3 mb-6 z-40">
                 <div>
                   <label className="flex items-center gap-1.5 text-[15px] font-bold text-gray-500 mb-2.5 ml-1"><Calendar size={16} className="text-gray-400" /> 日期 🗓️</label>
@@ -1376,9 +1422,18 @@ export default function App() {
 
                   <div className="mb-2 z-10">
                     <label className="flex items-center gap-1.5 text-[15px] font-bold text-gray-500 mb-2.5 ml-1"><CreditCard size={16} className="text-gray-400" /> 付款方式 💳</label>
-                    <div className="flex bg-gray-50 rounded-[1.2rem] p-1.5 border border-gray-100 mb-4 shadow-inner">
+                    <div className="flex bg-gray-50 rounded-[1.2rem] p-1.5 border border-gray-100 mb-4 shadow-inner min-h-[60px]">
                       {(currentRoom?.paymentMethods || []).map(opt => (
-                        <button key={opt} type="button" onClick={() => handleMethodSelect(opt)} className={`flex-1 py-3 px-1 rounded-[1rem] text-[15px] font-extrabold transition-all duration-200 truncate ${recordMethod === opt ? 'bg-white text-blue-600 shadow-md border border-gray-100 transform scale-100' : 'text-gray-400 hover:text-gray-600 scale-95'}`}>{opt}</button>
+                        <button key={opt} type="button" onClick={() => handleMethodSelect(opt)} className={`flex-1 py-1.5 px-1 rounded-[1rem] text-[13px] md:text-[14px] leading-snug font-extrabold transition-all duration-200 flex flex-col items-center justify-center ${recordMethod === opt ? 'bg-white text-blue-600 shadow-md border border-gray-100 transform scale-100' : 'text-gray-400 hover:text-gray-600 scale-95'}`}>
+                          {opt.includes(' / ') ? (
+                            <>
+                              <span>{opt.split(' / ')[0]}</span>
+                              <span>{opt.split(' / ')[1]}</span>
+                            </>
+                          ) : (
+                            <span>{opt}</span>
+                          )}
+                        </button>
                       ))}
                     </div>
                     {(recordMethod === '信用卡 / 行動支付' || recordMethod === '信用卡') && (
