@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { LogOut, AlertCircle, Settings, Trash2, X, Sparkles, Home, Plus, Pencil, BarChart, Calendar, Store, Tag, User, CreditCard, RefreshCw, Wallet, PiggyBank, PieChart as LucidePieChart, Download, Copy, Send, Landmark } from 'lucide-react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'firebase/auth';
-import { getFirestore, collection, doc, setDoc, getDoc, updateDoc, onSnapshot, addDoc, deleteDoc } from 'firebase/firestore';
+import { getFirestore, collection, doc, setDoc, getDoc, updateDoc, onSnapshot, addDoc, deleteDoc, deleteField } from 'firebase/firestore';
 
 // ==========================================
 // 0. 自動載入 Tailwind CSS 魔法
@@ -52,50 +52,102 @@ const db = getFirestore(app);
 const appId = typeof __app_id !== 'undefined' ? __app_id : 'linbei-family-app';
 
 // ==========================================
-// 共用組件：自製民國年日期選擇器
+// 共用組件：選項管理區塊 (支援編輯與排序)
 // ==========================================
-const ROCDatePicker = ({ value, onChange }) => {
-  const d = value ? new Date(value) : new Date();
-  const year = isNaN(d.getTime()) ? new Date().getFullYear() - 1911 : d.getFullYear() - 1911;
-  const month = isNaN(d.getTime()) ? new Date().getMonth() + 1 : d.getMonth() + 1;
-  const day = isNaN(d.getTime()) ? new Date().getDate() : d.getDate();
+const SettingBlock = ({ title, items, onUpdate, themeClass, spanClass, btnClass, placeholder }) => {
+  const [newItem, setNewItem] = useState('');
+  const [editIdx, setEditIndex] = useState(null);
+  const [editValue, setEditValue] = useState('');
 
-  const fixedYears = Array.from({length: 20}, (_, i) => 110 + i);
-  const months = Array.from({length: 12}, (_, i) => i + 1);
-  const daysInMonth = new Date(year + 1911, month, 0).getDate();
-  const days = Array.from({length: daysInMonth}, (_, i) => i + 1);
+  const handleAdd = () => {
+    const trimmed = newItem.trim();
+    if (!trimmed || items.includes(trimmed)) return;
+    onUpdate([...items, trimmed]);
+    setNewItem('');
+  };
 
-  const handleDateChange = (y, m, d) => {
-    const maxDays = new Date(y + 1911, m, 0).getDate();
-    const validDay = d > maxDays ? maxDays : d;
-    const yyyy = y + 1911;
-    const mm = String(m).padStart(2, '0');
-    const dd = String(validDay).padStart(2, '0');
-    onChange(`${yyyy}-${mm}-${dd}`);
+  const handleDelete = (idx) => {
+    const newList = [...items];
+    newList.splice(idx, 1);
+    onUpdate(newList);
+  };
+
+  const handleMove = (idx, dir) => {
+    if (idx + dir < 0 || idx + dir >= items.length) return;
+    const newList = [...items];
+    const temp = newList[idx];
+    newList[idx] = newList[idx + dir];
+    newList[idx + dir] = temp;
+    onUpdate(newList);
+  };
+
+  const handleSaveEdit = (idx) => {
+    const trimmed = editValue.trim();
+    if (!trimmed || trimmed === items[idx]) {
+      setEditIndex(null);
+      return;
+    }
+    if (items.includes(trimmed)) {
+      alert('此選項已存在！');
+      return;
+    }
+    const oldItem = items[idx];
+    const newList = [...items];
+    newList[idx] = trimmed;
+    onUpdate(newList, oldItem, trimmed);
+    setEditIndex(null);
   };
 
   return (
-    <div className="flex gap-2 w-full mt-1">
-      <div className="relative flex-[1.2]">
-        <select value={year} onChange={e=>handleDateChange(Number(e.target.value), month, day)} className="w-full bg-gray-50 border-2 border-gray-100 p-4 rounded-[1.2rem] outline-none font-bold text-gray-700 text-[16px] appearance-none shadow-sm text-center">
-          {fixedYears.map(y => <option key={y} value={y}>民國 {y} 年</option>)}
-        </select>
-        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-[12px] pointer-events-none">▼</span>
+    <div className={`p-5 rounded-[2rem] border-2 ${themeClass} bg-white shadow-sm mb-6`}>
+      <h3 className="font-bold text-gray-700 mb-4 text-[16px] flex items-center gap-2">{title}</h3>
+      
+      <div className="flex flex-col gap-2 mb-5">
+        {items.map((item, idx) => (
+          <div key={idx} className="flex justify-between items-center bg-gray-50 p-2.5 rounded-[1.2rem] border border-gray-100 shadow-sm gap-2 transition-all">
+            {editIdx === idx ? (
+              <div className="flex flex-1 gap-2 items-center">
+                <input 
+                  type="text" 
+                  value={editValue} 
+                  onChange={e=>setEditValue(e.target.value)} 
+                  className="flex-1 px-3 py-2 rounded-xl border border-gray-300 outline-none font-bold text-[15px] min-w-0" 
+                  autoFocus 
+                />
+                <button onClick={()=>handleSaveEdit(idx)} className="bg-green-500 text-white px-3 py-2 rounded-xl text-[14px] font-bold shadow-sm whitespace-nowrap active:scale-95 transition">儲存</button>
+                <button onClick={()=>setEditIndex(null)} className="bg-gray-400 text-white px-3 py-2 rounded-xl text-[14px] font-bold shadow-sm whitespace-nowrap active:scale-95 transition">取消</button>
+              </div>
+            ) : (
+              <>
+                <span className={`px-3 py-1.5 rounded-xl text-[15px] font-bold ${spanClass} flex-1 truncate`}>
+                  {item}
+                </span>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <button onClick={()=>handleMove(idx, -1)} disabled={idx===0} className="w-8 h-8 flex items-center justify-center bg-white border border-gray-200 rounded-lg text-gray-400 hover:bg-gray-100 hover:text-blue-500 disabled:opacity-30 transition font-black" title="往上移">↑</button>
+                  <button onClick={()=>handleMove(idx, 1)} disabled={idx===items.length-1} className="w-8 h-8 flex items-center justify-center bg-white border border-gray-200 rounded-lg text-gray-400 hover:bg-gray-100 hover:text-blue-500 disabled:opacity-30 transition font-black" title="往下移">↓</button>
+                  <button onClick={()=>{setEditIndex(idx); setEditValue(item);}} className="w-8 h-8 flex items-center justify-center bg-white border border-gray-200 rounded-lg text-gray-400 hover:bg-gray-100 hover:text-orange-500 transition" title="編輯"><Pencil size={14}/></button>
+                  <button onClick={()=>handleDelete(idx)} className="w-8 h-8 flex items-center justify-center bg-white border border-gray-200 rounded-lg text-gray-400 hover:bg-gray-100 hover:text-red-500 transition" title="刪除"><Trash2 size={14}/></button>
+                </div>
+              </>
+            )}
+          </div>
+        ))}
+        {items.length === 0 && <div className="text-gray-400 text-[14px] font-bold py-4 text-center bg-gray-50 rounded-[1.2rem] border border-gray-100">尚無選項</div>}
       </div>
-      <div className="relative flex-[1]">
-        <select value={month} onChange={e=>handleDateChange(year, Number(e.target.value), day)} className="w-full bg-gray-50 border-2 border-gray-100 p-4 rounded-[1.2rem] outline-none font-bold text-gray-700 text-[16px] appearance-none shadow-sm text-center">
-          {months.map(m => <option key={m} value={m}>{m} 月</option>)}
-        </select>
-        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-[12px] pointer-events-none">▼</span>
-      </div>
-      <div className="relative flex-[1]">
-        <select value={day} onChange={e=>handleDateChange(year, month, Number(e.target.value))} className="w-full bg-gray-50 border-2 border-gray-100 p-4 rounded-[1.2rem] outline-none font-bold text-gray-700 text-[16px] appearance-none shadow-sm text-center">
-          {days.map(d => <option key={d} value={d}>{d} 日</option>)}
-        </select>
-        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-[12px] pointer-events-none">▼</span>
+
+      <div className="flex gap-2.5 mt-2">
+        <input 
+          type="text" 
+          value={newItem} 
+          onChange={(e) => setNewItem(e.target.value)} 
+          placeholder={placeholder} 
+          className={`flex-1 border-2 ${themeClass} bg-gray-50 rounded-[1.2rem] p-3 outline-none focus:bg-white transition text-[15px] font-bold`} 
+          onKeyPress={(e) => e.key === 'Enter' && handleAdd()} 
+        />
+        <button onClick={handleAdd} className={`${btnClass} text-white px-5 py-3 rounded-[1.2rem] text-[15px] font-bold shadow-md transition hover:scale-105 active:scale-95`}>新增</button>
       </div>
     </div>
-  )
+  );
 };
 
 // ==========================================
@@ -217,15 +269,9 @@ export default function App() {
   const [homeFilterDate, setHomeFilterDate] = useState(new Date().toISOString().split('T')[0]);
 
   const [settingsTab, setSettingsTab] = useState('expense');
-  const [newOptionInputs, setNewOptionInputs] = useState({
-    categories: '', incomeCategories: '', transferCategories: '', payers: '', paymentMethods: '', merchants: '', creditCards: '', bankAccounts: '',
-    incomeAccounts: '', transferOutAccounts: '', transferInAccounts: ''
-  });
   const [settingSelectedCategory, setSettingSelectedCategory] = useState('');
-  const [newCategoryItemInput, setNewCategoryItemInput] = useState('');
   const [newRuleItem, setNewRuleItem] = useState('');
   const [newRuleMerchant, setNewRuleMerchant] = useState('');
-  
   const [newMethodRuleMerchant, setNewMethodRuleMerchant] = useState('');
   const [newMethodRuleMethod, setNewMethodRuleMethod] = useState('');
   const [newMethodRuleSubMethod, setNewMethodRuleSubMethod] = useState('');
@@ -658,48 +704,30 @@ export default function App() {
   };
 
   // ==========================================
-  // 選項設定
+  // 選項設定更新與規則管理
   // ==========================================
-  const handleAddOption = async (field) => {
-    const value = newOptionInputs[field].trim();
-    if (!value || !currentRoom || !user) return;
+  const updateSettingField = async (field, newList, oldItem, newItem) => {
+    if (!currentRoom || !user || !activeRoomId) return;
     try {
-      const currentArray = currentRoom[field] || [];
-      if (!currentArray.includes(value)) {
-        await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', activeRoomId), { [field]: [...currentArray, value] });
+      const updates = { [field]: newList };
+      // 處理主分類名稱修改時，連帶保留其底下的子項目清單
+      if (field === 'categories' && oldItem && newItem && currentRoom.categoryItems && currentRoom.categoryItems[oldItem]) {
+         updates[`categoryItems.${newItem}`] = currentRoom.categoryItems[oldItem];
+         updates[`categoryItems.${oldItem}`] = deleteField();
       }
-      setNewOptionInputs({ ...newOptionInputs, [field]: '' });
-    } catch (err) { alert('更新失敗：請檢查網路連線'); }
+      await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', activeRoomId), updates);
+    } catch (err) { 
+      alert('更新失敗：請檢查網路連線'); 
+    }
   };
 
-  const handleDeleteOption = async (field, valueToRemove) => {
-    if (!currentRoom || !user) return;
+  const updateCategoryItemsField = async (category, newList) => {
+    if (!currentRoom || !category || !user || !activeRoomId) return;
     try {
-      const currentArray = currentRoom[field] || [];
-      await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', activeRoomId), { [field]: currentArray.filter(item => item !== valueToRemove) });
-    } catch (err) { alert('刪除失敗：請檢查網路連線'); }
-  };
-
-  const handleAddCategoryItem = async (category) => {
-    const val = newCategoryItemInput.trim();
-    if (!val || !currentRoom || !category || !user) return;
-    try {
-      const currentCatItems = currentRoom.categoryItems || {};
-      const itemsForCat = currentCatItems[category] || [];
-      if (!itemsForCat.includes(val)) {
-        await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', activeRoomId), { [`categoryItems.${category}`]: [...itemsForCat, val] });
-      }
-      setNewCategoryItemInput('');
-    } catch (err) { alert('更新失敗：請檢查網路連線'); }
-  };
-
-  const handleDeleteCategoryItem = async (category, valueToRemove) => {
-    if (!currentRoom || !category || !user) return;
-    try {
-      const currentCatItems = currentRoom.categoryItems || {};
-      const itemsForCat = currentCatItems[category] || [];
-      await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', activeRoomId), { [`categoryItems.${category}`]: itemsForCat.filter(i => i !== valueToRemove) });
-    } catch (err) { alert('刪除失敗：請檢查網路連線'); }
+      await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', activeRoomId), { [`categoryItems.${category}`]: newList });
+    } catch (err) { 
+      alert('更新失敗：請檢查網路連線'); 
+    }
   };
 
   const handleAddRule = async () => {
@@ -1141,7 +1169,6 @@ export default function App() {
                       <div className={`absolute left-0 top-1/2 -translate-y-1/2 h-1/2 w-1.5 rounded-r-lg ${isIncome ? 'bg-green-400' : isTransfer ? 'bg-blue-400' : 'bg-orange-400'}`}></div>
                       
                       <div className="flex-1 pl-4 pr-2 overflow-hidden">
-                        {/* 需求 3: 左上角顯示建檔時間 */}
                         <div className="text-[11px] font-bold text-gray-400 mb-2">
                           建檔: {toROCYearStr(exp.timestamp)} {new Date(exp.timestamp).toLocaleTimeString('zh-TW', { hour12: false, hour: '2-digit', minute: '2-digit' })}
                         </div>
@@ -1179,7 +1206,6 @@ export default function App() {
                           {isIncome ? '+' : isTransfer ? '⇆' : '-'}${exp.amount.toLocaleString()}
                         </span>
                         
-                        {/* 需求 2: 右邊功能分兩排 第一排[編輯, 複製] 第二排[刪除, 傳送] */}
                         <div className="grid grid-cols-2 gap-2 mt-4 w-[84px] relative z-20">
                           <button onClick={(e) => { e.stopPropagation(); openEditForm(exp); }} className="text-gray-400 hover:text-blue-500 font-bold p-2 transition bg-gray-50 hover:bg-blue-50 rounded-[0.8rem] shadow-sm" title="編輯"><Pencil size={16} /></button>
                           <button onClick={(e) => { e.stopPropagation(); handleCopyRecord(exp); }} className="text-gray-400 hover:text-green-500 font-bold p-2 transition bg-gray-50 hover:bg-green-50 rounded-[0.8rem] shadow-sm" title="複製此筆"><Copy size={16} /></button>
@@ -1195,7 +1221,7 @@ export default function App() {
           </div>
         </main>
 
-        {/* 查看明細詳細內容 Modal (需求 2) */}
+        {/* 查看明細詳細內容 Modal */}
         {viewingRecord && (
           <div className="fixed inset-0 bg-black/40 z-[100] flex justify-center items-center p-6 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setViewingRecord(null)}>
             <div className="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl relative" onClick={e => e.stopPropagation()}>
@@ -1349,7 +1375,6 @@ export default function App() {
             </div>
 
             <div className={`bg-white rounded-[2rem] p-6 shadow-sm border-2 ${themeBorder}`}>
-              {/* 日期與頻率整合在同一排 */}
               <div className="grid grid-cols-2 gap-3 mb-6 z-40">
                 <div>
                   <label className="flex items-center gap-1.5 text-[15px] font-bold text-gray-500 mb-2.5 ml-1"><Calendar size={16} className="text-gray-400" /> 日期 🗓️</label>
@@ -1496,23 +1521,6 @@ export default function App() {
   }
   // --- 設定畫面 ---
   else if (view === 'settings') {
-    const renderSetting = (title, field, placeholder, themeClass, spanClass, btnClass) => (
-      <div key={field} className={`p-6 rounded-[2rem] border-2 ${themeClass} bg-white shadow-sm mb-6`}>
-        <h3 className="font-bold text-gray-700 mb-4 text-[18px] flex items-center gap-2">{title}</h3>
-        <div className="flex flex-wrap gap-2.5 mb-5">
-          {(currentRoom?.[field] || []).map(item => (
-            <span key={item} className={`px-4 py-2.5 rounded-[1rem] text-[15px] font-bold flex items-center gap-1.5 shadow-sm ${spanClass}`}>
-              {item} <button onClick={() => handleDeleteOption(field, item)} className="hover:opacity-60 transition ml-1"><X size={16} strokeWidth={3} /></button>
-            </span>
-          ))}
-        </div>
-        <div className="flex gap-2.5">
-          <input type="text" value={newOptionInputs[field]} onChange={(e) => setNewOptionInputs({...newOptionInputs, [field]: e.target.value})} placeholder={placeholder} className={`flex-1 border-2 ${themeClass} bg-gray-50 rounded-[1.2rem] p-4 outline-none focus:bg-white transition text-[15px] font-bold`} onKeyPress={(e) => e.key === 'Enter' && handleAddOption(field)} />
-          <button onClick={() => handleAddOption(field)} className={`${btnClass} text-white px-6 py-3.5 rounded-[1.2rem] text-[15px] font-bold shadow-md transition hover:scale-105 active:scale-95`}>新增</button>
-        </div>
-      </div>
-    );
-
     content = (
       <>
         <header className="bg-gradient-to-r from-purple-400 to-pink-400 px-6 py-6 shadow-md shrink-0 z-10 rounded-b-[2rem] border-b-4 border-white/20">
@@ -1536,32 +1544,36 @@ export default function App() {
           <div className="space-y-4">
             {settingsTab === 'expense' && (
               <>
-                {renderSetting('🌸 支出主分類', 'categories', '輸入新分類...', 'border-pink-100', 'bg-pink-50 text-pink-600', 'bg-pink-400')}
+                <SettingBlock 
+                  title="🌸 支出主分類" 
+                  items={currentRoom?.categories || []} 
+                  onUpdate={(newList, oldItem, newItem) => updateSettingField('categories', newList, oldItem, newItem)} 
+                  themeClass="border-pink-100" spanClass="text-pink-600" btnClass="bg-pink-400" placeholder="輸入新分類..." 
+                />
                 
-                <div className={`p-6 rounded-[2rem] border-2 border-pink-100 bg-white shadow-sm mb-6`}>
-                  <h3 className="font-bold text-gray-700 mb-5 text-[18px] flex items-center gap-2">📝 編輯「分類」專屬項目清單</h3>
-                  <select value={settingSelectedCategory} onChange={e => setSettingSelectedCategory(e.target.value)} className="w-full bg-pink-50 border-2 border-pink-100 p-4 rounded-[1.2rem] outline-none mb-5 font-bold text-[16px] text-pink-700 shadow-sm cursor-pointer appearance-none">
+                <div className={`p-5 rounded-[2rem] border-2 border-pink-100 bg-white shadow-sm mb-6`}>
+                  <h3 className="font-bold text-gray-700 mb-5 text-[16px] flex items-center gap-2">📝 編輯「分類」專屬項目清單</h3>
+                  <select value={settingSelectedCategory} onChange={e => setSettingSelectedCategory(e.target.value)} className="w-full bg-pink-50 border-2 border-pink-100 p-4 rounded-[1.2rem] outline-none mb-2 font-bold text-[16px] text-pink-700 shadow-sm cursor-pointer appearance-none">
                       <option value="">請先選擇一個主分類...</option>
                       {(currentRoom?.categories || []).map(c => <option key={c} value={c}>{c}</option>)}
                   </select>
+                  
                   {settingSelectedCategory && (
-                      <>
-                          <div className="flex flex-wrap gap-2.5 mb-5">
-                              {(currentRoom?.categoryItems?.[settingSelectedCategory] || []).map(item => (
-                                  <span key={item} className="px-4 py-2.5 rounded-[1rem] text-[15px] font-bold flex items-center gap-1.5 shadow-sm bg-white border border-pink-100 text-pink-600">
-                                      {item} <button onClick={() => handleDeleteCategoryItem(settingSelectedCategory, item)} className="hover:opacity-60 ml-1"><X size={16} strokeWidth={3} /></button>
-                                  </span>
-                              ))}
-                          </div>
-                          <div className="flex gap-2.5">
-                              <input type="text" value={newCategoryItemInput} onChange={(e) => setNewCategoryItemInput(e.target.value)} placeholder={`新增項目...`} className="flex-1 border-2 border-pink-100 bg-gray-50 rounded-[1.2rem] p-4 outline-none font-bold text-[15px] focus:bg-white transition" onKeyPress={(e) => e.key === 'Enter' && handleAddCategoryItem(settingSelectedCategory)}/>
-                              <button onClick={() => handleAddCategoryItem(settingSelectedCategory)} className="bg-pink-400 text-white px-6 py-3.5 rounded-[1.2rem] text-[15px] font-bold shadow-md transition hover:scale-105 active:scale-95">新增</button>
-                          </div>
-                      </>
+                    <SettingBlock 
+                      title={`[${settingSelectedCategory}] 的項目`} 
+                      items={currentRoom?.categoryItems?.[settingSelectedCategory] || []} 
+                      onUpdate={(newList) => updateCategoryItemsField(settingSelectedCategory, newList)} 
+                      themeClass="border-pink-50 mt-4" spanClass="text-pink-600" btnClass="bg-pink-400" placeholder="新增項目..." 
+                    />
                   )}
                 </div>
 
-                {renderSetting('🏪 常見商家', 'merchants', '輸入新商家...', 'border-orange-100', 'bg-orange-50 text-orange-600', 'bg-orange-400')}
+                <SettingBlock 
+                  title="🏪 常見商家" 
+                  items={currentRoom?.merchants || []} 
+                  onUpdate={(newList) => updateSettingField('merchants', newList)} 
+                  themeClass="border-orange-100" spanClass="text-orange-600" btnClass="bg-orange-400" placeholder="輸入新商家..." 
+                />
                 
                 <div className={`p-6 rounded-[2rem] border-2 border-orange-100 bg-white shadow-sm mb-6`}>
                   <h3 className="font-bold text-gray-700 mb-5 text-[18px] flex items-center gap-2">🤖 商家預設規則</h3>
@@ -1588,9 +1600,21 @@ export default function App() {
                   </div>
                 </div>
 
-                {renderSetting('👥 對象', 'payers', '輸入新人名...', 'border-gray-200', 'bg-gray-100 text-gray-600', 'bg-gray-800')}
-                {renderSetting('💳 信用卡清單', 'creditCards', '輸入信用卡銀行...', 'border-blue-100', 'bg-blue-50 text-blue-600', 'bg-blue-400')}
-                {renderSetting('🏦 銀行帳戶清單', 'bankAccounts', '輸入銀行名稱...', 'border-indigo-100', 'bg-indigo-50 text-indigo-600', 'bg-indigo-400')}
+                <SettingBlock 
+                  title="👥 對象" items={currentRoom?.payers || []} 
+                  onUpdate={(newList) => updateSettingField('payers', newList)} 
+                  themeClass="border-gray-200" spanClass="text-gray-700" btnClass="bg-gray-800" placeholder="輸入新人名..." 
+                />
+                <SettingBlock 
+                  title="💳 信用卡清單" items={currentRoom?.creditCards || []} 
+                  onUpdate={(newList) => updateSettingField('creditCards', newList)} 
+                  themeClass="border-blue-100" spanClass="text-blue-600" btnClass="bg-blue-400" placeholder="輸入信用卡銀行..." 
+                />
+                <SettingBlock 
+                  title="🏦 銀行帳戶清單" items={currentRoom?.bankAccounts || []} 
+                  onUpdate={(newList) => updateSettingField('bankAccounts', newList)} 
+                  themeClass="border-indigo-100" spanClass="text-indigo-600" btnClass="bg-indigo-400" placeholder="輸入銀行名稱..." 
+                />
                 
                 <div className={`p-6 rounded-[2rem] border-2 border-blue-100 bg-white shadow-sm mb-6`}>
                   <h3 className="font-bold text-gray-700 mb-5 text-[18px] flex items-center gap-2">🤖 付款方式預設規則</h3>
@@ -1640,16 +1664,36 @@ export default function App() {
 
             {settingsTab === 'income' && (
               <>
-                {renderSetting('💰 收入主分類', 'incomeCategories', '輸入收入分類...', 'border-green-100', 'bg-green-50 text-green-600', 'bg-green-400')}
-                {renderSetting('🏦 存入帳戶', 'incomeAccounts', '輸入存入帳戶...', 'border-green-100', 'bg-green-50 text-green-600', 'bg-green-400')}
+                <SettingBlock 
+                  title="💰 收入主分類" items={currentRoom?.incomeCategories || []} 
+                  onUpdate={(newList) => updateSettingField('incomeCategories', newList)} 
+                  themeClass="border-green-100" spanClass="text-green-600" btnClass="bg-green-400" placeholder="輸入收入分類..." 
+                />
+                <SettingBlock 
+                  title="🏦 存入帳戶" items={currentRoom?.incomeAccounts || []} 
+                  onUpdate={(newList) => updateSettingField('incomeAccounts', newList)} 
+                  themeClass="border-green-100" spanClass="text-green-600" btnClass="bg-green-400" placeholder="輸入存入帳戶..." 
+                />
               </>
             )}
 
             {settingsTab === 'transfer' && (
               <>
-                {renderSetting('🔄 轉帳主分類', 'transferCategories', '輸入轉帳分類...', 'border-blue-100', 'bg-blue-50 text-blue-600', 'bg-blue-400')}
-                {renderSetting('📤 轉出帳戶', 'transferOutAccounts', '輸入轉出帳戶...', 'border-blue-100', 'bg-blue-50 text-blue-600', 'bg-blue-400')}
-                {renderSetting('📥 轉入帳戶', 'transferInAccounts', '輸入轉入帳戶...', 'border-blue-100', 'bg-blue-50 text-blue-600', 'bg-blue-400')}
+                <SettingBlock 
+                  title="🔄 轉帳主分類" items={currentRoom?.transferCategories || []} 
+                  onUpdate={(newList) => updateSettingField('transferCategories', newList)} 
+                  themeClass="border-blue-100" spanClass="text-blue-600" btnClass="bg-blue-400" placeholder="輸入轉帳分類..." 
+                />
+                <SettingBlock 
+                  title="📤 轉出帳戶" items={currentRoom?.transferOutAccounts || []} 
+                  onUpdate={(newList) => updateSettingField('transferOutAccounts', newList)} 
+                  themeClass="border-blue-100" spanClass="text-blue-600" btnClass="bg-blue-400" placeholder="輸入轉出帳戶..." 
+                />
+                <SettingBlock 
+                  title="📥 轉入帳戶" items={currentRoom?.transferInAccounts || []} 
+                  onUpdate={(newList) => updateSettingField('transferInAccounts', newList)} 
+                  themeClass="border-blue-100" spanClass="text-blue-600" btnClass="bg-blue-400" placeholder="輸入轉入帳戶..." 
+                />
               </>
             )}
           </div>
