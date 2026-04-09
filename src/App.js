@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { LogOut, AlertCircle, Settings, Trash2, X, Sparkles, Home, Plus, Pencil, BarChart, Calendar, Store, Tag, User, CreditCard, RefreshCw, Wallet, PiggyBank, PieChart as LucidePieChart, Download, Copy, Send, Landmark } from 'lucide-react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'firebase/auth';
-import { getFirestore, collection, doc, setDoc, getDoc, updateDoc, onSnapshot, addDoc, deleteDoc, deleteField } from 'firebase/firestore';
+import { getFirestore, collection, doc, setDoc, getDoc, updateDoc, onSnapshot, addDoc, deleteDoc, deleteField, writeBatch } from 'firebase/firestore';
 
 // ==========================================
 // 0. 自動載入 Tailwind CSS 魔法
@@ -34,6 +34,62 @@ const toROCFullStr = (dateStr) => {
   if (isNaN(d.getTime())) return dateStr;
   const days = ['日', '一', '二', '三', '四', '五', '六'];
   return `民國 ${d.getFullYear() - 1911} 年 ${d.getMonth() + 1} 月 ${d.getDate()} 日 (週${days[d.getDay()]})`;
+};
+
+// ==========================================
+// 產生未來定期日期的演算法 (最多預排1年)
+// ==========================================
+const generateFutureDates = (startDateStr, freq, daysArr, intervalStr, customText, maxYears = 1) => {
+  const dates = [];
+  const startD = new Date(startDateStr);
+  if (isNaN(startD)) return dates;
+  const endD = new Date(startD);
+  endD.setFullYear(endD.getFullYear() + maxYears);
+  
+  let curr = new Date(startD);
+  curr.setDate(curr.getDate() + 1); // 從起始日的「隔天」開始算 (因為起始日已經會被主程式存入)
+  
+  const mapDayToNum = { '週日':0, '週一':1, '週二':2, '週三':3, '週四':4, '週五':5, '週六':6 };
+  
+  if (freq === '每週') {
+      const targetDays = daysArr.map(d => mapDayToNum[d]).filter(d => d !== undefined);
+      if(targetDays.length === 0) return dates;
+      while(curr <= endD) {
+          if (targetDays.includes(curr.getDay())) {
+              dates.push(curr.toISOString().split('T')[0]);
+          }
+          curr.setDate(curr.getDate() + 1);
+      }
+  } else if (freq === '每月') {
+      const targetDates = daysArr.map(d => Number(d)).filter(d => !isNaN(d));
+      if(targetDates.length === 0) return dates;
+      while(curr <= endD) {
+          const testD = new Date(curr.getFullYear(), curr.getMonth(), curr.getDate());
+          // 確保當月份真的有這一天 (避免2月跑到3月)
+          if (targetDates.includes(curr.getDate()) && testD.getMonth() === curr.getMonth()) {
+              dates.push(curr.toISOString().split('T')[0]);
+          }
+          curr.setDate(curr.getDate() + 1);
+      }
+  } else if (freq === '區間') {
+      let nextD = new Date(startD);
+      while(true) {
+          let added = false;
+          if (intervalStr === '3個月') { nextD.setMonth(nextD.getMonth() + 3); added = true; }
+          else if (intervalStr === '半年') { nextD.setMonth(nextD.getMonth() + 6); added = true; }
+          else if (intervalStr === '一年') { nextD.setFullYear(nextD.getFullYear() + 1); added = true; }
+          else if (intervalStr === '自訂') {
+              const days = parseInt(customText.replace(/\D/g, ''));
+              if(!isNaN(days) && days > 0) {
+                  nextD.setDate(nextD.getDate() + days);
+                  added = true;
+              }
+          }
+          if (!added || nextD > endD) break;
+          dates.push(nextD.toISOString().split('T')[0]);
+      }
+  }
+  return dates;
 };
 
 // ==========================================
@@ -269,9 +325,15 @@ export default function App() {
   const [homeFilterDate, setHomeFilterDate] = useState(new Date().toISOString().split('T')[0]);
 
   const [settingsTab, setSettingsTab] = useState('expense');
+  const [newOptionInputs, setNewOptionInputs] = useState({
+    categories: '', incomeCategories: '', transferCategories: '', payers: '', paymentMethods: '', merchants: '', creditCards: '', bankAccounts: '',
+    incomeAccounts: '', transferOutAccounts: '', transferInAccounts: ''
+  });
   const [settingSelectedCategory, setSettingSelectedCategory] = useState('');
+  const [newCategoryItemInput, setNewCategoryItemInput] = useState('');
   const [newRuleItem, setNewRuleItem] = useState('');
   const [newRuleMerchant, setNewRuleMerchant] = useState('');
+  
   const [newMethodRuleMerchant, setNewMethodRuleMerchant] = useState('');
   const [newMethodRuleMethod, setNewMethodRuleMethod] = useState('');
   const [newMethodRuleSubMethod, setNewMethodRuleSubMethod] = useState('');
@@ -513,40 +575,102 @@ export default function App() {
   };
 
   // ==========================================
-  // 紀錄 CRUD
+  // 紀錄 CRUD (支援定期群組新增、刪除未來排程)
   // ==========================================
   const handleSaveRecord = (e) => {
     e.preventDefault();
     if (!isFormValid || !user) return;
 
     try {
-      const recordData = {
+      const isEditing = !!editRecordId;
+      const oldRecord = isEditing ? records.find(r => r.id === editRecordId) : null;
+      
+      const currentGroupId = oldRecord?.groupId || null;
+      const newGroupId = currentGroupId || (Date.now().toString() + Math.random().toString(36).substring(2, 9));
+      const finalGroupId = recordFrequency === '一次' ? null : newGroupId;
+
+      const baseData = {
         roomId: activeRoomId, type: recordType, amount: Number(recordAmount),
         date: recordDate, frequency: recordFrequency || '一次', frequencyDays: recordFrequencyDays,
         frequencyInterval: recordFrequencyInterval, frequencyCustomText: recordFrequencyCustomText,
         method: recordMethod || '未指定', subMethod: recordSubMethod || '',
         note: recordNote, addedBy: user.uid, addedByRole: currentUserRole,
-        timestamp: editRecordId ? records.find(r=>r.id===editRecordId)?.timestamp : Date.now()
+        groupId: finalGroupId
       };
 
       if (recordType === 'expense') {
-        recordData.payer = recordPayer; recordData.category = recordCategory;
-        recordData.title = selectedItem; recordData.merchant = recordMerchant;
+        baseData.payer = recordPayer; baseData.category = recordCategory;
+        baseData.title = selectedItem; baseData.merchant = recordMerchant;
       } else if (recordType === 'income') {
-        recordData.payer = recordPayer; recordData.category = recordCategory; recordData.title = '收入'; 
+        baseData.payer = recordPayer; baseData.category = recordCategory; baseData.title = '收入'; 
       } else if (recordType === 'transfer') {
-        recordData.payer = recordPayer; recordData.category = recordCategory; recordData.title = '轉帳'; 
-        recordData.transferToMethod = transferToMethod; recordData.transferToSubMethod = transferToSubMethod;
+        baseData.payer = recordPayer; baseData.category = recordCategory; baseData.title = '轉帳'; 
+        baseData.transferToMethod = transferToMethod; baseData.transferToSubMethod = transferToSubMethod;
       }
 
-      if (editRecordId) {
-        updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'expenses', editRecordId), recordData)
-          .catch(() => console.log('背景儲存同步中...'));
+      const batch = writeBatch(db);
+      let opsCount = 0;
+
+      if (!isEditing) {
+        // 新增目前這筆
+        const curRef = doc(collection(db, 'artifacts', appId, 'public', 'data', 'expenses'));
+        batch.set(curRef, { ...baseData, timestamp: Date.now() });
+        opsCount++;
+
+        // 若為定期，自動產生未來1年內的資料 (預設在早上07:00建立)
+        if (recordFrequency !== '一次') {
+          const futureDates = generateFutureDates(recordDate, recordFrequency, recordFrequencyDays, recordFrequencyInterval, recordFrequencyCustomText, 1);
+          futureDates.forEach(d => {
+            if(opsCount >= 490) return; // 保護 Firestore 500筆限制
+            const futRef = doc(collection(db, 'artifacts', appId, 'public', 'data', 'expenses'));
+            const ts = new Date(d + 'T07:00:00').getTime();
+            batch.set(futRef, { ...baseData, date: d, timestamp: ts });
+            opsCount++;
+          });
+        }
       } else {
-        addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'expenses'), recordData)
-          .catch(() => console.log('背景儲存同步中...'));
+        // 編輯目前這筆
+        const curRef = doc(db, 'artifacts', appId, 'public', 'data', 'expenses', editRecordId);
+        batch.update(curRef, { ...baseData, timestamp: oldRecord.timestamp });
+        opsCount++;
+
+        if (currentGroupId) {
+          // 如果本來是定期紀錄 => 先將修改日期「之後」的所有同群組未來資料刪除
+          const futureRecords = records.filter(r => r.groupId === currentGroupId && r.date > recordDate && r.id !== editRecordId);
+          futureRecords.forEach(r => {
+            if(opsCount >= 490) return;
+            const delRef = doc(db, 'artifacts', appId, 'public', 'data', 'expenses', r.id);
+            batch.delete(delRef);
+            opsCount++;
+          });
+
+          // 若修改後「依然」是定期記錄，則依照新規則重新產生未來的資料
+          if (recordFrequency !== '一次') {
+             const futureDates = generateFutureDates(recordDate, recordFrequency, recordFrequencyDays, recordFrequencyInterval, recordFrequencyCustomText, 1);
+             futureDates.filter(d => d > recordDate).forEach(d => {
+               if(opsCount >= 490) return;
+               const futRef = doc(collection(db, 'artifacts', appId, 'public', 'data', 'expenses'));
+               const ts = new Date(d + 'T07:00:00').getTime();
+               batch.set(futRef, { ...baseData, date: d, timestamp: ts });
+               opsCount++;
+             });
+          }
+        } else {
+           // 本來是「一次」，現在被改成定期
+           if (recordFrequency !== '一次') {
+             const futureDates = generateFutureDates(recordDate, recordFrequency, recordFrequencyDays, recordFrequencyInterval, recordFrequencyCustomText, 1);
+             futureDates.filter(d => d > recordDate).forEach(d => {
+               if(opsCount >= 490) return;
+               const futRef = doc(collection(db, 'artifacts', appId, 'public', 'data', 'expenses'));
+               const ts = new Date(d + 'T07:00:00').getTime();
+               batch.set(futRef, { ...baseData, date: d, timestamp: ts });
+               opsCount++;
+             });
+           }
+        }
       }
       
+      batch.commit().catch(err => console.error('背景儲存同步錯誤', err));
       resetForm(); 
       setShowAddForm(false);
     } catch (err) { 
@@ -620,7 +744,7 @@ export default function App() {
       setRecordSubMethod('');
       setTransferToSubMethod('');
     }
-    setEditRecordId(null); 
+    setEditRecordId(null); // Copy as new
     setShowAddForm(true);
   };
 
@@ -639,6 +763,10 @@ export default function App() {
       const { id, ...dataToCopy } = crossRoomRecord;
       dataToCopy.roomId = targetRoomId;
       dataToCopy.timestamp = Date.now();
+      // 切斷原始群組連結，確保傳過去後是獨立的
+      dataToCopy.groupId = null;
+      if (dataToCopy.frequency !== '一次') dataToCopy.frequency = '一次';
+
       await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'expenses'), dataToCopy);
       alert('✅ 成功傳送紀錄至另一個房間！');
       setCrossRoomRecord(null);
@@ -1118,6 +1246,7 @@ export default function App() {
           
           <div className="mb-4">
             <div className="relative bg-white/20 backdrop-blur-md rounded-[1.2rem] shadow-sm border border-white/30 px-4 py-2.5 flex items-center overflow-hidden hover:bg-white/30 transition">
+              {/* 需求 3: z-10 覆蓋整個按鈕 */}
               <input type="date" value={homeFilterDate} onChange={(e) => setHomeFilterDate(e.target.value)} className="absolute inset-0 w-full h-full opacity-0 z-10 cursor-pointer" />
               <Calendar size={20} className="text-white mr-3 z-0"/>
               <span className="text-white text-[18px] font-black drop-shadow-sm z-0">
@@ -1206,6 +1335,7 @@ export default function App() {
                           {isIncome ? '+' : isTransfer ? '⇆' : '-'}${exp.amount.toLocaleString()}
                         </span>
                         
+                        {/* 需求 2: 排版調整為 [編輯, 複製] \n [刪除, 傳送] */}
                         <div className="grid grid-cols-2 gap-2 mt-4 w-[84px] relative z-20">
                           <button onClick={(e) => { e.stopPropagation(); openEditForm(exp); }} className="text-gray-400 hover:text-blue-500 font-bold p-2 transition bg-gray-50 hover:bg-blue-50 rounded-[0.8rem] shadow-sm" title="編輯"><Pencil size={16} /></button>
                           <button onClick={(e) => { e.stopPropagation(); handleCopyRecord(exp); }} className="text-gray-400 hover:text-green-500 font-bold p-2 transition bg-gray-50 hover:bg-green-50 rounded-[0.8rem] shadow-sm" title="複製此筆"><Copy size={16} /></button>
@@ -1375,6 +1505,7 @@ export default function App() {
             </div>
 
             <div className={`bg-white rounded-[2rem] p-6 shadow-sm border-2 ${themeBorder}`}>
+              {/* 需求 1 & 4: 日期單一欄位且顯示民國年，與頻率同一排 */}
               <div className="grid grid-cols-2 gap-3 mb-6 z-40">
                 <div>
                   <label className="flex items-center gap-1.5 text-[15px] font-bold text-gray-500 mb-2.5 ml-1"><Calendar size={16} className="text-gray-400" /> 日期 🗓️</label>
@@ -1521,6 +1652,23 @@ export default function App() {
   }
   // --- 設定畫面 ---
   else if (view === 'settings') {
+    const renderSetting = (title, field, placeholder, themeClass, spanClass, btnClass) => (
+      <div key={field} className={`p-6 rounded-[2rem] border-2 ${themeClass} bg-white shadow-sm mb-6`}>
+        <h3 className="font-bold text-gray-700 mb-4 text-[18px] flex items-center gap-2">{title}</h3>
+        <div className="flex flex-wrap gap-2.5 mb-5">
+          {(currentRoom?.[field] || []).map(item => (
+            <span key={item} className={`px-4 py-2.5 rounded-[1rem] text-[15px] font-bold flex items-center gap-1.5 shadow-sm ${spanClass}`}>
+              {item} <button onClick={() => handleDeleteOption(field, item)} className="hover:opacity-60 transition ml-1"><X size={16} strokeWidth={3} /></button>
+            </span>
+          ))}
+        </div>
+        <div className="flex gap-2.5">
+          <input type="text" value={newOptionInputs[field]} onChange={(e) => setNewOptionInputs({...newOptionInputs, [field]: e.target.value})} placeholder={placeholder} className={`flex-1 border-2 ${themeClass} bg-gray-50 rounded-[1.2rem] p-4 outline-none focus:bg-white transition text-[15px] font-bold`} onKeyPress={(e) => e.key === 'Enter' && handleAddOption(field)} />
+          <button onClick={() => handleAddOption(field)} className={`${btnClass} text-white px-6 py-3.5 rounded-[1.2rem] text-[15px] font-bold shadow-md transition hover:scale-105 active:scale-95`}>新增</button>
+        </div>
+      </div>
+    );
+
     content = (
       <>
         <header className="bg-gradient-to-r from-purple-400 to-pink-400 px-6 py-6 shadow-md shrink-0 z-10 rounded-b-[2rem] border-b-4 border-white/20">
