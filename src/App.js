@@ -16,6 +16,24 @@ if (typeof document !== 'undefined' && !document.getElementById('tailwind-script
 }
 
 // ==========================================
+// 本地時間取得工具 (修正 UTC 時差問題)
+// ==========================================
+const getLocalTodayStr = () => {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+};
+
+const getLocalMonthStartStr = () => {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  return `${y}-${m}-01`;
+};
+
+// ==========================================
 // 民國年轉換工具函數
 // ==========================================
 const toROCYearStr = (dateStr) => {
@@ -306,12 +324,12 @@ export default function App() {
   const [viewingRecord, setViewingRecord] = useState(null); 
   const [viewingAccountHistory, setViewingAccountHistory] = useState(null); 
   
-  const [historyStartDate, setHistoryStartDate] = useState(new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0]);
-  const [historyEndDate, setHistoryEndDate] = useState(new Date().toISOString().split('T')[0]);
+  const [historyStartDate, setHistoryStartDate] = useState(getLocalMonthStartStr());
+  const [historyEndDate, setHistoryEndDate] = useState(getLocalTodayStr());
 
   const [recordType, setRecordType] = useState('expense');
   const [recordAmount, setRecordAmount] = useState('');
-  const [recordDate, setRecordDate] = useState(new Date().toISOString().split('T')[0]);
+  const [recordDate, setRecordDate] = useState(getLocalTodayStr());
   const [recordFrequency, setRecordFrequency] = useState('一次');
   const [recordFrequencyDays, setRecordFrequencyDays] = useState([]); 
   const [recordFrequencyInterval, setRecordFrequencyInterval] = useState(''); 
@@ -327,7 +345,7 @@ export default function App() {
   const [transferToMethod, setTransferToMethod] = useState('');
   const [transferToSubMethod, setTransferToSubMethod] = useState('');
 
-  const [homeFilterDate, setHomeFilterDate] = useState(new Date().toISOString().split('T')[0]);
+  const [homeFilterDate, setHomeFilterDate] = useState(getLocalTodayStr());
 
   const [settingsTab, setSettingsTab] = useState('expense');
   const [newOptionInputs, setNewOptionInputs] = useState({
@@ -343,8 +361,8 @@ export default function App() {
   const [newMethodRuleSubMethod, setNewMethodRuleSubMethod] = useState('');
 
   const [analysisType, setAnalysisType] = useState('expense'); 
-  const [analysisStartDate, setAnalysisStartDate] = useState(new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0]);
-  const [analysisEndDate, setAnalysisEndDate] = useState(new Date().toISOString().split('T')[0]);
+  const [analysisStartDate, setAnalysisStartDate] = useState(getLocalMonthStartStr());
+  const [analysisEndDate, setAnalysisEndDate] = useState(getLocalTodayStr());
   const [analysisMenus, setAnalysisMenus] = useState([]); 
   const [analysisSubSelections, setAnalysisSubSelections] = useState({
     category: [], title: [], merchant: [], method: [], subMethod: []
@@ -632,7 +650,7 @@ export default function App() {
 
       const batch = writeBatch(db);
       let opsCount = 0;
-      const todayStr = new Date().toISOString().split('T')[0]; 
+      const todayStr = getLocalTodayStr(); 
 
       if (!isEditing) {
         const curRef = doc(collection(db, 'artifacts', appId, 'public', 'data', 'expenses'));
@@ -697,7 +715,7 @@ export default function App() {
 
   const resetForm = () => {
     setRecordAmount(''); 
-    setRecordDate(homeFilterDate || new Date().toISOString().split('T')[0]); 
+    setRecordDate(homeFilterDate || getLocalTodayStr()); 
     setRecordFrequency('一次'); setRecordFrequencyDays([]); 
     setRecordFrequencyInterval(''); setRecordFrequencyCustomText('');
     setRecordPayer([]); setRecordCategory(''); setSelectedItem('');
@@ -738,7 +756,7 @@ export default function App() {
   const handleCopyRecord = (record) => {
     setRecordType(record.type || 'expense'); 
     setRecordAmount(record.amount);
-    setRecordDate(homeFilterDate || new Date().toISOString().split('T')[0]); 
+    setRecordDate(homeFilterDate || getLocalTodayStr()); 
     setRecordFrequency('一次'); setRecordFrequencyDays([]); 
     setRecordFrequencyInterval(''); setRecordFrequencyCustomText('');
     setRecordNote(record.note || '');
@@ -860,7 +878,7 @@ export default function App() {
     (currentRoom?.creditCards || []).forEach(c => { if (balances[c] === undefined) balances[c] = 0; });
 
     const getAccName = (method, subMethod) => method === '現金' ? '現金' : subMethod;
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = getLocalTodayStr();
 
     records.forEach(r => {
       if (r.date > todayStr) return; // 不計入未來排程
@@ -1288,13 +1306,13 @@ export default function App() {
 
     return (
       <div className="mb-4 w-full">
-        {label && <label className="flex items-center gap-1.5 text-[15px] font-bold text-gray-500 mb-2 ml-1">{Icon && <Icon size={16} className="text-gray-400" />} {label}</label>}
-        <div className="flex flex-nowrap gap-2 overflow-x-auto pb-1.5 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+        {label && <label className="flex items-center gap-1.5 text-[14px] font-bold text-gray-500 mb-2 ml-1">{Icon && <Icon size={14} className="text-gray-400" />} {label}</label>}
+        <div className="flex w-full gap-1.5">
           {options.map(opt => {
             const isSelected = values.includes(opt);
             const isDisabled = isPayer && ((opt === '全家' && hasIndividuals) || (opt !== '全家' && hasFamily));
             return (
-              <button key={opt} type="button" onClick={() => handleToggle(opt)} className={`shrink-0 whitespace-nowrap px-4 py-2 rounded-xl text-[15px] font-bold transition-all duration-200 ${isSelected ? 'bg-[#FFE28A] text-gray-800 shadow-sm border-2 border-[#FCD34D] transform -translate-y-0.5' : isDisabled ? 'bg-gray-100 text-gray-300 border-2 border-transparent cursor-not-allowed opacity-60' : 'bg-white text-gray-600 hover:bg-gray-50 border-2 border-gray-100 shadow-sm'}`}>{opt}</button>
+              <button key={opt} type="button" onClick={() => handleToggle(opt)} className={`flex-1 py-2 px-0.5 rounded-[1.2rem] text-[13px] sm:text-[14px] font-black transition-all duration-200 border-2 shadow-sm flex items-center justify-center leading-tight ${isSelected ? 'bg-[#FFE28A] text-gray-900 border-[#F59E0B] transform -translate-y-0.5 z-10' : isDisabled ? 'bg-gray-100 text-gray-300 border-transparent cursor-not-allowed opacity-60' : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300 hover:bg-gray-50'}`}>{opt}</button>
             )
           })}
         </div>
@@ -1531,7 +1549,7 @@ export default function App() {
 
               <div className="flex-1 overflow-y-auto space-y-2 pr-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
                 {(() => {
-                  const todayStr = new Date().toISOString().split('T')[0];
+                  const todayStr = getLocalTodayStr();
                   const accHistory = records.filter(r => {
                      // 使用選擇的日期區間，且不得超過今日
                      if (r.date > historyEndDate || r.date < historyStartDate) return false;
@@ -1607,7 +1625,7 @@ export default function App() {
                 </span>
                 <span className="text-white/70 text-[13px] ml-auto pl-1 shrink-0 z-0">▼</span>
               </div>
-              <button onClick={() => setHomeFilterDate(new Date().toISOString().split('T')[0])} className="shrink-0 bg-white/20 hover:bg-white/30 text-white px-3 py-1.5 rounded-xl transition font-bold text-[15px] shadow-sm backdrop-blur-sm whitespace-nowrap">今天</button>
+              <button onClick={() => setHomeFilterDate(getLocalTodayStr())} className="shrink-0 bg-white/20 hover:bg-white/30 text-white px-3 py-1.5 rounded-xl transition font-bold text-[15px] shadow-sm backdrop-blur-sm whitespace-nowrap">今天</button>
             </div>
           </div>
 
@@ -1865,7 +1883,7 @@ export default function App() {
                 <div>
                   <label className="flex items-center justify-between text-[15px] font-bold text-gray-500 mb-2.5 ml-1 w-full pr-1">
                     <span className="flex items-center gap-1.5"><Calendar size={16} className="text-gray-400" /> 日期 🗓️</span>
-                    <button type="button" onClick={() => setRecordDate(new Date().toISOString().split('T')[0])} className="bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-1 rounded-lg text-[13px] transition shadow-sm">今天</button>
+                    <button type="button" onClick={() => setRecordDate(getLocalTodayStr())} className="bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-1 rounded-lg text-[13px] transition shadow-sm">今天</button>
                   </label>
                   <div className="relative w-full bg-gray-50 border border-gray-100 p-4 rounded-[1.2rem] flex items-center shadow-sm cursor-pointer hover:bg-white transition overflow-hidden">
                     <input 
@@ -2303,7 +2321,7 @@ export default function App() {
               <div>
                 <div className="flex justify-between items-center mb-1.5 ml-1">
                   <label className="block text-[13px] font-bold text-gray-500">開始日期</label>
-                  <button type="button" onClick={() => setAnalysisStartDate(new Date().toISOString().split('T')[0])} className="text-teal-600 bg-teal-50 hover:bg-teal-100 px-2 py-0.5 rounded text-[11px] font-bold transition">今天</button>
+                  <button type="button" onClick={() => setAnalysisStartDate(getLocalTodayStr())} className="text-teal-600 bg-teal-50 hover:bg-teal-100 px-2 py-0.5 rounded text-[11px] font-bold transition">今天</button>
                 </div>
                 <div className="text-[11px] font-bold text-gray-400 mb-1 ml-1">({analysisStartDate ? toROCYearStr(analysisStartDate) : ''})</div>
                 <input type="date" value={analysisStartDate} onChange={e => setAnalysisStartDate(e.target.value)} className="w-full bg-gray-50 border border-gray-100 p-3 rounded-xl outline-none font-bold text-gray-700 text-[14px] focus:bg-white focus:border-teal-300 transition shadow-sm" />
@@ -2311,7 +2329,7 @@ export default function App() {
               <div>
                 <div className="flex justify-between items-center mb-1.5 ml-1">
                   <label className="block text-[13px] font-bold text-gray-500">結束日期</label>
-                  <button type="button" onClick={() => setAnalysisEndDate(new Date().toISOString().split('T')[0])} className="text-teal-600 bg-teal-50 hover:bg-teal-100 px-2 py-0.5 rounded text-[11px] font-bold transition">今天</button>
+                  <button type="button" onClick={() => setAnalysisEndDate(getLocalTodayStr())} className="text-teal-600 bg-teal-50 hover:bg-teal-100 px-2 py-0.5 rounded text-[11px] font-bold transition">今天</button>
                 </div>
                 <div className="text-[11px] font-bold text-gray-400 mb-1 ml-1">({analysisEndDate ? toROCYearStr(analysisEndDate) : ''})</div>
                 <input type="date" value={analysisEndDate} onChange={e => setAnalysisEndDate(e.target.value)} className="w-full bg-gray-50 border border-gray-100 p-3 rounded-xl outline-none font-bold text-gray-700 text-[14px] focus:bg-white focus:border-teal-300 transition shadow-sm" />
