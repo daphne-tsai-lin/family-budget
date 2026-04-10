@@ -522,15 +522,12 @@ export default function App() {
     const xDistance = touchStart.x - touchEnd.x;
     const yDistance = touchStart.y - touchEnd.y;
     
-    // 確保是水平滑動，且距離足夠大 (大於 40px)
     if (Math.abs(xDistance) > Math.abs(yDistance) && Math.abs(xDistance) > 40) {
       if (!homeFilterDate) return;
       const d = new Date(homeFilterDate);
       if (xDistance > 0) {
-        // 向左滑，前進一天
         d.setDate(d.getDate() + 1);
       } else {
-        // 向右滑，後退一天
         d.setDate(d.getDate() - 1);
       }
       const y = d.getFullYear();
@@ -559,8 +556,8 @@ export default function App() {
     let targetTs = targetTx.timestamp;
     
     if (currentTs === targetTs) {
-       if (direction === -1) targetTs -= 1; // 往上移，目標時間減1確保有差距
-       else targetTs += 1; // 往下移
+       if (direction === -1) targetTs -= 1; 
+       else targetTs += 1; 
     }
 
     try {
@@ -917,7 +914,7 @@ export default function App() {
           }
           const { id, ...dataToCopy } = record; 
           dataToCopy.roomId = activeRoomId; 
-          dataToCopy.groupId = null; // 匯入的資料視為一次性歷史，切斷群組連動
+          dataToCopy.groupId = null; 
           if (dataToCopy.frequency !== '一次') dataToCopy.frequency = '一次';
           
           const newRef = doc(collection(db, 'artifacts', appId, 'public', 'data', 'expenses'));
@@ -1787,12 +1784,11 @@ export default function App() {
                           {isIncome ? '+' : isTransfer ? '⇆' : '-'}${exp.amount.toLocaleString()}
                         </span>
                         
-                        {/* 需求 2: 3x2 排版並新增上下移動按鈕 */}
-                        <div className="grid grid-cols-3 gap-1 mt-2 w-[90px] relative z-20">
+                        <div className="grid grid-cols-2 gap-1 mt-2 w-[64px] relative z-20">
                           <button onClick={(e) => { e.stopPropagation(); handleMoveRecord(idx, -1); }} disabled={idx === 0} className="text-gray-400 hover:text-blue-500 font-bold p-1 transition bg-gray-50 hover:bg-blue-50 rounded-md shadow-sm flex items-center justify-center disabled:opacity-30" title="往上移"><ArrowUp size={13} /></button>
+                          <button onClick={(e) => { e.stopPropagation(); handleMoveRecord(idx, 1); }} disabled={idx === displayRecords.length - 1} className="text-gray-400 hover:text-blue-500 font-bold p-1 transition bg-gray-50 hover:bg-blue-50 rounded-md shadow-sm flex items-center justify-center disabled:opacity-30" title="往下移"><ArrowDown size={13} /></button>
                           <button onClick={(e) => { e.stopPropagation(); openEditForm(exp); }} className="text-gray-400 hover:text-blue-500 font-bold p-1 transition bg-gray-50 hover:bg-blue-50 rounded-md shadow-sm flex items-center justify-center" title="編輯"><Pencil size={13} /></button>
                           <button onClick={(e) => { e.stopPropagation(); handleCopyRecord(exp); }} className="text-gray-400 hover:text-green-500 font-bold p-1 transition bg-gray-50 hover:bg-green-50 rounded-md shadow-sm flex items-center justify-center" title="複製此筆"><Copy size={13} /></button>
-                          <button onClick={(e) => { e.stopPropagation(); handleMoveRecord(idx, 1); }} disabled={idx === displayRecords.length - 1} className="text-gray-400 hover:text-blue-500 font-bold p-1 transition bg-gray-50 hover:bg-blue-50 rounded-md shadow-sm flex items-center justify-center disabled:opacity-30" title="往下移"><ArrowDown size={13} /></button>
                           <button onClick={(e) => { e.stopPropagation(); handleDeleteRecord(exp.id); }} className="text-gray-400 hover:text-red-500 font-bold p-1 transition bg-gray-50 hover:bg-red-50 rounded-md shadow-sm flex items-center justify-center" title="刪除"><Trash2 size={13} /></button>
                           <button onClick={(e) => { e.stopPropagation(); setCrossRoomRecord(exp); }} className="text-gray-400 hover:text-orange-500 font-bold p-1 transition bg-gray-50 hover:bg-orange-50 rounded-md shadow-sm flex items-center justify-center" title="傳送到其他房間"><Send size={13} /></button>
                         </div>
