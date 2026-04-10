@@ -1,6 +1,6 @@
 /* eslint-disable */
 import React, { useState, useEffect, useRef } from 'react';
-import { LogOut, AlertCircle, Settings, Trash2, X, Sparkles, Home, Plus, Pencil, BarChart, Calendar, Store, Tag, User, CreditCard, RefreshCw, Wallet, PiggyBank, PieChart as LucidePieChart, Download, Upload, Copy, Send, Landmark, ArrowRightLeft, Check } from 'lucide-react';
+import { LogOut, AlertCircle, Settings, Trash2, X, Sparkles, Home, Plus, Pencil, BarChart, Calendar, Store, Tag, User, CreditCard, RefreshCw, Wallet, PiggyBank, PieChart as LucidePieChart, Download, Upload, Copy, Send, Landmark, ArrowRightLeft, Check, ArrowUp, ArrowDown } from 'lucide-react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'firebase/auth';
 import { getFirestore, collection, doc, setDoc, getDoc, updateDoc, onSnapshot, addDoc, deleteDoc, deleteField, writeBatch } from 'firebase/firestore';
@@ -375,6 +375,9 @@ export default function App() {
   const [syncTargetRoom, setSyncTargetRoom] = useState('');
   const [selectedSyncGroups, setSelectedSyncGroups] = useState([]);
 
+  const [touchStart, setTouchStart] = useState(null);
+  const [touchEnd, setTouchEnd] = useState(null);
+
   const amountInputRef = useRef(null);
   const fileInputRef = useRef(null); 
 
@@ -501,6 +504,74 @@ export default function App() {
     setRecordFrequencyInterval('');
     setRecordFrequencyCustomText('');
   }, [recordFrequency]);
+
+  // ==========================================
+  // 日期左右滑動切換邏輯
+  // ==========================================
+  const handleTouchStart = (e) => {
+    setTouchEnd(null);
+    setTouchStart({ x: e.targetTouches[0].clientX, y: e.targetTouches[0].clientY });
+  };
+
+  const handleTouchMove = (e) => {
+    setTouchEnd({ x: e.targetTouches[0].clientX, y: e.targetTouches[0].clientY });
+  };
+
+  const handleTouchEnd = () => {
+    if (!touchStart || !touchEnd) return;
+    const xDistance = touchStart.x - touchEnd.x;
+    const yDistance = touchStart.y - touchEnd.y;
+    
+    // 確保是水平滑動，且距離足夠大 (大於 40px)
+    if (Math.abs(xDistance) > Math.abs(yDistance) && Math.abs(xDistance) > 40) {
+      if (!homeFilterDate) return;
+      const d = new Date(homeFilterDate);
+      if (xDistance > 0) {
+        // 向左滑，前進一天
+        d.setDate(d.getDate() + 1);
+      } else {
+        // 向右滑，後退一天
+        d.setDate(d.getDate() - 1);
+      }
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      setHomeFilterDate(`${y}-${m}-${day}`);
+    }
+    
+    setTouchStart(null);
+    setTouchEnd(null);
+  };
+
+  // ==========================================
+  // 紀錄上下調整順序
+  // ==========================================
+  const handleMoveRecord = async (index, direction) => {
+    if (!user || !homeFilterDate) return; 
+    
+    const displayRecs = records.filter(r => r.date === homeFilterDate);
+    if (index + direction < 0 || index + direction >= displayRecs.length) return;
+    
+    const currentTx = displayRecs[index];
+    const targetTx = displayRecs[index + direction];
+    
+    let currentTs = currentTx.timestamp;
+    let targetTs = targetTx.timestamp;
+    
+    if (currentTs === targetTs) {
+       if (direction === -1) targetTs -= 1; // 往上移，目標時間減1確保有差距
+       else targetTs += 1; // 往下移
+    }
+
+    try {
+      const batch = writeBatch(db);
+      batch.update(doc(db, 'artifacts', appId, 'public', 'data', 'expenses', currentTx.id), { timestamp: targetTs });
+      batch.update(doc(db, 'artifacts', appId, 'public', 'data', 'expenses', targetTx.id), { timestamp: currentTs });
+      await batch.commit();
+    } catch (err) {
+      alert('排序調整失敗：請檢查網路連線');
+    }
+  };
 
   // ==========================================
   // 房間管理
@@ -1286,7 +1357,6 @@ export default function App() {
     }
   }
 
-  // 需求 3: 泡泡改為單排滑動 (flex-nowrap overflow-x-auto)
   const PillGroupMulti = ({ label, icon: Icon, options, values = [], onChange, isPayer = false }) => {
     const hasFamily = values.includes('全家');
     const hasIndividuals = values.some(v => v !== '全家');
@@ -1363,7 +1433,7 @@ export default function App() {
             <p className="text-[15px] font-bold text-gray-500 mb-3 text-center">👇 快速切換最近房間</p>
             <div className="space-y-2 max-h-[220px] overflow-y-auto pr-1">
               {savedRooms.map(r => (
-                <button key={r.id} type="button" onClick={() => quickJoinRoom(r)} className="w-full bg-white border border-transparent p-3.5 rounded-[1.2rem] hover:border-blue-300 hover:shadow-sm transition flex justify-between items-center shadow-sm">
+                <button key={r.id} type="button" onClick={() => quickJoinRoom(r)} className="w-full bg-white border border-transparent p-3.5 rounded-[1.2rem] hover:border-blue-300 hover:shadow-md transition flex justify-between items-center shadow-sm">
                   <div className="flex items-center gap-3">
                     <div className="bg-orange-100 p-2 rounded-lg text-orange-500"><Home size={20} /></div>
                     <span className="font-extrabold text-gray-700 text-[17px]">{r.name}</span>
@@ -1523,7 +1593,7 @@ export default function App() {
                  )
                })}
              </div>
-             <p className="text-[13px] font-bold text-orange-400 mt-4 bg-orange-50 p-3 rounded-xl text-center leading-relaxed">* 信用卡金額通常為負數（代表應繳卡費或負債），轉帳繳費後金額會回升。</p>
+             <p className="text-[12px] font-bold text-orange-400 mt-4 bg-orange-50 p-3 rounded-xl text-center leading-relaxed">* 信用卡金額通常為負數（代表應繳卡費或負債），轉帳繳費後金額會回升。</p>
           </div>
         </main>
 
@@ -1539,11 +1609,11 @@ export default function App() {
               <div className="grid grid-cols-2 gap-2 mb-4">
                   <div>
                     <label className="block text-[12px] font-bold text-gray-500 mb-1">開始日期</label>
-                    <input type="date" value={historyStartDate} onChange={e=>setHistoryStartDate(e.target.value)} className="w-full bg-gray-50 border border-gray-200 p-1.5 rounded-lg text-[14px] font-bold text-gray-700 outline-none focus:border-indigo-300 transition" />
+                    <input type="date" value={historyStartDate} onChange={e=>setHistoryStartDate(e.target.value)} className="w-full bg-gray-50 border border-gray-200 p-1.5 rounded-lg text-[13px] font-bold text-gray-700 outline-none focus:border-indigo-300 transition" />
                   </div>
                   <div>
                     <label className="block text-[12px] font-bold text-gray-500 mb-1">結束日期</label>
-                    <input type="date" value={historyEndDate} onChange={e=>setHistoryEndDate(e.target.value)} className="w-full bg-gray-50 border border-gray-200 p-1.5 rounded-lg text-[14px] font-bold text-gray-700 outline-none focus:border-indigo-300 transition" />
+                    <input type="date" value={historyEndDate} onChange={e=>setHistoryEndDate(e.target.value)} className="w-full bg-gray-50 border border-gray-200 p-1.5 rounded-lg text-[13px] font-bold text-gray-700 outline-none focus:border-indigo-300 transition" />
                   </div>
               </div>
 
@@ -1561,7 +1631,7 @@ export default function App() {
                      return fromAcc === viewingAccountHistory || toAcc === viewingAccountHistory;
                   }).sort((a, b) => b.timestamp - a.timestamp); 
 
-                  if (accHistory.length === 0) return <p className="text-center text-gray-400 font-bold py-10 text-[15px]">此區間尚無明細</p>;
+                  if (accHistory.length === 0) return <p className="text-center text-gray-400 font-bold py-10 text-[14px]">此區間尚無明細</p>;
 
                   return accHistory.map(exp => {
                     const isIncome = exp.type === 'income';
@@ -1575,12 +1645,12 @@ export default function App() {
                     return (
                       <div key={exp.id} className="bg-gray-50 p-2.5 rounded-xl border border-gray-100 flex justify-between items-center">
                         <div className="overflow-hidden pr-2">
-                           <div className="text-[12px] font-bold text-gray-400 mb-0.5">{toROCYearStr(exp.date)}</div>
-                           <div className="font-black text-[15px] text-gray-700 truncate">
+                           <div className="text-[11px] font-bold text-gray-400 mb-0.5">{toROCYearStr(exp.date)}</div>
+                           <div className="font-black text-[14px] text-gray-700 truncate">
                               {isTransfer ? `轉帳: ${exp.method}➜${exp.transferToMethod}` : exp.title}
                            </div>
                         </div>
-                        <div className={`font-black text-[17px] shrink-0 ${isPositive ? 'text-green-500' : 'text-gray-800'}`}>
+                        <div className={`font-black text-[16px] shrink-0 ${isPositive ? 'text-green-500' : 'text-gray-800'}`}>
                            {isPositive ? '+' : '-'}${exp.amount.toLocaleString()}
                         </div>
                       </div>
@@ -1645,7 +1715,12 @@ export default function App() {
           </div>
         </header>
 
-        <main className="px-4 py-4 flex-1 overflow-y-auto pb-[120px] [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+        <main 
+          className="px-4 py-4 flex-1 overflow-y-auto pb-[120px] [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+        >
           <div>
             <h3 className="font-bold text-gray-400 mb-3 ml-1 flex items-center gap-1.5 text-[18px]">📜 記帳明細</h3>
             {displayRecords.length === 0 ? (
@@ -1657,7 +1732,7 @@ export default function App() {
               </div>
             ) : (
               <div className="space-y-2.5">
-                {displayRecords.map((exp) => {
+                {displayRecords.map((exp, idx) => {
                   const isIncome = exp.type === 'income';
                   const isTransfer = exp.type === 'transfer';
                   const payerStr = Array.isArray(exp.payer) ? exp.payer.join(', ') : exp.payer;
@@ -1712,9 +1787,12 @@ export default function App() {
                           {isIncome ? '+' : isTransfer ? '⇆' : '-'}${exp.amount.toLocaleString()}
                         </span>
                         
-                        <div className="grid grid-cols-2 gap-1 mt-2 w-[64px] relative z-20">
+                        {/* 需求 2: 3x2 排版並新增上下移動按鈕 */}
+                        <div className="grid grid-cols-3 gap-1 mt-2 w-[90px] relative z-20">
+                          <button onClick={(e) => { e.stopPropagation(); handleMoveRecord(idx, -1); }} disabled={idx === 0} className="text-gray-400 hover:text-blue-500 font-bold p-1 transition bg-gray-50 hover:bg-blue-50 rounded-md shadow-sm flex items-center justify-center disabled:opacity-30" title="往上移"><ArrowUp size={13} /></button>
                           <button onClick={(e) => { e.stopPropagation(); openEditForm(exp); }} className="text-gray-400 hover:text-blue-500 font-bold p-1 transition bg-gray-50 hover:bg-blue-50 rounded-md shadow-sm flex items-center justify-center" title="編輯"><Pencil size={13} /></button>
                           <button onClick={(e) => { e.stopPropagation(); handleCopyRecord(exp); }} className="text-gray-400 hover:text-green-500 font-bold p-1 transition bg-gray-50 hover:bg-green-50 rounded-md shadow-sm flex items-center justify-center" title="複製此筆"><Copy size={13} /></button>
+                          <button onClick={(e) => { e.stopPropagation(); handleMoveRecord(idx, 1); }} disabled={idx === displayRecords.length - 1} className="text-gray-400 hover:text-blue-500 font-bold p-1 transition bg-gray-50 hover:bg-blue-50 rounded-md shadow-sm flex items-center justify-center disabled:opacity-30" title="往下移"><ArrowDown size={13} /></button>
                           <button onClick={(e) => { e.stopPropagation(); handleDeleteRecord(exp.id); }} className="text-gray-400 hover:text-red-500 font-bold p-1 transition bg-gray-50 hover:bg-red-50 rounded-md shadow-sm flex items-center justify-center" title="刪除"><Trash2 size={13} /></button>
                           <button onClick={(e) => { e.stopPropagation(); setCrossRoomRecord(exp); }} className="text-gray-400 hover:text-orange-500 font-bold p-1 transition bg-gray-50 hover:bg-orange-50 rounded-md shadow-sm flex items-center justify-center" title="傳送到其他房間"><Send size={13} /></button>
                         </div>
@@ -1908,7 +1986,7 @@ export default function App() {
 
               {recordType === 'expense' && recordFrequency === '每週' && (
                 <div className="mb-5 bg-gray-50 p-4 rounded-xl border border-gray-100 shadow-sm">
-                  <label className="text-[15px] font-bold text-gray-500 mb-3 block">請選擇星期 (可複選)</label>
+                  <label className="text-[14px] font-bold text-gray-500 mb-3 block">請選擇星期 (可複選)</label>
                   <div className="flex flex-wrap gap-2">
                     {daysOfWeek.map(d => (
                       <button key={d} type="button" onClick={() => toggleFrequencyDay(d)} className={`px-3 py-2 rounded-lg text-[14px] font-bold transition-all ${recordFrequencyDays.includes(d) ? 'bg-[#FFE28A] text-gray-800 shadow-sm border-2 border-[#FCD34D] transform -translate-y-0.5' : 'bg-white text-gray-500 border border-gray-100'}`}>{d}</button>
@@ -1918,7 +1996,7 @@ export default function App() {
               )}
               {recordType === 'expense' && recordFrequency === '每月' && (
                 <div className="mb-5 bg-gray-50 p-4 rounded-xl border border-gray-100 shadow-sm">
-                  <label className="text-[15px] font-bold text-gray-500 mb-3 block">請選擇日期 (可複選)</label>
+                  <label className="text-[14px] font-bold text-gray-500 mb-3 block">請選擇日期 (可複選)</label>
                   <div className="grid grid-cols-7 gap-1.5">
                     {daysOfMonth.map(d => (
                       <button key={d} type="button" onClick={() => toggleFrequencyDay(d)} className={`aspect-square rounded-lg text-[14px] font-bold transition-all ${recordFrequencyDays.includes(d) ? 'bg-[#FFE28A] text-gray-800 shadow-sm border-2 border-[#FCD34D] transform -translate-y-0.5' : 'bg-white text-gray-500 border border-gray-100'}`}>{d}</button>
@@ -1928,7 +2006,7 @@ export default function App() {
               )}
               {recordType === 'expense' && recordFrequency === '區間' && (
                 <div className="mb-5 bg-gray-50 p-4 rounded-xl border border-gray-100 shadow-sm">
-                  <label className="text-[15px] font-bold text-gray-500 mb-3 block">請選擇時間區間</label>
+                  <label className="text-[14px] font-bold text-gray-500 mb-3 block">請選擇時間區間</label>
                   <div className="flex flex-wrap gap-2 mb-3">
                       {intervalOptions.map(opt => (
                           <button key={opt} type="button" onClick={() => setRecordFrequencyInterval(opt)} className={`px-3 py-2 rounded-lg text-[14px] font-bold transition-all ${recordFrequencyInterval === opt ? 'bg-[#FFE28A] text-gray-800 shadow-sm border-2 border-[#FCD34D] transform -translate-y-0.5' : 'bg-white text-gray-500 border border-gray-100'}`}>{opt}</button>
@@ -1953,7 +2031,7 @@ export default function App() {
                   </div>
 
                   <div className="mb-2 z-10">
-                    <label className="flex items-center gap-1.5 text-[15px] font-bold text-gray-500 mb-1.5 ml-1"><CreditCard size={16} className="text-gray-400" /> 付款方式 💳</label>
+                    <label className="flex items-center gap-1.5 text-[14px] font-bold text-gray-500 mb-1.5 ml-1"><CreditCard size={14} className="text-gray-400" /> 付款方式 💳</label>
                     <div className="flex bg-gray-50 rounded-xl p-1 border border-gray-100 mb-3 shadow-inner min-h-[60px]">
                       {(currentRoom?.paymentMethods || []).map(opt => (
                         <button key={opt} type="button" onClick={() => handleMethodSelect(opt)} className={`flex-1 py-1.5 px-1 rounded-[1rem] text-[14px] leading-snug font-bold transition-all duration-200 flex flex-col items-center justify-center ${recordMethod === opt ? 'bg-white text-blue-600 shadow-md border border-gray-100 transform scale-100' : 'text-gray-400 hover:text-gray-600 scale-95'}`}>
@@ -2002,7 +2080,7 @@ export default function App() {
                   </div>
                   <PillGroupMulti label="對象 (可複選) 👥" icon={User} options={currentRoom?.payers || []} values={recordPayer} onChange={setRecordPayer} isPayer={true} />
                   
-                  <div className="mb-5 z-30">
+                  <div className="mb-6 z-30">
                     <CustomDropdown label="📤 轉出帳戶 (從哪裡扣款)" options={currentRoom?.transferOutAccounts || []} value={recordMethod} onChange={setRecordMethod} placeholder="選擇轉出帳戶..." />
                   </div>
 
@@ -2013,7 +2091,7 @@ export default function App() {
               )}
 
               <div className="mt-5 pt-5 border-t border-gray-100">
-                <label className="flex items-center gap-1.5 text-[15px] font-bold text-gray-500 mb-1.5 ml-1">📝 備註 (選填)</label>
+                <label className="flex items-center gap-1.5 text-[14px] font-bold text-gray-500 mb-1.5 ml-1">📝 備註 (選填)</label>
                 <input type="text" placeholder="輸入額外備註..." className="bg-gray-50 border border-gray-100 rounded-xl p-3 focus:bg-white focus:border-blue-400 outline-none w-full text-gray-700 font-bold text-[16px] transition shadow-sm" value={recordNote} onChange={(e) => setRecordNote(e.target.value)} />
               </div>
             </div>
