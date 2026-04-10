@@ -56,6 +56,17 @@ const toROCFullStr = (dateStr) => {
   return `${d.getFullYear() - 1911}年${m}月${day}日(週${days[d.getDay()]})`;
 };
 
+const toROCShortStr = (dateStr) => {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return dateStr;
+  const days = ['日', '一', '二', '三', '四', '五', '六'];
+  const roc = d.getFullYear() - 1911;
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${roc}/${m}/${day}(${days[d.getDay()]})`; // 輸出 115/04/09(五)
+};
+
 // ==========================================
 // 產生未來定期日期的演算法 (最多預排1年)
 // ==========================================
@@ -346,9 +357,13 @@ export default function App() {
   const [transferToSubMethod, setTransferToSubMethod] = useState('');
 
   const [homeFilterDate, setHomeFilterDate] = useState(getLocalTodayStr());
-  const [searchQuery, setSearchQuery] = useState(''); // 新增搜尋狀態
+  const [searchQuery, setSearchQuery] = useState('');
 
   const [settingsTab, setSettingsTab] = useState('expense');
+  const [newOptionInputs, setNewOptionInputs] = useState({
+    categories: '', incomeCategories: '', transferCategories: '', payers: '', paymentMethods: '', merchants: '', creditCards: '', bankAccounts: '', cards: '',
+    incomeAccounts: '', transferOutAccounts: '', transferInAccounts: ''
+  });
   const [settingSelectedCategory, setSettingSelectedCategory] = useState('');
   const [newCategoryItemInput, setNewCategoryItemInput] = useState('');
   const [newRuleItem, setNewRuleItem] = useState('');
@@ -370,7 +385,7 @@ export default function App() {
   
   const [syncSettingsModalOpen, setSyncSettingsModalOpen] = useState(false);
   const [syncTargetRoom, setSyncTargetRoom] = useState('');
-  const [syncSelection, setSyncSelection] = useState({}); // 儲存細項的勾選狀態
+  const [syncSelection, setSyncSelection] = useState({}); 
 
   const [touchStart, setTouchStart] = useState(null);
   const [touchEnd, setTouchEnd] = useState(null);
@@ -986,9 +1001,11 @@ export default function App() {
   const handleSaveBalances = async () => {
     if (!user) return;
     try {
-      const updatedBalances = {};
+      const updatedBalances = { ...currentRoom?.initialBalances };
       for (const [key, val] of Object.entries(tempBalances)) {
-        updatedBalances[key] = Number(val) || 0;
+        if (val !== '') {
+          updatedBalances[key] = Number(val);
+        }
       }
       await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', activeRoomId), {
         initialBalances: updatedBalances
@@ -1344,6 +1361,8 @@ export default function App() {
   // ==========================================
   const displayRecords = records.filter(r => {
     if (searchQuery) {
+      const todayStr = getLocalTodayStr();
+      if (r.date > todayStr) return false; 
       const q = searchQuery.toLowerCase();
       const textToSearch = `${r.title || ''} ${r.merchant || ''} ${r.note || ''} ${r.category || ''} ${r.method || ''} ${r.subMethod || ''} ${r.transferToMethod || ''} ${r.transferToSubMethod || ''} ${Array.isArray(r.payer)?r.payer.join(' '):r.payer || ''}`.toLowerCase();
       return textToSearch.includes(q);
@@ -1443,13 +1462,13 @@ export default function App() {
 
     return (
       <div className="mb-4 w-full">
-        {label && <label className="flex items-center gap-1.5 text-[15px] font-bold text-gray-500 mb-2 ml-1">{Icon && <Icon size={16} className="text-gray-400" />} {label}</label>}
-        <div className="flex flex-nowrap gap-2 overflow-x-auto pb-1.5 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+        {label && <label className="flex items-center gap-1.5 text-[14px] font-bold text-gray-500 mb-2 ml-1">{Icon && <Icon size={14} className="text-gray-400" />} {label}</label>}
+        <div className="flex w-full gap-1.5">
           {options.map(opt => {
             const isSelected = values.includes(opt);
             const isDisabled = isPayer && ((opt === '全家' && hasIndividuals) || (opt !== '全家' && hasFamily));
             return (
-              <button key={opt} type="button" onClick={() => handleToggle(opt)} className={`shrink-0 whitespace-nowrap px-5 py-2.5 rounded-2xl text-[16px] font-black transition-all duration-200 border-[3px] shadow-sm flex items-center justify-center leading-tight ${isSelected ? 'bg-[#FFE28A] text-gray-900 border-[#F59E0B] transform -translate-y-0.5 z-10' : isDisabled ? 'bg-gray-100 text-gray-300 border-transparent cursor-not-allowed opacity-60' : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300 hover:bg-gray-50'}`}>{opt}</button>
+              <button key={opt} type="button" onClick={() => handleToggle(opt)} className={`flex-1 py-2 px-0.5 rounded-[1.2rem] text-[13px] sm:text-[14px] font-black transition-all duration-200 border-2 shadow-sm flex items-center justify-center leading-tight ${isSelected ? 'bg-[#FFE28A] text-gray-900 border-[#F59E0B] transform -translate-y-0.5 z-10' : isDisabled ? 'bg-gray-100 text-gray-300 border-transparent cursor-not-allowed opacity-60' : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300 hover:bg-gray-50'}`}>{opt}</button>
             )
           })}
         </div>
@@ -1543,7 +1562,7 @@ export default function App() {
     content = (
       <div className="flex flex-col items-center justify-center flex-1 p-4 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
          <div className="flex flex-col items-center mb-6 w-full mt-2">
-          <div className="bg-gradient-to-tr from-[#A7F3D0] to-[#34D399] p-5 rounded-[1.5rem] mb-5 shadow-sm"><Home size={48} className="text-white drop-shadow-sm" strokeWidth={2.5} /></div>
+          <div className="bg-gradient-to-tr from-[#A7F3D0] to-[#34D399] p-5 rounded-[1.5rem] mb-5 shadow-sm"><Home size={44} className="text-white drop-shadow-sm" strokeWidth={2.5} /></div>
           <h1 className="text-2xl sm:text-3xl font-black text-gray-800 mb-1">建立新家庭 ✨</h1>
         </div>
         {errorMsg && <div className="w-full bg-red-50 text-red-500 font-bold p-3 rounded-xl mb-4 flex items-center justify-center gap-2 text-[16px] shadow-sm border border-red-100"><AlertCircle size={20} /> {errorMsg}</div>}
@@ -1551,13 +1570,13 @@ export default function App() {
           <div>
             <label className="block text-[16px] font-bold text-gray-500 mb-1.5 ml-1">我是...</label>
             <div className="grid grid-cols-2 gap-3">
-              <button type="button" onClick={() => setCurrentUserRole('老公')} className={`p-4 rounded-xl font-bold text-[18px] flex justify-center items-center gap-1.5 transition-all duration-200 ${currentUserRole === '老公' ? 'bg-blue-500 text-white shadow-md transform -translate-y-0.5' : 'bg-gray-50 border border-gray-100 text-gray-500 hover:bg-gray-100'}`}>👨 老公</button>
-              <button type="button" onClick={() => setCurrentUserRole('老婆')} className={`p-4 rounded-xl font-bold text-[18px] flex justify-center items-center gap-1.5 transition-all duration-200 ${currentUserRole === '老婆' ? 'bg-pink-500 text-white shadow-md transform -translate-y-0.5' : 'bg-gray-50 border border-gray-100 text-gray-500 hover:bg-gray-100'}`}>👩 老婆</button>
+              <button type="button" onClick={() => setCurrentUserRole('老公')} className={`p-3 rounded-xl font-bold text-[18px] flex justify-center items-center gap-1.5 transition-all duration-200 ${currentUserRole === '老公' ? 'bg-blue-500 text-white shadow-md transform -translate-y-0.5' : 'bg-gray-50 border border-gray-100 text-gray-500 hover:bg-gray-100'}`}>👨 老公</button>
+              <button type="button" onClick={() => setCurrentUserRole('老婆')} className={`p-3 rounded-xl font-bold text-[18px] flex justify-center items-center gap-1.5 transition-all duration-200 ${currentUserRole === '老婆' ? 'bg-pink-500 text-white shadow-md transform -translate-y-0.5' : 'bg-gray-50 border border-gray-100 text-gray-500 hover:bg-gray-100'}`}>👩 老婆</button>
             </div>
           </div>
-          <input type="text" className="w-full bg-gray-50 text-center border border-gray-100 p-4 rounded-xl focus:bg-white focus:border-green-300 outline-none font-bold text-gray-700 text-[18px] transition shadow-sm" placeholder="🏠 房間名稱 (例: 林北小財庫)" value={roomName} onChange={(e) => setRoomName(e.target.value)} />
-          <input type="text" className="w-full bg-gray-50 text-center border border-gray-100 p-4 rounded-xl focus:bg-white focus:border-green-300 outline-none font-bold text-gray-700 text-[18px] transition shadow-sm" placeholder="🎀 自訂通關代碼 (需唯一)" value={roomCode} onChange={(e) => setRoomCode(e.target.value)} />
-          <input type="password" className="w-full bg-gray-50 text-center border border-gray-100 p-4 rounded-xl focus:bg-white focus:border-green-300 outline-none font-bold text-gray-700 text-[18px] transition shadow-sm" placeholder="🔑 設定房間密碼" value={roomPin} onChange={(e) => setRoomPin(e.target.value)} />
+          <input type="text" className="w-full bg-gray-50 text-center border border-gray-100 p-3.5 rounded-xl focus:bg-white focus:border-green-300 outline-none font-bold text-gray-700 text-[18px] transition shadow-sm" placeholder="🏠 房間名稱 (例: 林北小財庫)" value={roomName} onChange={(e) => setRoomName(e.target.value)} />
+          <input type="text" className="w-full bg-gray-50 text-center border border-gray-100 p-3.5 rounded-xl focus:bg-white focus:border-green-300 outline-none font-bold text-gray-700 text-[18px] transition shadow-sm" placeholder="🎀 自訂通關代碼 (需唯一)" value={roomCode} onChange={(e) => setRoomCode(e.target.value)} />
+          <input type="password" className="w-full bg-gray-50 text-center border border-gray-100 p-3.5 rounded-xl focus:bg-white focus:border-green-300 outline-none font-bold text-gray-700 text-[18px] transition shadow-sm" placeholder="🔑 設定房間密碼" value={roomPin} onChange={(e) => setRoomPin(e.target.value)} />
           <button type="submit" disabled={isLoading} className="w-full bg-green-500 text-white font-extrabold text-[20px] p-4.5 rounded-xl hover:bg-green-600 shadow-md transition active:scale-95 mt-2">{isLoading ? '處理中...' : '建立並進入 🚀'}</button>
         </form>
         <div className="mt-6 text-center w-full pb-6">
@@ -1571,9 +1590,9 @@ export default function App() {
     const balances = getBalances();
     const cashBal = balances['現金'] || 0;
     const banks = currentRoom?.bankAccounts || [];
-    const bankTotal = banks.reduce((sum, b) => sum + (balances[b] || 0), 0);
+    const bankTotal = banks.reduce((sum, b) => sum + (balances[`bank_${b}`] || 0), 0);
     const ccs = currentRoom?.creditCards || [];
-    const ccTotal = ccs.reduce((sum, c) => sum + (balances[c] || 0), 0);
+    const ccTotal = ccs.reduce((sum, c) => sum + (balances[`cc_${c}`] || 0), 0);
     const netWorth = cashBal + bankTotal + ccTotal;
 
     content = (
@@ -1582,11 +1601,18 @@ export default function App() {
           <div className="flex justify-between items-center">
             <h1 className="text-xl font-black text-white flex items-center gap-2 drop-shadow-md"><Landmark size={24} className="text-white/80"/> 帳戶總覽</h1>
             <div className="flex gap-2">
-              <button onClick={() => setView('room')} className="px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-xl transition text-[16px] font-bold backdrop-blur-sm">返回</button>
+              <button onClick={() => setView('room')} className="px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-xl transition text-[15px] font-bold backdrop-blur-sm">返回</button>
               {isEditingBalances ? (
-                <button onClick={handleSaveBalances} className="px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-xl transition text-[16px] font-bold backdrop-blur-sm">儲存</button>
+                <button onClick={handleSaveBalances} className="px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-xl transition text-[15px] font-bold backdrop-blur-sm">儲存</button>
               ) : (
-                <button onClick={() => { setTempBalances(currentRoom?.initialBalances || {}); setIsEditingBalances(true); }} className="px-3 py-2 bg-white/20 hover:bg-white/30 text-white rounded-xl transition text-[15px] font-bold backdrop-blur-sm">初始餘額</button>
+                <button onClick={() => { 
+                   const initBal = currentRoom?.initialBalances || {};
+                   const temp = { '現金': initBal['現金'] || 0 };
+                   (currentRoom?.bankAccounts || []).forEach(b => temp[`bank_${b}`] = initBal[`bank_${b}`] !== undefined ? initBal[`bank_${b}`] : (initBal[b] || 0));
+                   (currentRoom?.creditCards || []).forEach(c => temp[`cc_${c}`] = initBal[`cc_${c}`] !== undefined ? initBal[`cc_${c}`] : (initBal[c] || 0));
+                   setTempBalances(temp);
+                   setIsEditingBalances(true); 
+                }} className="px-3 py-2 bg-white/20 hover:bg-white/30 text-white rounded-xl transition text-[14px] font-bold backdrop-blur-sm">初始餘額</button>
               )}
             </div>
           </div>
@@ -1594,7 +1620,7 @@ export default function App() {
 
         <main className="px-4 py-4 space-y-4 flex-1 overflow-y-auto pb-[100px] [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
           <div className="text-center mb-1">
-            <p className="text-indigo-500 font-bold bg-indigo-50 border border-indigo-100 inline-block px-4 py-2 rounded-full text-[14px] shadow-sm leading-relaxed">👉 點擊各帳戶列即可查看歷史明細</p>
+            <p className="text-indigo-500 font-bold bg-indigo-50 border border-indigo-100 inline-block px-4 py-2 rounded-full text-[13px] shadow-sm leading-relaxed">👉 點擊各帳戶列即可查看歷史明細</p>
           </div>
 
           <div className="bg-white p-5 rounded-[1.5rem] border-2 border-indigo-100 text-center shadow-sm relative overflow-hidden">
@@ -1609,7 +1635,7 @@ export default function App() {
              <div onClick={() => !isEditingBalances && setViewingAccountHistory('現金')} className={`flex justify-between items-center bg-gray-50 p-3 rounded-xl border border-gray-100 ${!isEditingBalances ? 'cursor-pointer hover:bg-emerald-50 hover:border-emerald-200 transition' : ''}`}>
                 <span className="font-bold text-gray-600 text-[17px]">現金</span>
                 {isEditingBalances ? (
-                   <input type="number" className="w-24 text-right border border-emerald-200 focus:border-emerald-400 p-1.5 rounded-lg font-bold text-[17px] outline-none transition" value={tempBalances['現金'] || ''} onChange={e => setTempBalances({...tempBalances, '現金': e.target.value})} placeholder="0" />
+                   <input type="number" className="w-24 text-right border border-emerald-200 focus:border-emerald-400 p-1.5 rounded-lg font-bold text-[17px] outline-none transition" value={tempBalances['現金'] !== undefined ? tempBalances['現金'] : ''} onChange={e => setTempBalances({...tempBalances, '現金': e.target.value})} placeholder="0" />
                 ) : (
                    <span className={`font-black text-[22px] ${cashBal < 0 ? 'text-red-500' : 'text-gray-800'}`}>${cashBal.toLocaleString()}</span>
                 )}
@@ -1624,12 +1650,12 @@ export default function App() {
              <div className="space-y-2.5">
                {banks.length === 0 && <p className="text-gray-400 text-[15px] font-bold text-center py-4 bg-gray-50 rounded-xl">無銀行/電子票證，請至設定新增</p>}
                {banks.map(b => {
-                 const bal = balances[b] || 0;
+                 const bal = balances[`bank_${b}`] || 0;
                  return (
                    <div key={b} onClick={() => !isEditingBalances && setViewingAccountHistory(b)} className={`flex justify-between items-center bg-gray-50 p-3 rounded-xl border border-gray-100 ${!isEditingBalances ? 'cursor-pointer hover:bg-blue-50 hover:border-blue-200 transition' : ''}`}>
                       <span className="font-bold text-gray-600 text-[17px] truncate pr-2">{b}</span>
                       {isEditingBalances ? (
-                         <input type="number" className="w-24 text-right border border-blue-200 focus:border-blue-400 p-1.5 rounded-lg font-bold text-[17px] outline-none transition" value={tempBalances[b] || ''} onChange={e => setTempBalances({...tempBalances, [b]: e.target.value})} placeholder="0" />
+                         <input type="number" className="w-24 text-right border border-blue-200 focus:border-blue-400 p-1.5 rounded-lg font-bold text-[17px] outline-none transition" value={tempBalances[`bank_${b}`] !== undefined ? tempBalances[`bank_${b}`] : ''} onChange={e => setTempBalances({...tempBalances, [`bank_${b}`]: e.target.value})} placeholder="0" />
                       ) : (
                          <span className={`font-black text-[20px] shrink-0 ${bal < 0 ? 'text-red-500' : 'text-gray-800'}`}>${bal.toLocaleString()}</span>
                       )}
@@ -1647,12 +1673,12 @@ export default function App() {
              <div className="space-y-2.5">
                {ccs.length === 0 && <p className="text-gray-400 text-[15px] font-bold text-center py-4 bg-gray-50 rounded-xl">無信用卡，請至設定新增</p>}
                {ccs.map(c => {
-                 const bal = balances[c] || 0;
+                 const bal = balances[`cc_${c}`] || 0;
                  return (
                    <div key={c} onClick={() => !isEditingBalances && setViewingAccountHistory(c)} className={`flex justify-between items-center bg-gray-50 p-3 rounded-xl border border-gray-100 ${!isEditingBalances ? 'cursor-pointer hover:bg-orange-50 hover:border-orange-200 transition' : ''}`}>
                       <span className="font-bold text-gray-600 text-[17px] truncate pr-2">{c}</span>
                       {isEditingBalances ? (
-                         <input type="number" className="w-24 text-right border border-orange-200 focus:border-orange-400 p-1.5 rounded-lg font-bold text-[17px] outline-none transition" value={tempBalances[c] || ''} onChange={e => setTempBalances({...tempBalances, [c]: e.target.value})} placeholder="0" />
+                         <input type="number" className="w-24 text-right border border-orange-200 focus:border-orange-400 p-1.5 rounded-lg font-bold text-[17px] outline-none transition" value={tempBalances[`cc_${c}`] !== undefined ? tempBalances[`cc_${c}`] : ''} onChange={e => setTempBalances({...tempBalances, [`cc_${c}`]: e.target.value})} placeholder="0" />
                       ) : (
                          <span className={`font-black text-[20px] shrink-0 ${bal < 0 ? 'text-red-500' : 'text-gray-800'}`}>${bal.toLocaleString()}</span>
                       )}
@@ -1660,7 +1686,7 @@ export default function App() {
                  )
                })}
              </div>
-             <p className="text-[14px] font-bold text-orange-400 mt-4 bg-orange-50 p-3 rounded-xl text-center leading-relaxed">* 信用卡金額通常為負數（代表應繳卡費或負債），轉帳繳費後金額會回升。</p>
+             <p className="text-[13px] font-bold text-orange-400 mt-4 bg-orange-50 p-3 rounded-xl text-center leading-relaxed">* 信用卡金額通常為負數（代表應繳卡費或負債），轉帳繳費後金額會回升。</p>
           </div>
         </main>
 
@@ -1668,19 +1694,19 @@ export default function App() {
         {viewingAccountHistory && (
           <div className="fixed inset-0 bg-black/40 z-[100] flex justify-center items-center p-4 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setViewingAccountHistory(null)}>
             <div className="bg-white w-full max-w-md max-h-[85vh] flex flex-col rounded-[1.5rem] p-5 shadow-2xl relative" onClick={e => e.stopPropagation()}>
-              <button onClick={() => setViewingAccountHistory(null)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 bg-gray-100 p-1.5 rounded-full transition"><X size={20}/></button>
+              <button onClick={() => setViewingAccountHistory(null)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 bg-gray-100 p-1.5 rounded-full transition"><X size={18}/></button>
               <h3 className="font-black text-[20px] text-gray-800 mb-4 border-b border-gray-100 pb-3 flex items-center gap-1.5">
                 <Wallet size={20} className="text-indigo-500" /> {viewingAccountHistory} 明細
               </h3>
               
               <div className="grid grid-cols-2 gap-2 mb-4">
                   <div>
-                    <label className="block text-[13px] font-bold text-gray-500 mb-1">開始日期</label>
-                    <input type="date" value={historyStartDate} onChange={e=>setHistoryStartDate(e.target.value)} className="w-full bg-gray-50 border border-gray-200 p-1.5 rounded-lg text-[15px] font-bold text-gray-700 outline-none focus:border-indigo-300 transition" />
+                    <label className="block text-[12px] font-bold text-gray-500 mb-1">開始日期</label>
+                    <input type="date" value={historyStartDate} onChange={e=>setHistoryStartDate(e.target.value)} className="w-full bg-gray-50 border border-gray-200 p-1.5 rounded-lg text-[14px] font-bold text-gray-700 outline-none focus:border-indigo-300 transition" />
                   </div>
                   <div>
-                    <label className="block text-[13px] font-bold text-gray-500 mb-1">結束日期</label>
-                    <input type="date" value={historyEndDate} onChange={e=>setHistoryEndDate(e.target.value)} className="w-full bg-gray-50 border border-gray-200 p-1.5 rounded-lg text-[15px] font-bold text-gray-700 outline-none focus:border-indigo-300 transition" />
+                    <label className="block text-[12px] font-bold text-gray-500 mb-1">結束日期</label>
+                    <input type="date" value={historyEndDate} onChange={e=>setHistoryEndDate(e.target.value)} className="w-full bg-gray-50 border border-gray-200 p-1.5 rounded-lg text-[14px] font-bold text-gray-700 outline-none focus:border-indigo-300 transition" />
                   </div>
               </div>
 
@@ -1688,7 +1714,6 @@ export default function App() {
                 {(() => {
                   const todayStr = getLocalTodayStr();
                   const accHistory = records.filter(r => {
-                     // 使用選擇的日期區間，且不得超過今日
                      if (r.date > historyEndDate || r.date < historyStartDate) return false;
                      if (r.date > todayStr) return false;
                      
@@ -1710,14 +1735,18 @@ export default function App() {
                     if (isTransfer && getAccName(exp.transferToMethod, exp.transferToSubMethod) === viewingAccountHistory) isPositive = true;
 
                     return (
-                      <div key={exp.id} className="bg-gray-50 p-2.5 rounded-xl border border-gray-100 flex justify-between items-center">
+                      <div key={exp.id} onClick={() => setViewingRecord(exp)} className="bg-gray-50 p-2.5 rounded-xl border border-gray-100 flex justify-between items-center cursor-pointer hover:bg-gray-100 transition">
                         <div className="overflow-hidden pr-2">
-                           <div className="text-[12px] font-bold text-gray-400 mb-0.5">{toROCYearStr(exp.date)}</div>
-                           <div className="font-black text-[16px] text-gray-700 truncate">
+                           <div className="flex items-center gap-1.5 mb-0.5">
+                             <span className="text-[12px] font-bold text-gray-400">{toROCYearStr(exp.date)}</span>
+                             {exp.frequency && exp.frequency !== '一次' && <span className="bg-yellow-100 text-yellow-700 px-1 rounded text-[9px] font-bold">常態</span>}
+                             {exp.payer && <span className="bg-gray-200 text-gray-600 px-1 rounded text-[9px] font-bold">{Array.isArray(exp.payer)?exp.payer[0]:exp.payer}</span>}
+                           </div>
+                           <div className="font-black text-[15px] text-gray-700 truncate">
                               {isTransfer ? `轉帳: ${exp.method}➜${exp.transferToMethod}` : exp.title}
                            </div>
                         </div>
-                        <div className={`font-black text-[18px] shrink-0 ${isPositive ? 'text-green-500' : 'text-gray-800'}`}>
+                        <div className={`font-black text-[17px] shrink-0 ${isPositive ? 'text-green-500' : 'text-gray-800'}`}>
                            {isPositive ? '+' : '-'}${exp.amount.toLocaleString()}
                         </div>
                       </div>
@@ -1753,30 +1782,28 @@ export default function App() {
           </div>
           
           <div className="mb-3">
-            <div className="flex flex-col gap-2 w-full">
-              <div className="flex items-center gap-2 w-full">
-                <div className="relative bg-white/20 backdrop-blur-md rounded-xl shadow-sm border border-white/30 px-2.5 py-1.5 flex items-center overflow-hidden hover:bg-white/30 transition flex-1">
-                  <input type="date" value={homeFilterDate} onChange={(e) => setHomeFilterDate(e.target.value)} className="absolute inset-0 w-full h-full opacity-0 z-10 cursor-pointer" />
-                  <Calendar size={18} className="text-white mr-1.5 shrink-0 z-0"/>
-                  <span className="text-white text-[17px] font-black drop-shadow-sm z-0 truncate">
-                    {homeFilterDate ? toROCFullStr(homeFilterDate) : '全部日期'}
-                  </span>
-                  <span className="text-white/70 text-[14px] ml-auto pl-1 shrink-0 z-0">▼</span>
-                </div>
-                <button onClick={() => setHomeFilterDate(getLocalTodayStr())} className="shrink-0 bg-white/20 hover:bg-white/30 text-white px-3 py-1.5 rounded-xl transition font-bold text-[16px] shadow-sm backdrop-blur-sm whitespace-nowrap">今天</button>
+            <div className="flex items-center gap-1.5 w-full">
+              <div className="relative bg-white/20 backdrop-blur-md rounded-xl shadow-sm border border-white/30 px-2 py-1.5 flex items-center overflow-hidden hover:bg-white/30 transition shrink-0">
+                <input type="date" value={homeFilterDate} onChange={(e) => setHomeFilterDate(e.target.value)} className="absolute inset-0 w-full h-full opacity-0 z-10 cursor-pointer" />
+                <Calendar size={14} className="text-white mr-1 shrink-0 z-0"/>
+                <span className="text-white text-[13px] font-black drop-shadow-sm z-0 whitespace-nowrap">
+                  {homeFilterDate ? toROCShortStr(homeFilterDate) : '全部日期'}
+                </span>
               </div>
-              <div className="relative bg-white/20 backdrop-blur-md rounded-xl shadow-sm border border-white/30 px-2.5 py-1.5 flex items-center overflow-hidden transition flex-1">
-                 <Search size={18} className="text-white mr-1.5 shrink-0 z-0" />
+              <button onClick={() => setHomeFilterDate(getLocalTodayStr())} className="shrink-0 bg-white/20 hover:bg-white/30 text-white px-2 py-1.5 rounded-xl transition font-bold text-[13px] shadow-sm backdrop-blur-sm whitespace-nowrap">今天</button>
+              
+              <div className="relative bg-white/20 backdrop-blur-md rounded-xl shadow-sm border border-white/30 px-2 py-1.5 flex items-center overflow-hidden transition flex-1 min-w-0">
+                 <Search size={14} className="text-white mr-1.5 shrink-0 z-0" />
                  <input 
                    type="text" 
-                   placeholder="搜尋明細 (商家、備註...)" 
+                   placeholder="搜尋明細..." 
                    value={searchQuery}
                    onChange={e => setSearchQuery(e.target.value)}
-                   className="w-full bg-transparent outline-none text-white text-[16px] font-black placeholder-white/70 z-0"
+                   className="w-full bg-transparent outline-none text-white text-[13px] font-black placeholder-white/70 z-0 min-w-0"
                  />
                  {searchQuery && (
-                   <button onClick={() => setSearchQuery('')} className="text-white/70 hover:text-white shrink-0 z-10 p-0.5">
-                     <X size={16}/>
+                   <button onClick={() => setSearchQuery('')} className="text-white/70 hover:text-white shrink-0 z-10 p-0.5 ml-1">
+                     <X size={14}/>
                    </button>
                  )}
               </div>
@@ -1785,16 +1812,16 @@ export default function App() {
 
           <div className="flex justify-between items-end bg-white/95 backdrop-blur-xl p-4 rounded-[1.2rem] shadow-sm">
              <div className="flex flex-col">
-                <span className="text-gray-400 text-[15px] font-bold mb-0.5">總支出</span>
-                <span className="text-pink-500 font-black text-[22px]"> ${totalExpense.toLocaleString()}</span>
+                <span className="text-gray-400 text-[14px] font-bold mb-0.5">總支出</span>
+                <span className="text-pink-500 font-black text-[20px]"> ${totalExpense.toLocaleString()}</span>
              </div>
              <div className="flex flex-col items-center">
-                <span className="text-gray-400 text-[15px] font-bold mb-0.5">總收入</span>
-                <span className="text-green-500 font-black text-[22px]"> ${totalIncome.toLocaleString()}</span>
+                <span className="text-gray-400 text-[14px] font-bold mb-0.5">總收入</span>
+                <span className="text-green-500 font-black text-[20px]"> ${totalIncome.toLocaleString()}</span>
              </div>
              <div className="flex flex-col items-end">
-                <span className="text-gray-400 text-[15px] font-bold mb-0.5">總結餘</span>
-                <span className={`font-black text-[28px] leading-none ${netBalance < 0 ? 'text-red-500' : 'text-gray-800'}`}>${netBalance.toLocaleString()}</span>
+                <span className="text-gray-400 text-[14px] font-bold mb-0.5">總結餘</span>
+                <span className={`font-black text-[26px] leading-none ${netBalance < 0 ? 'text-red-500' : 'text-gray-800'}`}>${netBalance.toLocaleString()}</span>
              </div>
           </div>
         </header>
@@ -1808,7 +1835,7 @@ export default function App() {
           <div>
             <h3 className="font-bold text-gray-400 mb-3 ml-1 flex items-center gap-1.5 text-[18px]">📜 記帳明細</h3>
             {displayRecords.length === 0 ? (
-              <div className="text-center py-12 bg-white rounded-[1.5rem] border border-dashed border-gray-200 text-gray-400 font-bold text-[16px]">
+              <div className="text-center py-12 bg-white rounded-[1.5rem] border border-dashed border-gray-200 text-gray-400 font-bold text-[15px]">
                 <div className="bg-orange-50 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4">
                    <PiggyBank size={28} className="text-orange-400" />
                 </div>
@@ -1829,16 +1856,16 @@ export default function App() {
                       <div className={`absolute left-0 top-1/2 -translate-y-1/2 h-1/2 w-1 rounded-r-md ${isIncome ? 'bg-green-400' : isTransfer ? 'bg-blue-400' : 'bg-orange-400'}`}></div>
                       
                       <div className="flex-1 pl-2.5 pr-1 overflow-hidden">
-                        <div className="text-[13px] font-bold text-gray-400 mb-1">
+                        <div className="text-[12px] font-bold text-gray-400 mb-1">
                           建檔: {toROCYearStr(exp.timestamp)} {new Date(exp.timestamp).toLocaleTimeString('zh-TW', { hour12: false, hour: '2-digit', minute: '2-digit' })}
                         </div>
 
                         <div className="flex items-center gap-1.5 mb-1.5">
-                          <span className="bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded text-[12px] font-bold tracking-wide">
+                          <span className="bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded text-[11px] font-bold tracking-wide">
                             {freqDisplay || '一次'}
                           </span>
                           {exp.addedByRole && (
-                            <span className="bg-gray-100 px-1.5 py-0.5 rounded text-gray-500 text-[12px] font-bold tracking-wide">
+                            <span className="bg-gray-100 px-1.5 py-0.5 rounded text-gray-500 text-[11px] font-bold tracking-wide">
                               {exp.addedByRole}
                             </span>
                           )}
@@ -1846,19 +1873,19 @@ export default function App() {
                         
                         {isTransfer ? (
                           <div className="flex items-center gap-2 mb-1.5">
-                            <span className="font-bold text-[14px] px-2 py-0.5 rounded-md whitespace-nowrap bg-blue-50 text-blue-600 border border-blue-100">🔄 轉帳</span>
-                            <p className="font-black text-gray-800 text-[18px] truncate">{exp.method} ➜ {exp.transferToMethod}</p>
+                            <span className="font-bold text-[13px] px-2 py-0.5 rounded-md whitespace-nowrap bg-blue-50 text-blue-600 border border-blue-100">🔄 轉帳</span>
+                            <p className="font-black text-gray-800 text-[17px] truncate">{exp.method} ➜ {exp.transferToMethod}</p>
                           </div>
                         ) : (
                           <div className="flex items-center gap-2 mb-1.5">
-                            <span className={`font-bold text-[15px] px-2 py-0.5 rounded-md whitespace-nowrap border ${isIncome ? 'bg-green-50 text-green-600 border-green-100' : 'bg-orange-50 text-orange-600 border-orange-100'}`}>
+                            <span className={`font-bold text-[14px] px-2 py-0.5 rounded-md whitespace-nowrap border ${isIncome ? 'bg-green-50 text-green-600 border-green-100' : 'bg-orange-50 text-orange-600 border-orange-100'}`}>
                               {exp.category}
                             </span>
-                            <p className="font-black text-gray-800 text-[18px] truncate">{exp.title}</p>
+                            <p className="font-black text-gray-800 text-[17px] truncate">{exp.title}</p>
                           </div>
                         )}
 
-                        <p className="text-[14px] font-bold text-gray-400 flex flex-wrap gap-1 items-center mt-1">
+                        <p className="text-[13px] font-bold text-gray-400 flex flex-wrap gap-1 items-center mt-1">
                           {payerStr && payerStr !== '未指定' && <span className="bg-gray-50 px-1.5 py-0.5 rounded border border-gray-100">👤 {payerStr}</span>}
                           {!isTransfer && exp.method && exp.method !== '未指定' && <span className="bg-gray-50 px-1.5 py-0.5 rounded border border-gray-100">💳 {exp.method}{exp.subMethod ? `(${exp.subMethod})` : ''}</span>}
                           {exp.merchant && exp.merchant !== '未指定' && <span className="bg-gray-50 px-1.5 py-0.5 rounded border border-gray-100">🏪 {exp.merchant}</span>}
@@ -1867,11 +1894,11 @@ export default function App() {
                       </div>
 
                       <div className="flex flex-col items-end shrink-0">
-                        <span className={`font-black text-[24px] ${isIncome ? 'text-green-500' : isTransfer ? 'text-blue-500' : 'text-gray-800'}`}>
+                        <span className={`font-black text-[22px] ${isIncome ? 'text-green-500' : isTransfer ? 'text-blue-500' : 'text-gray-800'}`}>
                           {isIncome ? '+' : isTransfer ? '⇆' : '-'}${exp.amount.toLocaleString()}
                         </span>
                         
-                        <div className="grid grid-cols-2 gap-1 mt-2 w-[68px] relative z-20">
+                        <div className="grid grid-cols-3 gap-1 mt-2 w-[90px] relative z-20">
                           <button onClick={(e) => { e.stopPropagation(); handleMoveRecord(idx, -1); }} disabled={idx === 0} className="text-gray-400 hover:text-blue-500 font-bold p-1 transition bg-gray-50 hover:bg-blue-50 rounded-md shadow-sm flex items-center justify-center disabled:opacity-30" title="往上移"><ArrowUp size={14} /></button>
                           <button onClick={(e) => { e.stopPropagation(); handleMoveRecord(idx, 1); }} disabled={idx === displayRecords.length - 1} className="text-gray-400 hover:text-blue-500 font-bold p-1 transition bg-gray-50 hover:bg-blue-50 rounded-md shadow-sm flex items-center justify-center disabled:opacity-30" title="往下移"><ArrowDown size={14} /></button>
                           <button onClick={(e) => { e.stopPropagation(); openEditForm(exp); }} className="text-gray-400 hover:text-blue-500 font-bold p-1 transition bg-gray-50 hover:bg-blue-50 rounded-md shadow-sm flex items-center justify-center" title="編輯"><Pencil size={14} /></button>
@@ -1890,7 +1917,7 @@ export default function App() {
 
         {/* 查看明細詳細內容 Modal */}
         {viewingRecord && (
-          <div className="fixed inset-0 bg-black/40 z-[100] flex justify-center items-center p-4 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setViewingRecord(null)}>
+          <div className="fixed inset-0 bg-black/40 z-[110] flex justify-center items-center p-4 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setViewingRecord(null)}>
             <div className="bg-white w-full max-w-sm rounded-[1.5rem] p-5 shadow-2xl relative" onClick={e => e.stopPropagation()}>
               <button onClick={() => setViewingRecord(null)} className="absolute top-3 right-3 text-gray-400 hover:text-gray-600 bg-gray-100 p-1.5 rounded-full transition"><X size={22}/></button>
               <h3 className="font-black text-2xl text-gray-800 mb-3 border-b border-gray-100 pb-2">詳細紀錄</h3>
@@ -2030,7 +2057,7 @@ export default function App() {
             
             <div className={`bg-white rounded-[1.5rem] pt-3 pb-2 px-5 shadow-sm border-2 ${themeBorder} text-center relative overflow-hidden`}>
                <div className={`absolute top-0 left-0 w-full h-1.5 ${themeBg} opacity-20`}></div>
-               <p className={`${themeText} font-extrabold text-[14px] mb-1`}>輸入金額 💰</p>
+               <p className={`${themeText} font-extrabold text-[13px] mb-1`}>輸入金額 💰</p>
                <input 
                  ref={amountInputRef}
                  type="number" placeholder="0" required min="0"
@@ -2042,9 +2069,9 @@ export default function App() {
             <div className={`bg-white rounded-[1.5rem] p-5 shadow-sm border-2 ${themeBorder}`}>
               <div className="grid grid-cols-2 gap-3 mb-5 z-40">
                 <div>
-                  <label className="flex items-center justify-between text-[16px] font-bold text-gray-500 mb-2.5 ml-1 w-full pr-1">
+                  <label className="flex items-center justify-between text-[15px] font-bold text-gray-500 mb-2.5 ml-1 w-full pr-1">
                     <span className="flex items-center gap-1.5"><Calendar size={18} className="text-gray-400" /> 日期 🗓️</span>
-                    <button type="button" onClick={() => setRecordDate(getLocalTodayStr())} className="bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-1 rounded-lg text-[14px] transition shadow-sm">今天</button>
+                    <button type="button" onClick={() => setRecordDate(getLocalTodayStr())} className="bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-1 rounded-lg text-[13px] transition shadow-sm">今天</button>
                   </label>
                   <div className="relative w-full bg-gray-50 border border-gray-100 p-4 rounded-[1.2rem] flex items-center shadow-sm cursor-pointer hover:bg-white transition overflow-hidden">
                     <input 
@@ -2117,7 +2144,7 @@ export default function App() {
                     <label className="flex items-center gap-1.5 text-[15px] font-bold text-gray-500 mb-1.5 ml-1"><CreditCard size={16} className="text-gray-400" /> 付款方式 💳</label>
                     <div className="flex bg-gray-50 rounded-xl p-1 border border-gray-100 mb-3 shadow-inner min-h-[60px]">
                       {(currentRoom?.paymentMethods || []).map(opt => (
-                        <button key={opt} type="button" onClick={() => handleMethodSelect(opt)} className={`flex-1 py-1.5 px-1 rounded-[1rem] text-[15px] leading-snug font-bold transition-all duration-200 flex flex-col items-center justify-center ${recordMethod === opt ? 'bg-white text-blue-600 shadow-md border border-gray-100 transform scale-100' : 'text-gray-400 hover:text-gray-600 scale-95'}`}>
+                        <button key={opt} type="button" onClick={() => handleMethodSelect(opt)} className={`flex-1 py-1.5 px-1 rounded-[1rem] text-[14px] leading-snug font-bold transition-all duration-200 flex flex-col items-center justify-center ${recordMethod === opt ? 'bg-white text-blue-600 shadow-md border border-gray-100 transform scale-100' : 'text-gray-400 hover:text-gray-600 scale-95'}`}>
                           {opt.includes(' / ') ? (
                             <>
                               <span>{opt.split(' / ')[0]}</span>
@@ -2382,13 +2409,13 @@ export default function App() {
           </div>
         </main>
 
-        {/* 需求 3: 跨房間同步設定 Modal 移回正確的設定頁區塊內 */}
+        {/* 需求 3: 跨房間同步設定 Modal */}
         {syncSettingsModalOpen && (
           <div className="fixed inset-0 bg-black/40 z-[100] flex justify-center items-end sm:items-center p-0 sm:p-4 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setSyncSettingsModalOpen(false)}>
             <div className="bg-white w-full max-w-md rounded-t-[1.5rem] sm:rounded-[1.5rem] p-5 shadow-2xl relative animate-in slide-in-from-bottom-10" onClick={e => e.stopPropagation()}>
               <button onClick={() => setSyncSettingsModalOpen(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 bg-gray-100 p-1.5 rounded-full transition"><X size={20}/></button>
               <h3 className="font-black text-[22px] text-gray-800 mb-2 flex items-center gap-1.5">🔄 複製設定至其他房間</h3>
-              <p className="text-[15px] text-gray-500 font-bold mb-4 leading-relaxed">選擇目標房間及想同步的項目，系統會將目前的設定合併到目標房間中。</p>
+              <p className="text-[15px] text-gray-500 font-bold mb-4 leading-relaxed">選擇目標房間，並勾選想同步的具體設定項目。系統會將目前的設定與目標房間合併（不會刪除目標房間原有的設定）。</p>
               
               <div className="space-y-4">
                 <div>
@@ -2402,36 +2429,55 @@ export default function App() {
                    {savedRooms.filter(r => r.id !== activeRoomId).length === 0 && <p className="text-red-400 text-sm mt-1.5 font-bold ml-1">無其他已儲存房間可選</p>}
                 </div>
 
-                <div>
-                   <label className="block text-[16px] font-bold text-gray-500 mb-1.5 ml-1">勾選要同步的項目群組</label>
-                   <div className="grid grid-cols-1 gap-2 max-h-[35vh] overflow-y-auto pr-1">
-                      {SYNC_GROUPS.map(group => {
-                        const isChecked = selectedSyncGroups.includes(group.id);
-                        return (
-                          <button 
-                            key={group.id} type="button"
-                            onClick={() => {
-                              if (isChecked) setSelectedSyncGroups(selectedSyncGroups.filter(id => id !== group.id));
-                              else setSelectedSyncGroups([...selectedSyncGroups, group.id]);
-                            }}
-                            className={`flex items-center text-left p-3.5 rounded-xl border transition-all ${isChecked ? 'border-blue-400 bg-blue-50 text-blue-700' : 'border-gray-100 bg-gray-50 text-gray-600 hover:border-blue-200'}`}
-                          >
-                            <div className={`w-5 h-5 rounded flex justify-center items-center mr-2.5 border transition-colors ${isChecked ? 'bg-blue-500 border-blue-500' : 'border-gray-300 bg-white'}`}>
-                               {isChecked && <Check size={14} className="text-white stroke-[3]"/>}
-                            </div>
-                            <span className="font-bold text-[16px]">{group.label}</span>
-                          </button>
-                        )
-                      })}
-                   </div>
+                <div className="max-h-[35vh] overflow-y-auto pr-2 space-y-3">
+                  {SYNC_FIELDS.map(fieldObj => {
+                     const fKey = fieldObj.key;
+                     // Only show fields that have content
+                     let contentList = [];
+                     if (fKey === 'categories') contentList = currentRoom?.categories || [];
+                     else if (fKey === 'merchants') contentList = currentRoom?.merchants || [];
+                     else contentList = currentRoom?.[fKey] || [];
+                     
+                     if (contentList.length === 0) return null;
+
+                     const isAllSelected = (syncSelection[fKey] || []).length === contentList.length;
+
+                     return (
+                       <div key={fKey} className="bg-gray-50 border border-gray-200 rounded-xl overflow-hidden">
+                         <div className="bg-gray-100 p-2.5 flex justify-between items-center border-b border-gray-200">
+                           <span className="font-bold text-[14px] text-gray-700">{fieldObj.label}</span>
+                           <button 
+                             onClick={() => handleSelectAllSyncField(fKey, contentList)}
+                             className="text-[12px] font-bold bg-white border border-gray-200 px-2 py-1 rounded shadow-sm text-gray-600 active:scale-95 transition"
+                           >
+                             {isAllSelected ? '全不選' : '全選'}
+                           </button>
+                         </div>
+                         <div className="p-2 flex flex-wrap gap-1.5 max-h-[120px] overflow-y-auto">
+                            {contentList.map(item => {
+                               const isChecked = (syncSelection[fKey] || []).includes(item);
+                               return (
+                                 <button 
+                                   key={item}
+                                   onClick={() => handleToggleSyncItem(fKey, item)}
+                                   className={`px-2.5 py-1 rounded-md text-[13px] font-bold border transition-colors ${isChecked ? 'bg-blue-100 border-blue-400 text-blue-800' : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'}`}
+                                 >
+                                   {item}
+                                 </button>
+                               )
+                            })}
+                         </div>
+                       </div>
+                     )
+                  })}
                 </div>
                 
                 <button 
                   onClick={handleSyncSettings}
-                  disabled={!syncTargetRoom || selectedSyncGroups.length === 0}
+                  disabled={!syncTargetRoom || Object.values(syncSelection).every(arr => arr.length === 0)}
                   className="w-full bg-blue-500 text-white font-black text-[18px] py-3.5 rounded-xl transition-all hover:bg-blue-600 disabled:opacity-50 disabled:active:scale-100 active:scale-95 shadow-md mt-1"
                 >
-                  確認同步
+                  確認同步所選項
                 </button>
               </div>
             </div>
@@ -2454,8 +2500,8 @@ export default function App() {
       <>
         <header className="bg-gradient-to-r from-teal-400 to-emerald-400 px-5 py-5 shadow-md shrink-0 z-10 rounded-b-[1.5rem] border-b-4 border-white/20">
           <div className="flex justify-between items-center">
-            <h1 className="text-2xl font-black text-white flex items-center gap-2 drop-shadow-md"><BarChart size={26} className="text-white/80"/> 統計分析</h1>
-            <button onClick={() => setView('room')} className="px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-xl transition text-[15px] font-bold backdrop-blur-sm">返回</button>
+            <h1 className="text-xl font-black text-white flex items-center gap-2 drop-shadow-md"><BarChart size={24} className="text-white/80"/> 統計分析</h1>
+            <button onClick={() => setView('room')} className="px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-xl transition text-[14px] font-bold backdrop-blur-sm">返回</button>
           </div>
         </header>
 
@@ -2463,14 +2509,14 @@ export default function App() {
           <div className="bg-white p-5 rounded-[1.5rem] shadow-sm border-2 border-teal-50">
             
             <div className="mb-5">
-               <label className="block text-[15px] font-bold text-gray-500 mb-2 ml-1">分析類型 (單選)</label>
+               <label className="block text-[14px] font-bold text-gray-500 mb-2 ml-1">分析類型 (單選)</label>
                <div className="flex bg-gray-50 rounded-xl p-1 border border-gray-100 shadow-inner">
                  {['expense', 'income', 'transfer'].map(type => {
                     const label = type === 'expense' ? '支出' : type === 'income' ? '收入' : '轉帳';
                     const isSel = analysisType === type;
                     const activeColor = type === 'expense' ? 'bg-orange-400' : type === 'income' ? 'bg-green-500' : 'bg-blue-500';
                     return (
-                      <button key={type} onClick={() => handleAnalysisTypeChange(type)} className={`flex-1 py-2 rounded-lg text-[16px] font-extrabold transition-all duration-200 ${isSel ? `${activeColor} text-white shadow-md transform scale-100` : 'text-gray-400 hover:text-gray-600 scale-95'}`}>
+                      <button key={type} onClick={() => handleAnalysisTypeChange(type)} className={`flex-1 py-2 rounded-lg text-[15px] font-extrabold transition-all duration-200 ${isSel ? `${activeColor} text-white shadow-md transform scale-100` : 'text-gray-400 hover:text-gray-600 scale-95'}`}>
                         {label}
                       </button>
                     )
@@ -2481,24 +2527,24 @@ export default function App() {
             <div className="grid grid-cols-2 gap-3 mb-5">
               <div>
                 <div className="flex justify-between items-center mb-1.5 ml-1">
-                  <label className="block text-[14px] font-bold text-gray-500">開始日期</label>
-                  <button type="button" onClick={() => setAnalysisStartDate(getLocalTodayStr())} className="text-teal-600 bg-teal-50 hover:bg-teal-100 px-2 py-0.5 rounded text-[12px] font-bold transition">今天</button>
+                  <label className="block text-[13px] font-bold text-gray-500">開始日期</label>
+                  <button type="button" onClick={() => setAnalysisStartDate(getLocalTodayStr())} className="text-teal-600 bg-teal-50 hover:bg-teal-100 px-2 py-0.5 rounded text-[11px] font-bold transition">今天</button>
                 </div>
-                <div className="text-[12px] font-bold text-gray-400 mb-1 ml-1">({analysisStartDate ? toROCYearStr(analysisStartDate) : ''})</div>
-                <input type="date" value={analysisStartDate} onChange={e => setAnalysisStartDate(e.target.value)} className="w-full bg-gray-50 border border-gray-100 p-3 rounded-xl outline-none font-bold text-gray-700 text-[15px] focus:bg-white focus:border-teal-300 transition shadow-sm" />
+                <div className="text-[11px] font-bold text-gray-400 mb-1 ml-1">({analysisStartDate ? toROCYearStr(analysisStartDate) : ''})</div>
+                <input type="date" value={analysisStartDate} onChange={e => setAnalysisStartDate(e.target.value)} className="w-full bg-gray-50 border border-gray-100 p-3 rounded-xl outline-none font-bold text-gray-700 text-[14px] focus:bg-white focus:border-teal-300 transition shadow-sm" />
               </div>
               <div>
                 <div className="flex justify-between items-center mb-1.5 ml-1">
-                  <label className="block text-[14px] font-bold text-gray-500">結束日期</label>
-                  <button type="button" onClick={() => setAnalysisEndDate(getLocalTodayStr())} className="text-teal-600 bg-teal-50 hover:bg-teal-100 px-2 py-0.5 rounded text-[12px] font-bold transition">今天</button>
+                  <label className="block text-[13px] font-bold text-gray-500">結束日期</label>
+                  <button type="button" onClick={() => setAnalysisEndDate(getLocalTodayStr())} className="text-teal-600 bg-teal-50 hover:bg-teal-100 px-2 py-0.5 rounded text-[11px] font-bold transition">今天</button>
                 </div>
-                <div className="text-[12px] font-bold text-gray-400 mb-1 ml-1">({analysisEndDate ? toROCYearStr(analysisEndDate) : ''})</div>
-                <input type="date" value={analysisEndDate} onChange={e => setAnalysisEndDate(e.target.value)} className="w-full bg-gray-50 border border-gray-100 p-3 rounded-xl outline-none font-bold text-gray-700 text-[15px] focus:bg-white focus:border-teal-300 transition shadow-sm" />
+                <div className="text-[11px] font-bold text-gray-400 mb-1 ml-1">({analysisEndDate ? toROCYearStr(analysisEndDate) : ''})</div>
+                <input type="date" value={analysisEndDate} onChange={e => setAnalysisEndDate(e.target.value)} className="w-full bg-gray-50 border border-gray-100 p-3 rounded-xl outline-none font-bold text-gray-700 text-[14px] focus:bg-white focus:border-teal-300 transition shadow-sm" />
               </div>
             </div>
 
             <div className="mb-4">
-              <label className="block text-[15px] font-bold text-gray-500 mb-2 ml-1">分析選單 (可複選)</label>
+              <label className="block text-[14px] font-bold text-gray-500 mb-2 ml-1">分析選單 (可複選)</label>
               <div className="flex flex-wrap gap-2">
                 {analysisOptions.map(opt => {
                   const isSelected = analysisMenus.includes(opt.id);
@@ -2509,7 +2555,7 @@ export default function App() {
                         if (isSelected) setAnalysisMenus(analysisMenus.filter(d => d !== opt.id));
                         else setAnalysisMenus([...analysisMenus, opt.id]);
                       }}
-                      className={`px-3 py-2 rounded-xl text-[15px] font-bold transition-all duration-200 ${isSelected ? 'bg-[#A7F3D0] text-teal-800 border-2 border-[#34D399] shadow-sm transform -translate-y-0.5' : 'bg-white text-gray-500 border border-gray-100 hover:bg-gray-50 shadow-sm'}`}
+                      className={`px-3 py-2 rounded-xl text-[14px] font-bold transition-all duration-200 ${isSelected ? 'bg-[#A7F3D0] text-teal-800 border-2 border-[#34D399] shadow-sm transform -translate-y-0.5' : 'bg-white text-gray-500 border border-gray-100 hover:bg-gray-50 shadow-sm'}`}
                     >
                       {opt.label}
                     </button>
@@ -2520,14 +2566,14 @@ export default function App() {
 
             {analysisMenus.length > 0 && (
               <div className="pt-5 border-t border-dashed border-gray-100 space-y-5">
-                <label className="block text-[13px] font-bold text-teal-600 bg-teal-50 px-3 py-1.5 rounded-lg inline-block leading-relaxed">💡 依選擇選單篩選細項 (不選代表全部分析)</label>
+                <label className="block text-[12px] font-bold text-teal-600 bg-teal-50 px-3 py-1.5 rounded-lg inline-block leading-relaxed">💡 依選擇選單篩選細項 (不選代表全部分析)</label>
                 
                 {analysisMenus.includes('category') && (
                   <PillGroupMulti label="🌸 主分類" options={currentRoom?.categories || []} values={analysisSubSelections.category} onChange={(vals) => setAnalysisSubSelections({...analysisSubSelections, category: vals})} />
                 )}
                 {analysisMenus.includes('title') && (
                   <div className="mb-5 bg-gray-50 p-4 rounded-xl border border-gray-100 shadow-sm">
-                    <label className="block text-[14px] font-bold text-gray-500 mb-3 leading-relaxed">請先選擇上方的主分類篩選，這裡會列出對應的項目讓您勾選</label>
+                    <label className="block text-[13px] font-bold text-gray-500 mb-3 leading-relaxed">請先選擇上方的主分類篩選，這裡會列出對應的項目讓您勾選</label>
                     <div className="flex flex-wrap gap-2">
                       {(() => {
                         const targetCats = analysisSubSelections.category.length > 0 ? analysisSubSelections.category : Object.keys(currentRoom?.categoryItems || {});
@@ -2537,7 +2583,7 @@ export default function App() {
                              let newVals = [...analysisSubSelections.title];
                              if (newVals.includes(item)) newVals = newVals.filter(v => v !== item); else newVals.push(item);
                              setAnalysisSubSelections({...analysisSubSelections, title: newVals});
-                          }} className={`px-3 py-1.5 rounded-lg text-[14px] font-bold transition-all ${analysisSubSelections.title.includes(item) ? 'bg-[#A7F3D0] text-teal-800 border-2 border-[#34D399] shadow-sm' : 'bg-white text-gray-500 border border-gray-100'}`}>
+                          }} className={`px-3 py-1.5 rounded-lg text-[13px] font-bold transition-all ${analysisSubSelections.title.includes(item) ? 'bg-[#A7F3D0] text-teal-800 border-2 border-[#34D399] shadow-sm' : 'bg-white text-gray-500 border border-gray-100'}`}>
                              {item}
                           </button>
                         ));
@@ -2572,17 +2618,17 @@ export default function App() {
           </div>
 
           <div className="bg-white p-5 rounded-[1.5rem] shadow-sm border-2 border-teal-50">
-            <h2 className="font-bold text-teal-700 mb-5 text-[17px] flex items-center gap-2"><LucidePieChart size={20} className="text-teal-400"/> 統計結果</h2>
+            <h2 className="font-bold text-teal-700 mb-5 text-[16px] flex items-center gap-2"><LucidePieChart size={18} className="text-teal-400"/> 統計結果</h2>
             <MyCustomPieChart data={chartData} colors={chartColors} />
             
             <div className="mt-6 space-y-2.5">
               {chartData.length === 0 ? (
-                <p className="text-center text-gray-400 font-bold text-[15px] bg-gray-50 py-4 rounded-xl">此條件沒有紀錄喔！</p>
+                <p className="text-center text-gray-400 font-bold text-[14px] bg-gray-50 py-4 rounded-xl">此條件沒有紀錄喔！</p>
               ) : (
                 chartData.map((d, idx) => (
                   <div key={d.label} className="flex justify-between items-center bg-gray-50 p-3 rounded-xl border border-gray-100 hover:shadow-sm transition">
                     <div className="flex items-center gap-2.5">
-                      <div className="w-5 h-5 rounded shadow-inner" style={{ backgroundColor: chartColors[idx % chartColors.length] }}></div>
+                      <div className="w-4 h-4 rounded shadow-inner" style={{ backgroundColor: chartColors[idx % chartColors.length] }}></div>
                       <span className="font-bold text-gray-700 text-[15px] truncate max-w-[150px]">{d.label}</span>
                     </div>
                     <span className="font-black text-gray-800 text-[17px]">${d.value.toLocaleString()}</span>
@@ -2609,21 +2655,21 @@ export default function App() {
           <div className="absolute bottom-0 left-0 w-full bg-white/95 backdrop-blur-xl p-2 pb-6 sm:pb-4 rounded-t-[2rem] shadow-[0_-15px_40px_rgba(0,0,0,0.08)] flex justify-between items-center z-20 border-t border-gray-100 px-6">
             
             <button onClick={() => setView('accounts')} className="flex flex-col items-center gap-1 text-gray-400 hover:text-indigo-500 transition px-4 py-2">
-              <Wallet size={26} />
-              <span className="font-extrabold text-[13px]">帳戶</span>
+              <Wallet size={24} />
+              <span className="font-extrabold text-[12px]">帳戶</span>
             </button>
 
             {/* 大大的 + 號 */}
             <button 
               onClick={() => { resetForm(); setRecordType('expense'); setShowAddForm(true); }} 
-              className="absolute left-1/2 -translate-x-1/2 -top-6 bg-gradient-to-tr from-pink-400 to-orange-400 text-white w-[68px] h-[68px] rounded-full flex items-center justify-center shadow-[0_10px_20px_rgba(251,146,60,0.4)] border-[4px] border-[#FFFBF0] transform hover:scale-105 transition active:scale-95"
+              className="absolute left-1/2 -translate-x-1/2 -top-6 bg-gradient-to-tr from-pink-400 to-orange-400 text-white w-[64px] h-[64px] rounded-full flex items-center justify-center shadow-[0_10px_20px_rgba(251,146,60,0.4)] border-[4px] border-[#FFFBF0] transform hover:scale-105 transition active:scale-95"
             >
-              <Plus size={38} strokeWidth={3} />
+              <Plus size={36} strokeWidth={3} />
             </button>
 
             <button onClick={() => setView('analysis')} className="flex flex-col items-center gap-1 text-gray-400 hover:text-teal-500 transition px-4 py-2">
-              <BarChart size={26} />
-              <span className="font-extrabold text-[13px]">統計</span>
+              <BarChart size={24} />
+              <span className="font-extrabold text-[12px]">統計</span>
             </button>
 
           </div>
