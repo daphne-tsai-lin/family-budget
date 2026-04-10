@@ -1,6 +1,6 @@
 /* eslint-disable */
 import React, { useState, useEffect, useRef } from 'react';
-import { LogOut, AlertCircle, Settings, Trash2, X, Sparkles, Home, Plus, Pencil, BarChart, Calendar, Store, Tag, User, CreditCard, RefreshCw, Wallet, PiggyBank, PieChart as LucidePieChart, Download, Upload, Copy, Send, Landmark, ArrowRightLeft, Check, ArrowUp, ArrowDown } from 'lucide-react';
+import { LogOut, AlertCircle, Settings, Trash2, X, Sparkles, Home, Plus, Pencil, BarChart, Calendar, Store, Tag, User, CreditCard, RefreshCw, Wallet, PiggyBank, PieChart as LucidePieChart, Download, Upload, Copy, Send, Landmark, ArrowRightLeft, Check, ArrowUp, ArrowDown, Search } from 'lucide-react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'firebase/auth';
 import { getFirestore, collection, doc, setDoc, getDoc, updateDoc, onSnapshot, addDoc, deleteDoc, deleteField, writeBatch } from 'firebase/firestore';
@@ -346,12 +346,9 @@ export default function App() {
   const [transferToSubMethod, setTransferToSubMethod] = useState('');
 
   const [homeFilterDate, setHomeFilterDate] = useState(getLocalTodayStr());
+  const [searchQuery, setSearchQuery] = useState(''); // 新增搜尋狀態
 
   const [settingsTab, setSettingsTab] = useState('expense');
-  const [newOptionInputs, setNewOptionInputs] = useState({
-    categories: '', incomeCategories: '', transferCategories: '', payers: '', paymentMethods: '', merchants: '', creditCards: '', bankAccounts: '',
-    incomeAccounts: '', transferOutAccounts: '', transferInAccounts: ''
-  });
   const [settingSelectedCategory, setSettingSelectedCategory] = useState('');
   const [newCategoryItemInput, setNewCategoryItemInput] = useState('');
   const [newRuleItem, setNewRuleItem] = useState('');
@@ -373,7 +370,7 @@ export default function App() {
   
   const [syncSettingsModalOpen, setSyncSettingsModalOpen] = useState(false);
   const [syncTargetRoom, setSyncTargetRoom] = useState('');
-  const [selectedSyncGroups, setSelectedSyncGroups] = useState([]);
+  const [syncSelection, setSyncSelection] = useState({}); // 儲存細項的勾選狀態
 
   const [touchStart, setTouchStart] = useState(null);
   const [touchEnd, setTouchEnd] = useState(null);
@@ -544,9 +541,16 @@ export default function App() {
   // 紀錄上下調整順序
   // ==========================================
   const handleMoveRecord = async (index, direction) => {
-    if (!user || !homeFilterDate) return; 
+    if (!user || (!homeFilterDate && !searchQuery)) return; 
     
-    const displayRecs = records.filter(r => r.date === homeFilterDate);
+    const displayRecs = searchQuery 
+       ? records.filter(r => {
+            const q = searchQuery.toLowerCase();
+            const textToSearch = `${r.title || ''} ${r.merchant || ''} ${r.note || ''} ${r.category || ''} ${r.method || ''} ${r.subMethod || ''} ${r.transferToMethod || ''} ${r.transferToSubMethod || ''} ${Array.isArray(r.payer)?r.payer.join(' '):r.payer || ''}`.toLowerCase();
+            return textToSearch.includes(q);
+         })
+       : records.filter(r => r.date === homeFilterDate);
+       
     if (index + direction < 0 || index + direction >= displayRecs.length) return;
     
     const currentTx = displayRecs[index];
@@ -939,13 +943,24 @@ export default function App() {
   // ==========================================
   // 帳戶餘額 
   // ==========================================
-  const getBalances = () => {
-    const balances = { ...currentRoom?.initialBalances };
-    if (balances['現金'] === undefined) balances['現金'] = 0;
-    (currentRoom?.bankAccounts || []).forEach(b => { if (balances[b] === undefined) balances[b] = 0; });
-    (currentRoom?.creditCards || []).forEach(c => { if (balances[c] === undefined) balances[c] = 0; });
+  const getAccKey = (method, subMethod) => {
+    if (method === '現金') return '現金';
+    if (method === '信用卡 / 行動支付' || method === '信用卡') return `cc_${subMethod}`;
+    return `bank_${subMethod}`; // Default for banks and others
+  };
 
-    const getAccName = (method, subMethod) => method === '現金' ? '現金' : subMethod;
+  const getBalances = () => {
+    const initial = currentRoom?.initialBalances || {};
+    const balances = {};
+    
+    balances['現金'] = initial['現金'] || 0;
+    (currentRoom?.bankAccounts || []).forEach(b => {
+        balances[`bank_${b}`] = initial[`bank_${b}`] !== undefined ? initial[`bank_${b}`] : (initial[b] || 0);
+    });
+    (currentRoom?.creditCards || []).forEach(c => {
+        balances[`cc_${c}`] = initial[`cc_${c}`] !== undefined ? initial[`cc_${c}`] : (initial[c] || 0);
+    });
+
     const todayStr = getLocalTodayStr();
 
     records.forEach(r => {
@@ -953,16 +968,16 @@ export default function App() {
 
       const amt = Number(r.amount) || 0;
       if (r.type === 'expense' || !r.type) {
-        const acc = getAccName(r.method, r.subMethod);
-        if (acc) balances[acc] = (balances[acc] || 0) - amt;
+        const key = getAccKey(r.method, r.subMethod);
+        if (key) balances[key] = (balances[key] || 0) - amt;
       } else if (r.type === 'income') {
-        const acc = getAccName(r.method, r.subMethod); 
-        if (acc) balances[acc] = (balances[acc] || 0) + amt;
+        const key = getAccKey(r.method, r.subMethod); 
+        if (key) balances[key] = (balances[key] || 0) + amt;
       } else if (r.type === 'transfer') {
-        const fromAcc = getAccName(r.method, r.subMethod);
-        const toAcc = getAccName(r.transferToMethod, r.transferToSubMethod);
-        if (fromAcc) balances[fromAcc] = (balances[fromAcc] || 0) - amt;
-        if (toAcc) balances[toAcc] = (balances[toAcc] || 0) + amt;
+        const fromKey = getAccKey(r.method, r.subMethod);
+        const toKey = getAccKey(r.transferToMethod, r.transferToSubMethod);
+        if (fromKey) balances[fromKey] = (balances[fromKey] || 0) - amt;
+        if (toKey) balances[toKey] = (balances[toKey] || 0) + amt;
       }
     });
     return balances;
@@ -1207,19 +1222,50 @@ export default function App() {
   }
 
   // ==========================================
-  // 同步設定邏輯
+  // 同步設定邏輯 (需求 3: 細項勾選)
   // ==========================================
-  const SYNC_GROUPS = [
-    { id: 'expense_cats', label: '🌸 支出分類與項目清單', keys: ['categories', 'categoryItems'] },
-    { id: 'merchants_rules', label: '🏪 常見商家與預設分類規則', keys: ['merchants', 'autoFillRules'] },
-    { id: 'accounts_rules', label: '💳 帳戶清單與預設付款規則', keys: ['paymentMethods', 'creditCards', 'bankAccounts', 'methodRules'] },
-    { id: 'payers', label: '👥 家人/對象名單', keys: ['payers'] },
-    { id: 'income_settings', label: '📈 收入分類與存入帳戶', keys: ['incomeCategories', 'incomeAccounts'] },
-    { id: 'transfer_settings', label: '🔄 轉帳分類與收轉帳戶', keys: ['transferCategories', 'transferOutAccounts', 'transferInAccounts'] }
+  const SYNC_FIELDS = [
+    { key: 'categories', label: '🌸 支出分類 (含子項目)' },
+    { key: 'merchants', label: '🏪 常見商家 (含預設規則)' },
+    { key: 'payers', label: '👥 對象名單' },
+    { key: 'paymentMethods', label: '💳 付款方式類別' },
+    { key: 'creditCards', label: '💳 信用卡清單' },
+    { key: 'bankAccounts', label: '🏦 銀行/電子票證清單' },
+    { key: 'incomeCategories', label: '💰 收入分類' },
+    { key: 'incomeAccounts', label: '🏦 收入-存入帳戶' },
+    { key: 'transferCategories', label: '🔄 轉帳分類' },
+    { key: 'transferOutAccounts', label: '📤 轉帳-轉出帳戶' },
+    { key: 'transferInAccounts', label: '📥 轉帳-轉入帳戶' },
   ];
 
+  const handleToggleSyncItem = (field, item) => {
+    setSyncSelection(prev => {
+        const list = prev[field] || [];
+        if (list.includes(item)) {
+            return { ...prev, [field]: list.filter(i => i !== item) };
+        } else {
+            return { ...prev, [field]: [...list, item] };
+        }
+    });
+  };
+
+  const handleSelectAllSyncField = (field, allItems) => {
+    setSyncSelection(prev => {
+        const currentList = prev[field] || [];
+        if (currentList.length === allItems.length) {
+            return { ...prev, [field]: [] };
+        } else {
+            return { ...prev, [field]: [...allItems] };
+        }
+    });
+  };
+
   const handleSyncSettings = async () => {
-    if (!syncTargetRoom || selectedSyncGroups.length === 0) return alert('請選擇目標房間及要同步的項目');
+    const keysToSync = SYNC_FIELDS.map(f => f.key);
+    let hasSelection = false;
+    keysToSync.forEach(k => { if (syncSelection[k] && syncSelection[k].length > 0) hasSelection = true; });
+
+    if (!syncTargetRoom || !hasSelection) return alert('請選擇目標房間及要同步的項目');
     if (!window.confirm('確定要將勾選的設定同步到目標房間嗎？\n(原本目標房間的設定會被保留並合併)')) return;
 
     try {
@@ -1230,30 +1276,43 @@ export default function App() {
       const targetData = targetSnap.data();
       const updates = {};
       
-      const keysToSync = selectedSyncGroups.flatMap(groupId => SYNC_GROUPS.find(g => g.id === groupId).keys);
-
       keysToSync.forEach(opt => {
-         if (Array.isArray(currentRoom[opt])) {
-            const existing = targetData[opt] || [];
-            updates[opt] = [...new Set([...existing, ...currentRoom[opt]])];
-         } else if (typeof currentRoom[opt] === 'object' && currentRoom[opt] !== null) {
-            const existing = targetData[opt] || {};
-            const merged = { ...existing };
-            for (const key in currentRoom[opt]) {
-               if (Array.isArray(currentRoom[opt][key])) {
-                   merged[key] = [...new Set([...(existing[key] || []), ...currentRoom[opt][key]])];
-               } else {
-                   merged[key] = currentRoom[opt][key]; 
+         const selectedItems = syncSelection[opt];
+         if (!selectedItems || selectedItems.length === 0) return;
+
+         const existing = targetData[opt] || [];
+         updates[opt] = [...new Set([...existing, ...selectedItems])];
+
+         if (opt === 'categories') {
+            const existingItems = targetData.categoryItems || {};
+            const newItems = { ...existingItems };
+            selectedItems.forEach(cat => {
+               if (currentRoom.categoryItems?.[cat]) {
+                  newItems[cat] = [...new Set([...(existingItems[cat] || []), ...currentRoom.categoryItems[cat]])];
                }
-            }
-            updates[opt] = merged;
+            });
+            updates.categoryItems = newItems;
+         }
+
+         if (opt === 'merchants') {
+            const existingAutoFill = targetData.autoFillRules || {};
+            const newAutoFill = { ...existingAutoFill };
+            const existingMethodRules = targetData.methodRules || {};
+            const newMethodRules = { ...existingMethodRules };
+
+            selectedItems.forEach(m => {
+               if (currentRoom.autoFillRules?.[m]) newAutoFill[m] = currentRoom.autoFillRules[m];
+               if (currentRoom.methodRules?.[m]) newMethodRules[m] = currentRoom.methodRules[m];
+            });
+            updates.autoFillRules = newAutoFill;
+            updates.methodRules = newMethodRules;
          }
       });
 
       await updateDoc(targetRef, updates);
       alert('✅ 設定同步成功！');
       setSyncSettingsModalOpen(false);
-      setSelectedSyncGroups([]);
+      setSyncSelection({});
     } catch (e) {
       alert('同步失敗：' + e.message);
     }
@@ -1281,9 +1340,20 @@ export default function App() {
   };
 
   // ==========================================
-  // 報表、統計與驗證
+  // 報表、統計與驗證 (需求 2: 搜尋功能)
   // ==========================================
-  const displayRecords = homeFilterDate ? records.filter(r => r.date === homeFilterDate) : records;
+  const displayRecords = records.filter(r => {
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      const textToSearch = `${r.title || ''} ${r.merchant || ''} ${r.note || ''} ${r.category || ''} ${r.method || ''} ${r.subMethod || ''} ${r.transferToMethod || ''} ${r.transferToSubMethod || ''} ${Array.isArray(r.payer)?r.payer.join(' '):r.payer || ''}`.toLowerCase();
+      return textToSearch.includes(q);
+    }
+    if (homeFilterDate) {
+      return r.date === homeFilterDate;
+    }
+    return true;
+  });
+
   const totalIncome = displayRecords.filter(r => r.type === 'income').reduce((sum, r) => sum + r.amount, 0);
   const totalExpense = displayRecords.filter(r => r.type === 'expense' || !r.type).reduce((sum, r) => sum + r.amount, 0);
   const netBalance = totalIncome - totalExpense;
@@ -1373,13 +1443,13 @@ export default function App() {
 
     return (
       <div className="mb-4 w-full">
-        {label && <label className="flex items-center gap-1.5 text-[14px] font-bold text-gray-500 mb-2 ml-1">{Icon && <Icon size={14} className="text-gray-400" />} {label}</label>}
-        <div className="flex w-full gap-1.5">
+        {label && <label className="flex items-center gap-1.5 text-[15px] font-bold text-gray-500 mb-2 ml-1">{Icon && <Icon size={16} className="text-gray-400" />} {label}</label>}
+        <div className="flex flex-nowrap gap-2 overflow-x-auto pb-1.5 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
           {options.map(opt => {
             const isSelected = values.includes(opt);
             const isDisabled = isPayer && ((opt === '全家' && hasIndividuals) || (opt !== '全家' && hasFamily));
             return (
-              <button key={opt} type="button" onClick={() => handleToggle(opt)} className={`flex-1 py-2 px-0.5 rounded-[1.2rem] text-[13px] sm:text-[14px] font-black transition-all duration-200 border-2 shadow-sm flex items-center justify-center leading-tight ${isSelected ? 'bg-[#FFE28A] text-gray-900 border-[#F59E0B] transform -translate-y-0.5 z-10' : isDisabled ? 'bg-gray-100 text-gray-300 border-transparent cursor-not-allowed opacity-60' : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300 hover:bg-gray-50'}`}>{opt}</button>
+              <button key={opt} type="button" onClick={() => handleToggle(opt)} className={`shrink-0 whitespace-nowrap px-5 py-2.5 rounded-2xl text-[16px] font-black transition-all duration-200 border-[3px] shadow-sm flex items-center justify-center leading-tight ${isSelected ? 'bg-[#FFE28A] text-gray-900 border-[#F59E0B] transform -translate-y-0.5 z-10' : isDisabled ? 'bg-gray-100 text-gray-300 border-transparent cursor-not-allowed opacity-60' : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300 hover:bg-gray-50'}`}>{opt}</button>
             )
           })}
         </div>
@@ -1400,12 +1470,12 @@ export default function App() {
           {errorMsg ? (
             <div className="bg-red-50 text-red-500 font-bold p-6 rounded-[1.5rem] flex flex-col items-center gap-4 border border-red-100 shadow-sm text-center w-full">
               <AlertCircle size={40} />
-              <p className="text-[16px] leading-relaxed whitespace-pre-line">{errorMsg}</p>
-              <button onClick={() => window.location.reload()} className="mt-2 bg-white text-red-500 px-6 py-2.5 rounded-xl text-[16px] shadow-sm border border-red-100 transition hover:bg-red-50">重新整理</button>
+              <p className="text-[17px] leading-relaxed whitespace-pre-line">{errorMsg}</p>
+              <button onClick={() => window.location.reload()} className="mt-2 bg-white text-red-500 px-6 py-2.5 rounded-xl text-[17px] shadow-sm border border-red-100 transition hover:bg-red-50">重新整理</button>
             </div>
           ) : (
-            <div className="text-gray-500 font-extrabold text-[20px] flex items-center bg-white p-5 rounded-[1.5rem] shadow-sm border border-gray-100">
-              <Sparkles className="animate-bounce mr-3 text-yellow-400" size={26}/> 魔法連線中...
+            <div className="text-gray-500 font-extrabold text-[22px] flex items-center bg-white p-5 rounded-[1.5rem] shadow-sm border border-gray-100">
+              <Sparkles className="animate-bounce mr-3 text-yellow-400" size={28}/> 魔法連線中...
             </div>
           )}
         </div>
@@ -1420,50 +1490,50 @@ export default function App() {
     content = (
       <div className="flex flex-col items-center justify-center flex-1 p-4 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
         <div className="flex flex-col items-center mb-6 w-full mt-2">
-          <div className="bg-gradient-to-tr from-[#FFF4B8] to-[#FFD580] p-5 rounded-[1.5rem] mb-5 shadow-sm"><Sparkles size={44} className="text-white drop-shadow-sm" strokeWidth={2.5} /></div>
-          <h1 className="text-2xl sm:text-3xl font-black text-gray-800 mb-1.5 flex items-center gap-2">❤️ 林北一家 🏠</h1>
-          <p className="text-[16px] font-bold text-gray-500">林北的小財庫</p>
+          <div className="bg-gradient-to-tr from-[#FFF4B8] to-[#FFD580] p-5 rounded-[1.5rem] mb-5 shadow-sm"><Sparkles size={48} className="text-white drop-shadow-sm" strokeWidth={2.5} /></div>
+          <h1 className="text-3xl sm:text-4xl font-black text-gray-800 mb-2 flex items-center gap-2">❤️ 林北一家 🏠</h1>
+          <p className="text-[17px] font-bold text-gray-500">林北的小財庫</p>
         </div>
 
         {savedRooms.length > 0 && (
           <div className="w-full mb-6 bg-gray-50 p-4 rounded-[1.5rem] border border-gray-100 shadow-sm">
-            <p className="text-[15px] font-bold text-gray-500 mb-3 text-center">👇 快速切換最近房間</p>
+            <p className="text-[16px] font-bold text-gray-500 mb-3 text-center">👇 快速切換最近房間</p>
             <div className="space-y-2 max-h-[220px] overflow-y-auto pr-1">
               {savedRooms.map(r => (
-                <button key={r.id} type="button" onClick={() => quickJoinRoom(r)} className="w-full bg-white border border-transparent p-3.5 rounded-[1.2rem] hover:border-blue-300 hover:shadow-md transition flex justify-between items-center shadow-sm">
+                <button key={r.id} type="button" onClick={() => quickJoinRoom(r)} className="w-full bg-white border border-transparent p-4 rounded-[1.2rem] hover:border-blue-300 hover:shadow-md transition flex justify-between items-center shadow-sm">
                   <div className="flex items-center gap-3">
-                    <div className="bg-orange-100 p-2 rounded-lg text-orange-500"><Home size={20} /></div>
-                    <span className="font-extrabold text-gray-700 text-[17px]">{r.name}</span>
+                    <div className="bg-orange-100 p-2 rounded-lg text-orange-500"><Home size={22} /></div>
+                    <span className="font-extrabold text-gray-700 text-[18px]">{r.name}</span>
                   </div>
-                  <span className="text-[13px] font-bold text-blue-500 bg-blue-50 px-2.5 py-1 rounded-md">{r.role}</span>
+                  <span className="text-[14px] font-bold text-blue-500 bg-blue-50 px-3 py-1.5 rounded-md">{r.role}</span>
                 </button>
               ))}
             </div>
           </div>
         )}
 
-        {errorMsg && <div className="w-full bg-red-50 text-red-500 font-bold p-3 rounded-xl mb-4 flex items-center justify-center gap-2 text-sm shadow-sm border border-red-100"><AlertCircle size={18} /> {errorMsg}</div>}
+        {errorMsg && <div className="w-full bg-red-50 text-red-500 font-bold p-3 rounded-xl mb-4 flex items-center justify-center gap-2 text-[16px] shadow-sm border border-red-100"><AlertCircle size={20} /> {errorMsg}</div>}
         
         <form onSubmit={handleJoinRoom} className="space-y-5 w-full bg-white p-5 rounded-[1.5rem] shadow-sm border border-gray-100">
           <div>
-            <label className="block text-[15px] font-bold text-gray-500 mb-1.5 ml-1">家庭通關代碼</label>
-            <input type="text" className="w-full bg-gray-50 text-center border border-gray-100 p-3.5 rounded-xl focus:bg-white focus:border-blue-300 outline-none font-bold text-gray-700 text-[17px] transition shadow-sm" placeholder="例如：linbei" value={roomCode} onChange={(e) => setRoomCode(e.target.value)} />
+            <label className="block text-[16px] font-bold text-gray-500 mb-1.5 ml-1">家庭通關代碼</label>
+            <input type="text" className="w-full bg-gray-50 text-center border border-gray-100 p-4 rounded-xl focus:bg-white focus:border-blue-300 outline-none font-bold text-gray-700 text-[18px] transition shadow-sm" placeholder="例如：linbei" value={roomCode} onChange={(e) => setRoomCode(e.target.value)} />
           </div>
           <div>
-            <label className="block text-[15px] font-bold text-gray-500 mb-1.5 ml-1">房間密碼 (初次建立請自訂)</label>
-            <input type="password" className="w-full bg-gray-50 text-center border border-gray-100 p-3.5 rounded-xl focus:bg-white focus:border-blue-300 outline-none font-bold text-gray-700 text-[17px] transition shadow-sm" placeholder="輸入密碼" value={roomPin} onChange={(e) => setRoomPin(e.target.value)} />
+            <label className="block text-[16px] font-bold text-gray-500 mb-1.5 ml-1">房間密碼 (初次建立請自訂)</label>
+            <input type="password" className="w-full bg-gray-50 text-center border border-gray-100 p-4 rounded-xl focus:bg-white focus:border-blue-300 outline-none font-bold text-gray-700 text-[18px] transition shadow-sm" placeholder="輸入密碼" value={roomPin} onChange={(e) => setRoomPin(e.target.value)} />
           </div>
           <div>
-            <label className="block text-[15px] font-bold text-gray-500 mb-1.5 ml-1">我是誰？</label>
+            <label className="block text-[16px] font-bold text-gray-500 mb-1.5 ml-1">我是誰？</label>
             <div className="grid grid-cols-2 gap-3">
-              <button type="button" onClick={() => setCurrentUserRole('老公')} className={`p-3 rounded-xl font-bold text-[17px] flex justify-center items-center gap-1.5 transition-all duration-200 ${currentUserRole === '老公' ? 'bg-blue-500 text-white shadow-md transform -translate-y-0.5' : 'bg-gray-50 border border-gray-100 text-gray-500 hover:bg-gray-100'}`}>👨 老公</button>
-              <button type="button" onClick={() => setCurrentUserRole('老婆')} className={`p-3 rounded-xl font-bold text-[17px] flex justify-center items-center gap-1.5 transition-all duration-200 ${currentUserRole === '老婆' ? 'bg-pink-500 text-white shadow-md transform -translate-y-0.5' : 'bg-gray-50 border border-gray-100 text-gray-500 hover:bg-gray-100'}`}>👩 老婆</button>
+              <button type="button" onClick={() => setCurrentUserRole('老公')} className={`p-4 rounded-xl font-bold text-[18px] flex justify-center items-center gap-1.5 transition-all duration-200 ${currentUserRole === '老公' ? 'bg-blue-500 text-white shadow-md transform -translate-y-0.5' : 'bg-gray-50 border border-gray-100 text-gray-500 hover:bg-gray-100'}`}>👨 老公</button>
+              <button type="button" onClick={() => setCurrentUserRole('老婆')} className={`p-4 rounded-xl font-bold text-[18px] flex justify-center items-center gap-1.5 transition-all duration-200 ${currentUserRole === '老婆' ? 'bg-pink-500 text-white shadow-md transform -translate-y-0.5' : 'bg-gray-50 border border-gray-100 text-gray-500 hover:bg-gray-100'}`}>👩 老婆</button>
             </div>
           </div>
-          <button type="submit" disabled={isLoading} className="w-full bg-gray-800 text-white font-extrabold text-[18px] p-4 rounded-xl hover:bg-gray-700 shadow-md transition active:scale-95 disabled:opacity-50 mt-2">{isLoading ? '處理中...' : '開啟小財庫 🚀'}</button>
+          <button type="submit" disabled={isLoading} className="w-full bg-gray-800 text-white font-extrabold text-[20px] p-4.5 rounded-xl hover:bg-gray-700 shadow-md transition active:scale-95 disabled:opacity-50 mt-2">{isLoading ? '處理中...' : '開啟小財庫 🚀'}</button>
         </form>
         <div className="mt-6 text-center w-full pb-6">
-          <button onClick={() => {setView('create'); setErrorMsg('');}} className="text-gray-500 text-[16px] font-bold hover:text-gray-700 transition bg-white px-5 py-2.5 rounded-full shadow-sm border border-gray-200">💡 建立新的家庭房間</button>
+          <button onClick={() => {setView('create'); setErrorMsg('');}} className="text-gray-500 text-[17px] font-bold hover:text-gray-700 transition bg-white px-6 py-3 rounded-full shadow-sm border border-gray-200">💡 建立新的家庭房間</button>
         </div>
       </div>
     );
@@ -1473,25 +1543,25 @@ export default function App() {
     content = (
       <div className="flex flex-col items-center justify-center flex-1 p-4 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
          <div className="flex flex-col items-center mb-6 w-full mt-2">
-          <div className="bg-gradient-to-tr from-[#A7F3D0] to-[#34D399] p-5 rounded-[1.5rem] mb-5 shadow-sm"><Home size={44} className="text-white drop-shadow-sm" strokeWidth={2.5} /></div>
+          <div className="bg-gradient-to-tr from-[#A7F3D0] to-[#34D399] p-5 rounded-[1.5rem] mb-5 shadow-sm"><Home size={48} className="text-white drop-shadow-sm" strokeWidth={2.5} /></div>
           <h1 className="text-2xl sm:text-3xl font-black text-gray-800 mb-1">建立新家庭 ✨</h1>
         </div>
-        {errorMsg && <div className="w-full bg-red-50 text-red-500 font-bold p-3 rounded-xl mb-4 flex items-center justify-center gap-2 text-sm shadow-sm border border-red-100"><AlertCircle size={18} /> {errorMsg}</div>}
+        {errorMsg && <div className="w-full bg-red-50 text-red-500 font-bold p-3 rounded-xl mb-4 flex items-center justify-center gap-2 text-[16px] shadow-sm border border-red-100"><AlertCircle size={20} /> {errorMsg}</div>}
         <form onSubmit={handleCreateRoom} className="space-y-4 w-full bg-white p-5 rounded-[1.5rem] shadow-sm border border-gray-100">
           <div>
-            <label className="block text-[15px] font-bold text-gray-500 mb-1.5 ml-1">我是...</label>
+            <label className="block text-[16px] font-bold text-gray-500 mb-1.5 ml-1">我是...</label>
             <div className="grid grid-cols-2 gap-3">
-              <button type="button" onClick={() => setCurrentUserRole('老公')} className={`p-3 rounded-xl font-bold text-[17px] flex justify-center items-center gap-1.5 transition-all duration-200 ${currentUserRole === '老公' ? 'bg-blue-500 text-white shadow-md transform -translate-y-0.5' : 'bg-gray-50 border border-gray-100 text-gray-500 hover:bg-gray-100'}`}>👨 老公</button>
-              <button type="button" onClick={() => setCurrentUserRole('老婆')} className={`p-3 rounded-xl font-bold text-[17px] flex justify-center items-center gap-1.5 transition-all duration-200 ${currentUserRole === '老婆' ? 'bg-pink-500 text-white shadow-md transform -translate-y-0.5' : 'bg-gray-50 border border-gray-100 text-gray-500 hover:bg-gray-100'}`}>👩 老婆</button>
+              <button type="button" onClick={() => setCurrentUserRole('老公')} className={`p-4 rounded-xl font-bold text-[18px] flex justify-center items-center gap-1.5 transition-all duration-200 ${currentUserRole === '老公' ? 'bg-blue-500 text-white shadow-md transform -translate-y-0.5' : 'bg-gray-50 border border-gray-100 text-gray-500 hover:bg-gray-100'}`}>👨 老公</button>
+              <button type="button" onClick={() => setCurrentUserRole('老婆')} className={`p-4 rounded-xl font-bold text-[18px] flex justify-center items-center gap-1.5 transition-all duration-200 ${currentUserRole === '老婆' ? 'bg-pink-500 text-white shadow-md transform -translate-y-0.5' : 'bg-gray-50 border border-gray-100 text-gray-500 hover:bg-gray-100'}`}>👩 老婆</button>
             </div>
           </div>
-          <input type="text" className="w-full bg-gray-50 text-center border border-gray-100 p-3.5 rounded-xl focus:bg-white focus:border-green-300 outline-none font-bold text-gray-700 text-[17px] transition shadow-sm" placeholder="🏠 房間名稱 (例: 林北小財庫)" value={roomName} onChange={(e) => setRoomName(e.target.value)} />
-          <input type="text" className="w-full bg-gray-50 text-center border border-gray-100 p-3.5 rounded-xl focus:bg-white focus:border-green-300 outline-none font-bold text-gray-700 text-[17px] transition shadow-sm" placeholder="🎀 自訂通關代碼 (需唯一)" value={roomCode} onChange={(e) => setRoomCode(e.target.value)} />
-          <input type="password" className="w-full bg-gray-50 text-center border border-gray-100 p-3.5 rounded-xl focus:bg-white focus:border-green-300 outline-none font-bold text-gray-700 text-[17px] transition shadow-sm" placeholder="🔑 設定房間密碼" value={roomPin} onChange={(e) => setRoomPin(e.target.value)} />
-          <button type="submit" disabled={isLoading} className="w-full bg-green-500 text-white font-extrabold text-[18px] p-4 rounded-xl hover:bg-green-600 shadow-md transition active:scale-95 mt-2">{isLoading ? '處理中...' : '建立並進入 🚀'}</button>
+          <input type="text" className="w-full bg-gray-50 text-center border border-gray-100 p-4 rounded-xl focus:bg-white focus:border-green-300 outline-none font-bold text-gray-700 text-[18px] transition shadow-sm" placeholder="🏠 房間名稱 (例: 林北小財庫)" value={roomName} onChange={(e) => setRoomName(e.target.value)} />
+          <input type="text" className="w-full bg-gray-50 text-center border border-gray-100 p-4 rounded-xl focus:bg-white focus:border-green-300 outline-none font-bold text-gray-700 text-[18px] transition shadow-sm" placeholder="🎀 自訂通關代碼 (需唯一)" value={roomCode} onChange={(e) => setRoomCode(e.target.value)} />
+          <input type="password" className="w-full bg-gray-50 text-center border border-gray-100 p-4 rounded-xl focus:bg-white focus:border-green-300 outline-none font-bold text-gray-700 text-[18px] transition shadow-sm" placeholder="🔑 設定房間密碼" value={roomPin} onChange={(e) => setRoomPin(e.target.value)} />
+          <button type="submit" disabled={isLoading} className="w-full bg-green-500 text-white font-extrabold text-[20px] p-4.5 rounded-xl hover:bg-green-600 shadow-md transition active:scale-95 mt-2">{isLoading ? '處理中...' : '建立並進入 🚀'}</button>
         </form>
         <div className="mt-6 text-center w-full pb-6">
-           <button onClick={() => {setView('login'); setErrorMsg('');}} className="text-gray-500 text-[16px] font-bold hover:text-gray-700 transition bg-white px-5 py-2.5 rounded-full shadow-sm border border-gray-200">返回登入</button>
+           <button onClick={() => {setView('login'); setErrorMsg('');}} className="text-gray-500 text-[17px] font-bold hover:text-gray-700 transition bg-white px-6 py-3 rounded-full shadow-sm border border-gray-200">返回登入</button>
         </div>
       </div>
     );
@@ -1512,11 +1582,11 @@ export default function App() {
           <div className="flex justify-between items-center">
             <h1 className="text-xl font-black text-white flex items-center gap-2 drop-shadow-md"><Landmark size={24} className="text-white/80"/> 帳戶總覽</h1>
             <div className="flex gap-2">
-              <button onClick={() => setView('room')} className="px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-xl transition text-[15px] font-bold backdrop-blur-sm">返回</button>
+              <button onClick={() => setView('room')} className="px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-xl transition text-[16px] font-bold backdrop-blur-sm">返回</button>
               {isEditingBalances ? (
-                <button onClick={handleSaveBalances} className="px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-xl transition text-[15px] font-bold backdrop-blur-sm">儲存</button>
+                <button onClick={handleSaveBalances} className="px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-xl transition text-[16px] font-bold backdrop-blur-sm">儲存</button>
               ) : (
-                <button onClick={() => { setTempBalances(currentRoom?.initialBalances || {}); setIsEditingBalances(true); }} className="px-3 py-2 bg-white/20 hover:bg-white/30 text-white rounded-xl transition text-[14px] font-bold backdrop-blur-sm">初始餘額</button>
+                <button onClick={() => { setTempBalances(currentRoom?.initialBalances || {}); setIsEditingBalances(true); }} className="px-3 py-2 bg-white/20 hover:bg-white/30 text-white rounded-xl transition text-[15px] font-bold backdrop-blur-sm">初始餘額</button>
               )}
             </div>
           </div>
@@ -1524,44 +1594,44 @@ export default function App() {
 
         <main className="px-4 py-4 space-y-4 flex-1 overflow-y-auto pb-[100px] [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
           <div className="text-center mb-1">
-            <p className="text-indigo-500 font-bold bg-indigo-50 border border-indigo-100 inline-block px-4 py-2 rounded-full text-[13px] shadow-sm leading-relaxed">👉 點擊各帳戶列即可查看歷史明細</p>
+            <p className="text-indigo-500 font-bold bg-indigo-50 border border-indigo-100 inline-block px-4 py-2 rounded-full text-[14px] shadow-sm leading-relaxed">👉 點擊各帳戶列即可查看歷史明細</p>
           </div>
 
           <div className="bg-white p-5 rounded-[1.5rem] border-2 border-indigo-100 text-center shadow-sm relative overflow-hidden">
              <div className="absolute -right-6 -top-6 bg-indigo-50 w-24 h-24 rounded-full opacity-50"></div>
-             <p className="text-indigo-400 font-extrabold text-[15px] mb-1 relative z-10">💰 總資產淨值</p>
-             <p className={`text-[36px] font-black relative z-10 ${netWorth < 0 ? 'text-red-500' : 'text-indigo-700'}`}>${netWorth.toLocaleString()}</p>
+             <p className="text-indigo-400 font-extrabold text-[16px] mb-1 relative z-10">💰 總資產淨值</p>
+             <p className={`text-[46px] font-black relative z-10 ${netWorth < 0 ? 'text-red-500' : 'text-indigo-700'}`}>${netWorth.toLocaleString()}</p>
           </div>
 
           {/* 帳戶列可點擊 */}
           <div className="bg-white p-5 rounded-[1.5rem] shadow-sm border border-emerald-50">
-             <h2 className="font-bold text-[17px] text-gray-700 mb-4 flex items-center gap-1.5"><Wallet size={18} className="text-emerald-500"/> 現金餘額</h2>
+             <h2 className="font-bold text-[18px] text-gray-700 mb-4 flex items-center gap-1.5"><Wallet size={20} className="text-emerald-500"/> 現金餘額</h2>
              <div onClick={() => !isEditingBalances && setViewingAccountHistory('現金')} className={`flex justify-between items-center bg-gray-50 p-3 rounded-xl border border-gray-100 ${!isEditingBalances ? 'cursor-pointer hover:bg-emerald-50 hover:border-emerald-200 transition' : ''}`}>
-                <span className="font-bold text-gray-600 text-[16px]">現金</span>
+                <span className="font-bold text-gray-600 text-[17px]">現金</span>
                 {isEditingBalances ? (
-                   <input type="number" className="w-24 text-right border border-emerald-200 focus:border-emerald-400 p-1.5 rounded-lg font-bold text-[16px] outline-none transition" value={tempBalances['現金'] || ''} onChange={e => setTempBalances({...tempBalances, '現金': e.target.value})} placeholder="0" />
+                   <input type="number" className="w-24 text-right border border-emerald-200 focus:border-emerald-400 p-1.5 rounded-lg font-bold text-[17px] outline-none transition" value={tempBalances['現金'] || ''} onChange={e => setTempBalances({...tempBalances, '現金': e.target.value})} placeholder="0" />
                 ) : (
-                   <span className={`font-black text-[18px] ${cashBal < 0 ? 'text-red-500' : 'text-gray-800'}`}>${cashBal.toLocaleString()}</span>
+                   <span className={`font-black text-[22px] ${cashBal < 0 ? 'text-red-500' : 'text-gray-800'}`}>${cashBal.toLocaleString()}</span>
                 )}
              </div>
           </div>
 
           <div className="bg-white p-5 rounded-[1.5rem] shadow-sm border border-blue-50">
              <div className="flex justify-between items-end mb-4">
-               <h2 className="font-bold text-[17px] text-gray-700 flex items-center gap-1.5"><Landmark size={18} className="text-blue-500"/> 銀行/電子票證餘額</h2>
-               <span className="text-[14px] font-extrabold text-blue-500 bg-blue-50 px-2.5 py-1 rounded-lg">小計: ${bankTotal.toLocaleString()}</span>
+               <h2 className="font-bold text-[18px] text-gray-700 flex items-center gap-1.5"><Landmark size={20} className="text-blue-500"/> 銀行/電子票證餘額</h2>
+               <span className="text-[15px] font-extrabold text-blue-500 bg-blue-50 px-2.5 py-1 rounded-lg">小計: ${bankTotal.toLocaleString()}</span>
              </div>
              <div className="space-y-2.5">
-               {banks.length === 0 && <p className="text-gray-400 text-[14px] font-bold text-center py-4 bg-gray-50 rounded-xl">無銀行/電子票證，請至設定新增</p>}
+               {banks.length === 0 && <p className="text-gray-400 text-[15px] font-bold text-center py-4 bg-gray-50 rounded-xl">無銀行/電子票證，請至設定新增</p>}
                {banks.map(b => {
                  const bal = balances[b] || 0;
                  return (
                    <div key={b} onClick={() => !isEditingBalances && setViewingAccountHistory(b)} className={`flex justify-between items-center bg-gray-50 p-3 rounded-xl border border-gray-100 ${!isEditingBalances ? 'cursor-pointer hover:bg-blue-50 hover:border-blue-200 transition' : ''}`}>
-                      <span className="font-bold text-gray-600 text-[16px] truncate pr-2">{b}</span>
+                      <span className="font-bold text-gray-600 text-[17px] truncate pr-2">{b}</span>
                       {isEditingBalances ? (
-                         <input type="number" className="w-24 text-right border border-blue-200 focus:border-blue-400 p-1.5 rounded-lg font-bold text-[16px] outline-none transition" value={tempBalances[b] || ''} onChange={e => setTempBalances({...tempBalances, [b]: e.target.value})} placeholder="0" />
+                         <input type="number" className="w-24 text-right border border-blue-200 focus:border-blue-400 p-1.5 rounded-lg font-bold text-[17px] outline-none transition" value={tempBalances[b] || ''} onChange={e => setTempBalances({...tempBalances, [b]: e.target.value})} placeholder="0" />
                       ) : (
-                         <span className={`font-black text-[18px] shrink-0 ${bal < 0 ? 'text-red-500' : 'text-gray-800'}`}>${bal.toLocaleString()}</span>
+                         <span className={`font-black text-[20px] shrink-0 ${bal < 0 ? 'text-red-500' : 'text-gray-800'}`}>${bal.toLocaleString()}</span>
                       )}
                    </div>
                  )
@@ -1571,26 +1641,26 @@ export default function App() {
 
           <div className="bg-white p-5 rounded-[1.5rem] shadow-sm border border-orange-50">
              <div className="flex justify-between items-end mb-4">
-               <h2 className="font-bold text-[17px] text-gray-700 flex items-center gap-1.5"><CreditCard size={18} className="text-orange-500"/> 信用卡刷卡金額</h2>
-               <span className="text-[14px] font-extrabold text-orange-500 bg-orange-50 px-2.5 py-1 rounded-lg">小計: ${ccTotal.toLocaleString()}</span>
+               <h2 className="font-bold text-[18px] text-gray-700 flex items-center gap-1.5"><CreditCard size={20} className="text-orange-500"/> 信用卡刷卡金額</h2>
+               <span className="text-[15px] font-extrabold text-orange-500 bg-orange-50 px-2.5 py-1 rounded-lg">小計: ${ccTotal.toLocaleString()}</span>
              </div>
              <div className="space-y-2.5">
-               {ccs.length === 0 && <p className="text-gray-400 text-[14px] font-bold text-center py-4 bg-gray-50 rounded-xl">無信用卡，請至設定新增</p>}
+               {ccs.length === 0 && <p className="text-gray-400 text-[15px] font-bold text-center py-4 bg-gray-50 rounded-xl">無信用卡，請至設定新增</p>}
                {ccs.map(c => {
                  const bal = balances[c] || 0;
                  return (
                    <div key={c} onClick={() => !isEditingBalances && setViewingAccountHistory(c)} className={`flex justify-between items-center bg-gray-50 p-3 rounded-xl border border-gray-100 ${!isEditingBalances ? 'cursor-pointer hover:bg-orange-50 hover:border-orange-200 transition' : ''}`}>
-                      <span className="font-bold text-gray-600 text-[16px] truncate pr-2">{c}</span>
+                      <span className="font-bold text-gray-600 text-[17px] truncate pr-2">{c}</span>
                       {isEditingBalances ? (
-                         <input type="number" className="w-24 text-right border border-orange-200 focus:border-orange-400 p-1.5 rounded-lg font-bold text-[16px] outline-none transition" value={tempBalances[c] || ''} onChange={e => setTempBalances({...tempBalances, [c]: e.target.value})} placeholder="0" />
+                         <input type="number" className="w-24 text-right border border-orange-200 focus:border-orange-400 p-1.5 rounded-lg font-bold text-[17px] outline-none transition" value={tempBalances[c] || ''} onChange={e => setTempBalances({...tempBalances, [c]: e.target.value})} placeholder="0" />
                       ) : (
-                         <span className={`font-black text-[18px] shrink-0 ${bal < 0 ? 'text-red-500' : 'text-gray-800'}`}>${bal.toLocaleString()}</span>
+                         <span className={`font-black text-[20px] shrink-0 ${bal < 0 ? 'text-red-500' : 'text-gray-800'}`}>${bal.toLocaleString()}</span>
                       )}
                    </div>
                  )
                })}
              </div>
-             <p className="text-[12px] font-bold text-orange-400 mt-4 bg-orange-50 p-3 rounded-xl text-center leading-relaxed">* 信用卡金額通常為負數（代表應繳卡費或負債），轉帳繳費後金額會回升。</p>
+             <p className="text-[14px] font-bold text-orange-400 mt-4 bg-orange-50 p-3 rounded-xl text-center leading-relaxed">* 信用卡金額通常為負數（代表應繳卡費或負債），轉帳繳費後金額會回升。</p>
           </div>
         </main>
 
@@ -1598,19 +1668,19 @@ export default function App() {
         {viewingAccountHistory && (
           <div className="fixed inset-0 bg-black/40 z-[100] flex justify-center items-center p-4 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setViewingAccountHistory(null)}>
             <div className="bg-white w-full max-w-md max-h-[85vh] flex flex-col rounded-[1.5rem] p-5 shadow-2xl relative" onClick={e => e.stopPropagation()}>
-              <button onClick={() => setViewingAccountHistory(null)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 bg-gray-100 p-1.5 rounded-full transition"><X size={18}/></button>
-              <h3 className="font-black text-[18px] text-gray-800 mb-4 border-b border-gray-100 pb-3 flex items-center gap-1.5">
-                <Wallet size={18} className="text-indigo-500" /> {viewingAccountHistory} 明細
+              <button onClick={() => setViewingAccountHistory(null)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 bg-gray-100 p-1.5 rounded-full transition"><X size={20}/></button>
+              <h3 className="font-black text-[20px] text-gray-800 mb-4 border-b border-gray-100 pb-3 flex items-center gap-1.5">
+                <Wallet size={20} className="text-indigo-500" /> {viewingAccountHistory} 明細
               </h3>
               
               <div className="grid grid-cols-2 gap-2 mb-4">
                   <div>
-                    <label className="block text-[12px] font-bold text-gray-500 mb-1">開始日期</label>
-                    <input type="date" value={historyStartDate} onChange={e=>setHistoryStartDate(e.target.value)} className="w-full bg-gray-50 border border-gray-200 p-1.5 rounded-lg text-[13px] font-bold text-gray-700 outline-none focus:border-indigo-300 transition" />
+                    <label className="block text-[13px] font-bold text-gray-500 mb-1">開始日期</label>
+                    <input type="date" value={historyStartDate} onChange={e=>setHistoryStartDate(e.target.value)} className="w-full bg-gray-50 border border-gray-200 p-1.5 rounded-lg text-[15px] font-bold text-gray-700 outline-none focus:border-indigo-300 transition" />
                   </div>
                   <div>
-                    <label className="block text-[12px] font-bold text-gray-500 mb-1">結束日期</label>
-                    <input type="date" value={historyEndDate} onChange={e=>setHistoryEndDate(e.target.value)} className="w-full bg-gray-50 border border-gray-200 p-1.5 rounded-lg text-[13px] font-bold text-gray-700 outline-none focus:border-indigo-300 transition" />
+                    <label className="block text-[13px] font-bold text-gray-500 mb-1">結束日期</label>
+                    <input type="date" value={historyEndDate} onChange={e=>setHistoryEndDate(e.target.value)} className="w-full bg-gray-50 border border-gray-200 p-1.5 rounded-lg text-[15px] font-bold text-gray-700 outline-none focus:border-indigo-300 transition" />
                   </div>
               </div>
 
@@ -1628,7 +1698,7 @@ export default function App() {
                      return fromAcc === viewingAccountHistory || toAcc === viewingAccountHistory;
                   }).sort((a, b) => b.timestamp - a.timestamp); 
 
-                  if (accHistory.length === 0) return <p className="text-center text-gray-400 font-bold py-10 text-[14px]">此區間尚無明細</p>;
+                  if (accHistory.length === 0) return <p className="text-center text-gray-400 font-bold py-10 text-[15px]">此區間尚無明細</p>;
 
                   return accHistory.map(exp => {
                     const isIncome = exp.type === 'income';
@@ -1642,12 +1712,12 @@ export default function App() {
                     return (
                       <div key={exp.id} className="bg-gray-50 p-2.5 rounded-xl border border-gray-100 flex justify-between items-center">
                         <div className="overflow-hidden pr-2">
-                           <div className="text-[11px] font-bold text-gray-400 mb-0.5">{toROCYearStr(exp.date)}</div>
-                           <div className="font-black text-[14px] text-gray-700 truncate">
+                           <div className="text-[12px] font-bold text-gray-400 mb-0.5">{toROCYearStr(exp.date)}</div>
+                           <div className="font-black text-[16px] text-gray-700 truncate">
                               {isTransfer ? `轉帳: ${exp.method}➜${exp.transferToMethod}` : exp.title}
                            </div>
                         </div>
-                        <div className={`font-black text-[16px] shrink-0 ${isPositive ? 'text-green-500' : 'text-gray-800'}`}>
+                        <div className={`font-black text-[18px] shrink-0 ${isPositive ? 'text-green-500' : 'text-gray-800'}`}>
                            {isPositive ? '+' : '-'}${exp.amount.toLocaleString()}
                         </div>
                       </div>
@@ -1669,45 +1739,62 @@ export default function App() {
         <header className="bg-gradient-to-r from-pink-400 to-orange-400 px-4 py-4 shadow-md shrink-0 z-10 rounded-b-[1.5rem] border-b-4 border-white/20">
           <div className="flex justify-between items-center mb-3">
             <div className="flex flex-col">
-              <h1 className="text-[22px] font-black text-white drop-shadow-md mb-0.5">{currentRoom?.name || '共同記帳本'}</h1>
-              <p className="text-white/90 text-[15px] font-extrabold flex items-center gap-1.5 drop-shadow-sm">
+              <h1 className="text-[24px] font-black text-white drop-shadow-md mb-0.5">{currentRoom?.name || '共同記帳本'}</h1>
+              <p className="text-white/90 text-[16px] font-extrabold flex items-center gap-1.5 drop-shadow-sm">
                 <span className="w-2 h-2 rounded-full bg-green-300 inline-block shadow-sm"></span> {currentUserRole}
               </p>
             </div>
             <div className="flex items-center gap-1.5">
-              <button onClick={() => fileInputRef.current?.click()} className="p-2 bg-white/20 hover:bg-white/30 text-white rounded-xl transition backdrop-blur-sm" title="匯入資料"><Upload size={18} /></button>
-              <button onClick={handleBackup} className="p-2 bg-white/20 hover:bg-white/30 text-white rounded-xl transition backdrop-blur-sm" title="備份雲端資料"><Download size={18} /></button>
-              <button onClick={() => { setSettingsTab('expense'); setView('settings'); }} className="p-2 bg-white/20 hover:bg-white/30 text-white rounded-xl transition backdrop-blur-sm" title="設定"><Settings size={18} /></button>
-              <button onClick={() => { setActiveRoomId(null); setView('login'); setRoomPin(''); }} className="p-2 bg-white/20 hover:bg-white/30 text-white rounded-xl transition backdrop-blur-sm" title="登出"><LogOut size={18} /></button>
+              <button onClick={() => fileInputRef.current?.click()} className="p-2 bg-white/20 hover:bg-white/30 text-white rounded-xl transition backdrop-blur-sm" title="匯入資料"><Upload size={20} /></button>
+              <button onClick={handleBackup} className="p-2 bg-white/20 hover:bg-white/30 text-white rounded-xl transition backdrop-blur-sm" title="備份雲端資料"><Download size={20} /></button>
+              <button onClick={() => { setSettingsTab('expense'); setView('settings'); }} className="p-2 bg-white/20 hover:bg-white/30 text-white rounded-xl transition backdrop-blur-sm" title="設定"><Settings size={20} /></button>
+              <button onClick={() => { setActiveRoomId(null); setView('login'); setRoomPin(''); }} className="p-2 bg-white/20 hover:bg-white/30 text-white rounded-xl transition backdrop-blur-sm" title="登出"><LogOut size={20} /></button>
             </div>
           </div>
           
           <div className="mb-3">
-            <div className="flex items-center gap-2 w-full">
-              <div className="relative bg-white/20 backdrop-blur-md rounded-xl shadow-sm border border-white/30 px-2.5 py-1.5 flex items-center overflow-hidden hover:bg-white/30 transition flex-1">
-                <input type="date" value={homeFilterDate} onChange={(e) => setHomeFilterDate(e.target.value)} className="absolute inset-0 w-full h-full opacity-0 z-10 cursor-pointer" />
-                <Calendar size={16} className="text-white mr-1.5 shrink-0 z-0"/>
-                <span className="text-white text-[16px] font-black drop-shadow-sm z-0 truncate">
-                  {homeFilterDate ? toROCFullStr(homeFilterDate) : '全部日期'}
-                </span>
-                <span className="text-white/70 text-[13px] ml-auto pl-1 shrink-0 z-0">▼</span>
+            <div className="flex flex-col gap-2 w-full">
+              <div className="flex items-center gap-2 w-full">
+                <div className="relative bg-white/20 backdrop-blur-md rounded-xl shadow-sm border border-white/30 px-2.5 py-1.5 flex items-center overflow-hidden hover:bg-white/30 transition flex-1">
+                  <input type="date" value={homeFilterDate} onChange={(e) => setHomeFilterDate(e.target.value)} className="absolute inset-0 w-full h-full opacity-0 z-10 cursor-pointer" />
+                  <Calendar size={18} className="text-white mr-1.5 shrink-0 z-0"/>
+                  <span className="text-white text-[17px] font-black drop-shadow-sm z-0 truncate">
+                    {homeFilterDate ? toROCFullStr(homeFilterDate) : '全部日期'}
+                  </span>
+                  <span className="text-white/70 text-[14px] ml-auto pl-1 shrink-0 z-0">▼</span>
+                </div>
+                <button onClick={() => setHomeFilterDate(getLocalTodayStr())} className="shrink-0 bg-white/20 hover:bg-white/30 text-white px-3 py-1.5 rounded-xl transition font-bold text-[16px] shadow-sm backdrop-blur-sm whitespace-nowrap">今天</button>
               </div>
-              <button onClick={() => setHomeFilterDate(getLocalTodayStr())} className="shrink-0 bg-white/20 hover:bg-white/30 text-white px-3 py-1.5 rounded-xl transition font-bold text-[15px] shadow-sm backdrop-blur-sm whitespace-nowrap">今天</button>
+              <div className="relative bg-white/20 backdrop-blur-md rounded-xl shadow-sm border border-white/30 px-2.5 py-1.5 flex items-center overflow-hidden transition flex-1">
+                 <Search size={18} className="text-white mr-1.5 shrink-0 z-0" />
+                 <input 
+                   type="text" 
+                   placeholder="搜尋明細 (商家、備註...)" 
+                   value={searchQuery}
+                   onChange={e => setSearchQuery(e.target.value)}
+                   className="w-full bg-transparent outline-none text-white text-[16px] font-black placeholder-white/70 z-0"
+                 />
+                 {searchQuery && (
+                   <button onClick={() => setSearchQuery('')} className="text-white/70 hover:text-white shrink-0 z-10 p-0.5">
+                     <X size={16}/>
+                   </button>
+                 )}
+              </div>
             </div>
           </div>
 
           <div className="flex justify-between items-end bg-white/95 backdrop-blur-xl p-4 rounded-[1.2rem] shadow-sm">
              <div className="flex flex-col">
-                <span className="text-gray-400 text-[14px] font-bold mb-0.5">總支出</span>
-                <span className="text-pink-500 font-black text-[20px]"> ${totalExpense.toLocaleString()}</span>
+                <span className="text-gray-400 text-[15px] font-bold mb-0.5">總支出</span>
+                <span className="text-pink-500 font-black text-[22px]"> ${totalExpense.toLocaleString()}</span>
              </div>
              <div className="flex flex-col items-center">
-                <span className="text-gray-400 text-[14px] font-bold mb-0.5">總收入</span>
-                <span className="text-green-500 font-black text-[20px]"> ${totalIncome.toLocaleString()}</span>
+                <span className="text-gray-400 text-[15px] font-bold mb-0.5">總收入</span>
+                <span className="text-green-500 font-black text-[22px]"> ${totalIncome.toLocaleString()}</span>
              </div>
              <div className="flex flex-col items-end">
-                <span className="text-gray-400 text-[14px] font-bold mb-0.5">總結餘</span>
-                <span className={`font-black text-[26px] leading-none ${netBalance < 0 ? 'text-red-500' : 'text-gray-800'}`}>${netBalance.toLocaleString()}</span>
+                <span className="text-gray-400 text-[15px] font-bold mb-0.5">總結餘</span>
+                <span className={`font-black text-[28px] leading-none ${netBalance < 0 ? 'text-red-500' : 'text-gray-800'}`}>${netBalance.toLocaleString()}</span>
              </div>
           </div>
         </header>
@@ -1721,7 +1808,7 @@ export default function App() {
           <div>
             <h3 className="font-bold text-gray-400 mb-3 ml-1 flex items-center gap-1.5 text-[18px]">📜 記帳明細</h3>
             {displayRecords.length === 0 ? (
-              <div className="text-center py-12 bg-white rounded-[1.5rem] border border-dashed border-gray-200 text-gray-400 font-bold text-[15px]">
+              <div className="text-center py-12 bg-white rounded-[1.5rem] border border-dashed border-gray-200 text-gray-400 font-bold text-[16px]">
                 <div className="bg-orange-50 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4">
                    <PiggyBank size={28} className="text-orange-400" />
                 </div>
@@ -1742,16 +1829,16 @@ export default function App() {
                       <div className={`absolute left-0 top-1/2 -translate-y-1/2 h-1/2 w-1 rounded-r-md ${isIncome ? 'bg-green-400' : isTransfer ? 'bg-blue-400' : 'bg-orange-400'}`}></div>
                       
                       <div className="flex-1 pl-2.5 pr-1 overflow-hidden">
-                        <div className="text-[12px] font-bold text-gray-400 mb-1">
+                        <div className="text-[13px] font-bold text-gray-400 mb-1">
                           建檔: {toROCYearStr(exp.timestamp)} {new Date(exp.timestamp).toLocaleTimeString('zh-TW', { hour12: false, hour: '2-digit', minute: '2-digit' })}
                         </div>
 
                         <div className="flex items-center gap-1.5 mb-1.5">
-                          <span className="bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded text-[11px] font-bold tracking-wide">
+                          <span className="bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded text-[12px] font-bold tracking-wide">
                             {freqDisplay || '一次'}
                           </span>
                           {exp.addedByRole && (
-                            <span className="bg-gray-100 px-1.5 py-0.5 rounded text-gray-500 text-[11px] font-bold tracking-wide">
+                            <span className="bg-gray-100 px-1.5 py-0.5 rounded text-gray-500 text-[12px] font-bold tracking-wide">
                               {exp.addedByRole}
                             </span>
                           )}
@@ -1759,19 +1846,19 @@ export default function App() {
                         
                         {isTransfer ? (
                           <div className="flex items-center gap-2 mb-1.5">
-                            <span className="font-bold text-[13px] px-2 py-0.5 rounded-md whitespace-nowrap bg-blue-50 text-blue-600 border border-blue-100">🔄 轉帳</span>
-                            <p className="font-black text-gray-800 text-[17px] truncate">{exp.method} ➜ {exp.transferToMethod}</p>
+                            <span className="font-bold text-[14px] px-2 py-0.5 rounded-md whitespace-nowrap bg-blue-50 text-blue-600 border border-blue-100">🔄 轉帳</span>
+                            <p className="font-black text-gray-800 text-[18px] truncate">{exp.method} ➜ {exp.transferToMethod}</p>
                           </div>
                         ) : (
                           <div className="flex items-center gap-2 mb-1.5">
-                            <span className={`font-bold text-[14px] px-2 py-0.5 rounded-md whitespace-nowrap border ${isIncome ? 'bg-green-50 text-green-600 border-green-100' : 'bg-orange-50 text-orange-600 border-orange-100'}`}>
+                            <span className={`font-bold text-[15px] px-2 py-0.5 rounded-md whitespace-nowrap border ${isIncome ? 'bg-green-50 text-green-600 border-green-100' : 'bg-orange-50 text-orange-600 border-orange-100'}`}>
                               {exp.category}
                             </span>
-                            <p className="font-black text-gray-800 text-[17px] truncate">{exp.title}</p>
+                            <p className="font-black text-gray-800 text-[18px] truncate">{exp.title}</p>
                           </div>
                         )}
 
-                        <p className="text-[13px] font-bold text-gray-400 flex flex-wrap gap-1 items-center mt-1">
+                        <p className="text-[14px] font-bold text-gray-400 flex flex-wrap gap-1 items-center mt-1">
                           {payerStr && payerStr !== '未指定' && <span className="bg-gray-50 px-1.5 py-0.5 rounded border border-gray-100">👤 {payerStr}</span>}
                           {!isTransfer && exp.method && exp.method !== '未指定' && <span className="bg-gray-50 px-1.5 py-0.5 rounded border border-gray-100">💳 {exp.method}{exp.subMethod ? `(${exp.subMethod})` : ''}</span>}
                           {exp.merchant && exp.merchant !== '未指定' && <span className="bg-gray-50 px-1.5 py-0.5 rounded border border-gray-100">🏪 {exp.merchant}</span>}
@@ -1780,17 +1867,17 @@ export default function App() {
                       </div>
 
                       <div className="flex flex-col items-end shrink-0">
-                        <span className={`font-black text-[22px] ${isIncome ? 'text-green-500' : isTransfer ? 'text-blue-500' : 'text-gray-800'}`}>
+                        <span className={`font-black text-[24px] ${isIncome ? 'text-green-500' : isTransfer ? 'text-blue-500' : 'text-gray-800'}`}>
                           {isIncome ? '+' : isTransfer ? '⇆' : '-'}${exp.amount.toLocaleString()}
                         </span>
                         
-                        <div className="grid grid-cols-2 gap-1 mt-2 w-[64px] relative z-20">
-                          <button onClick={(e) => { e.stopPropagation(); handleMoveRecord(idx, -1); }} disabled={idx === 0} className="text-gray-400 hover:text-blue-500 font-bold p-1 transition bg-gray-50 hover:bg-blue-50 rounded-md shadow-sm flex items-center justify-center disabled:opacity-30" title="往上移"><ArrowUp size={13} /></button>
-                          <button onClick={(e) => { e.stopPropagation(); handleMoveRecord(idx, 1); }} disabled={idx === displayRecords.length - 1} className="text-gray-400 hover:text-blue-500 font-bold p-1 transition bg-gray-50 hover:bg-blue-50 rounded-md shadow-sm flex items-center justify-center disabled:opacity-30" title="往下移"><ArrowDown size={13} /></button>
-                          <button onClick={(e) => { e.stopPropagation(); openEditForm(exp); }} className="text-gray-400 hover:text-blue-500 font-bold p-1 transition bg-gray-50 hover:bg-blue-50 rounded-md shadow-sm flex items-center justify-center" title="編輯"><Pencil size={13} /></button>
-                          <button onClick={(e) => { e.stopPropagation(); handleCopyRecord(exp); }} className="text-gray-400 hover:text-green-500 font-bold p-1 transition bg-gray-50 hover:bg-green-50 rounded-md shadow-sm flex items-center justify-center" title="複製此筆"><Copy size={13} /></button>
-                          <button onClick={(e) => { e.stopPropagation(); handleDeleteRecord(exp.id); }} className="text-gray-400 hover:text-red-500 font-bold p-1 transition bg-gray-50 hover:bg-red-50 rounded-md shadow-sm flex items-center justify-center" title="刪除"><Trash2 size={13} /></button>
-                          <button onClick={(e) => { e.stopPropagation(); setCrossRoomRecord(exp); }} className="text-gray-400 hover:text-orange-500 font-bold p-1 transition bg-gray-50 hover:bg-orange-50 rounded-md shadow-sm flex items-center justify-center" title="傳送到其他房間"><Send size={13} /></button>
+                        <div className="grid grid-cols-2 gap-1 mt-2 w-[68px] relative z-20">
+                          <button onClick={(e) => { e.stopPropagation(); handleMoveRecord(idx, -1); }} disabled={idx === 0} className="text-gray-400 hover:text-blue-500 font-bold p-1 transition bg-gray-50 hover:bg-blue-50 rounded-md shadow-sm flex items-center justify-center disabled:opacity-30" title="往上移"><ArrowUp size={14} /></button>
+                          <button onClick={(e) => { e.stopPropagation(); handleMoveRecord(idx, 1); }} disabled={idx === displayRecords.length - 1} className="text-gray-400 hover:text-blue-500 font-bold p-1 transition bg-gray-50 hover:bg-blue-50 rounded-md shadow-sm flex items-center justify-center disabled:opacity-30" title="往下移"><ArrowDown size={14} /></button>
+                          <button onClick={(e) => { e.stopPropagation(); openEditForm(exp); }} className="text-gray-400 hover:text-blue-500 font-bold p-1 transition bg-gray-50 hover:bg-blue-50 rounded-md shadow-sm flex items-center justify-center" title="編輯"><Pencil size={14} /></button>
+                          <button onClick={(e) => { e.stopPropagation(); handleCopyRecord(exp); }} className="text-gray-400 hover:text-green-500 font-bold p-1 transition bg-gray-50 hover:bg-green-50 rounded-md shadow-sm flex items-center justify-center" title="複製此筆"><Copy size={14} /></button>
+                          <button onClick={(e) => { e.stopPropagation(); handleDeleteRecord(exp.id); }} className="text-gray-400 hover:text-red-500 font-bold p-1 transition bg-gray-50 hover:bg-red-50 rounded-md shadow-sm flex items-center justify-center" title="刪除"><Trash2 size={14} /></button>
+                          <button onClick={(e) => { e.stopPropagation(); setCrossRoomRecord(exp); }} className="text-gray-400 hover:text-orange-500 font-bold p-1 transition bg-gray-50 hover:bg-orange-50 rounded-md shadow-sm flex items-center justify-center" title="傳送到其他房間"><Send size={14} /></button>
                         </div>
                       </div>
                     </div>
@@ -1805,18 +1892,18 @@ export default function App() {
         {viewingRecord && (
           <div className="fixed inset-0 bg-black/40 z-[100] flex justify-center items-center p-4 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setViewingRecord(null)}>
             <div className="bg-white w-full max-w-sm rounded-[1.5rem] p-5 shadow-2xl relative" onClick={e => e.stopPropagation()}>
-              <button onClick={() => setViewingRecord(null)} className="absolute top-3 right-3 text-gray-400 hover:text-gray-600 bg-gray-100 p-1.5 rounded-full transition"><X size={20}/></button>
-              <h3 className="font-black text-xl text-gray-800 mb-3 border-b border-gray-100 pb-2">詳細紀錄</h3>
-              <div className="space-y-2.5 text-[15px] text-gray-600 font-bold max-h-[65vh] overflow-y-auto pr-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+              <button onClick={() => setViewingRecord(null)} className="absolute top-3 right-3 text-gray-400 hover:text-gray-600 bg-gray-100 p-1.5 rounded-full transition"><X size={22}/></button>
+              <h3 className="font-black text-2xl text-gray-800 mb-3 border-b border-gray-100 pb-2">詳細紀錄</h3>
+              <div className="space-y-2.5 text-[16px] text-gray-600 font-bold max-h-[65vh] overflow-y-auto pr-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
                 <div className="flex justify-between items-center bg-gray-50 p-2.5 rounded-xl border border-gray-100">
                    <span className="text-gray-400">類型</span>
-                   <span className={`${viewingRecord.type === 'income' ? 'text-green-500' : viewingRecord.type === 'transfer' ? 'text-blue-500' : 'text-orange-500'} font-black text-[16px]`}>
+                   <span className={`${viewingRecord.type === 'income' ? 'text-green-500' : viewingRecord.type === 'transfer' ? 'text-blue-500' : 'text-orange-500'} font-black text-[17px]`}>
                      {viewingRecord.type === 'income' ? '收入' : viewingRecord.type === 'transfer' ? '轉帳' : '支出'}
                    </span>
                 </div>
                 <div className="flex justify-between items-center bg-gray-50 p-2.5 rounded-xl border border-gray-100">
                    <span className="text-gray-400">金額</span>
-                   <span className="text-[22px] text-gray-800 font-black">${viewingRecord.amount.toLocaleString()}</span>
+                   <span className="text-[26px] text-gray-800 font-black">${viewingRecord.amount.toLocaleString()}</span>
                 </div>
                 <div className="flex justify-between items-center border-b border-gray-100 pb-1.5 pt-1">
                    <span className="text-gray-400">消費日期</span>
@@ -1824,7 +1911,7 @@ export default function App() {
                 </div>
                 <div className="flex justify-between items-center border-b border-gray-100 pb-1.5">
                    <span className="text-gray-400">建檔時間</span>
-                   <span className="text-gray-800 text-[13px]">{toROCYearStr(viewingRecord.timestamp)} {new Date(viewingRecord.timestamp).toLocaleTimeString('zh-TW', {hour12: false, hour: '2-digit', minute:'2-digit'})}</span>
+                   <span className="text-gray-800 text-[14px]">{toROCYearStr(viewingRecord.timestamp)} {new Date(viewingRecord.timestamp).toLocaleTimeString('zh-TW', {hour12: false, hour: '2-digit', minute:'2-digit'})}</span>
                 </div>
                 <div className="flex justify-between items-center border-b border-gray-100 pb-1.5">
                    <span className="text-gray-400">分類</span>
@@ -1883,20 +1970,20 @@ export default function App() {
         {crossRoomRecord && (
           <div className="fixed inset-0 bg-black/40 z-[100] flex justify-center items-center p-4 backdrop-blur-sm animate-in fade-in duration-200">
             <div className="bg-white w-full max-w-sm rounded-[1.5rem] p-5 shadow-2xl">
-               <h3 className="font-black text-xl text-gray-800 mb-3 flex items-center gap-2"><Send size={20} className="text-blue-500"/> 傳送至其他房間</h3>
-               <p className="text-[15px] font-bold text-gray-500 mb-4 leading-relaxed">將此筆 <span className="text-gray-800">[{crossRoomRecord.title || crossRoomRecord.category}] ${crossRoomRecord.amount}</span> 複製傳送到：</p>
+               <h3 className="font-black text-xl text-gray-800 mb-3 flex items-center gap-2"><Send size={22} className="text-blue-500"/> 傳送至其他房間</h3>
+               <p className="text-[16px] font-bold text-gray-500 mb-4 leading-relaxed">將此筆 <span className="text-gray-800">[{crossRoomRecord.title || crossRoomRecord.category}] ${crossRoomRecord.amount}</span> 複製傳送到：</p>
                <div className="space-y-2.5 mb-5 max-h-56 overflow-y-auto pr-1">
                  {savedRooms.filter(r => r.id !== activeRoomId).length === 0 ? (
-                   <p className="text-red-400 font-bold text-[14px] bg-red-50 p-3 rounded-xl leading-relaxed">您目前沒有儲存其他房間，請先登入過其他房間再使用此功能。</p>
+                   <p className="text-red-400 font-bold text-[15px] bg-red-50 p-3 rounded-xl leading-relaxed">您目前沒有儲存其他房間，請先登入過其他房間再使用此功能。</p>
                  ) : (
                    savedRooms.filter(r => r.id !== activeRoomId).map(r => (
-                     <button key={r.id} onClick={() => handleSendToOtherRoom(r.id)} className="w-full text-left bg-gray-50 hover:bg-blue-50 border border-gray-100 hover:border-blue-200 p-3 rounded-xl font-black text-gray-700 text-[16px] transition flex items-center shadow-sm">
-                       🏠 {r.name} <span className="text-[12px] font-bold text-gray-400 ml-auto">({r.id})</span>
+                     <button key={r.id} onClick={() => handleSendToOtherRoom(r.id)} className="w-full text-left bg-gray-50 hover:bg-blue-50 border border-gray-100 hover:border-blue-200 p-3 rounded-xl font-black text-gray-700 text-[17px] transition flex items-center shadow-sm">
+                       🏠 {r.name} <span className="text-[13px] font-bold text-gray-400 ml-auto">({r.id})</span>
                      </button>
                    ))
                  )}
                </div>
-               <button onClick={() => setCrossRoomRecord(null)} className="w-full bg-gray-100 hover:bg-gray-200 text-gray-600 font-extrabold text-[16px] py-3 rounded-xl transition">取消傳送</button>
+               <button onClick={() => setCrossRoomRecord(null)} className="w-full bg-gray-100 hover:bg-gray-200 text-gray-600 font-extrabold text-[17px] py-3 rounded-xl transition">取消傳送</button>
             </div>
           </div>
         )}
@@ -1925,15 +2012,15 @@ export default function App() {
               {editRecordId ? '✏️ 編輯紀錄' : '✨ 新增紀錄'} {titleEmoji}
             </h1>
             <button onClick={() => { setShowAddForm(false); resetForm(); }} className="bg-white/20 hover:bg-white/30 text-white rounded-full p-1.5 transition backdrop-blur-sm shadow-inner">
-              <X size={20} strokeWidth={3} />
+              <X size={22} strokeWidth={3} />
             </button>
           </div>
 
           {!editRecordId && (
             <div className="flex bg-white/20 p-1 rounded-xl shadow-inner mb-1">
-               <button type="button" onClick={() => setRecordType('expense')} className={`flex-1 py-2 rounded-lg font-bold text-[16px] text-center transition-all ${recordType === 'expense' ? 'bg-white text-orange-500 shadow-sm transform scale-100' : 'text-white hover:bg-white/10 scale-95'}`}>支出</button>
-               <button type="button" onClick={() => setRecordType('income')} className={`flex-1 py-2 rounded-lg font-bold text-[16px] text-center transition-all ${recordType === 'income' ? 'bg-white text-green-500 shadow-sm transform scale-100' : 'text-white hover:bg-white/10 scale-95'}`}>收入</button>
-               <button type="button" onClick={() => setRecordType('transfer')} className={`flex-1 py-2 rounded-lg font-bold text-[16px] text-center transition-all ${recordType === 'transfer' ? 'bg-white text-blue-500 shadow-sm transform scale-100' : 'text-white hover:bg-white/10 scale-95'}`}>轉帳</button>
+               <button type="button" onClick={() => setRecordType('expense')} className={`flex-1 py-2 rounded-lg font-bold text-[17px] text-center transition-all ${recordType === 'expense' ? 'bg-white text-orange-500 shadow-sm transform scale-100' : 'text-white hover:bg-white/10 scale-95'}`}>支出</button>
+               <button type="button" onClick={() => setRecordType('income')} className={`flex-1 py-2 rounded-lg font-bold text-[17px] text-center transition-all ${recordType === 'income' ? 'bg-white text-green-500 shadow-sm transform scale-100' : 'text-white hover:bg-white/10 scale-95'}`}>收入</button>
+               <button type="button" onClick={() => setRecordType('transfer')} className={`flex-1 py-2 rounded-lg font-bold text-[17px] text-center transition-all ${recordType === 'transfer' ? 'bg-white text-blue-500 shadow-sm transform scale-100' : 'text-white hover:bg-white/10 scale-95'}`}>轉帳</button>
             </div>
           )}
         </header>
@@ -1943,7 +2030,7 @@ export default function App() {
             
             <div className={`bg-white rounded-[1.5rem] pt-3 pb-2 px-5 shadow-sm border-2 ${themeBorder} text-center relative overflow-hidden`}>
                <div className={`absolute top-0 left-0 w-full h-1.5 ${themeBg} opacity-20`}></div>
-               <p className={`${themeText} font-extrabold text-[13px] mb-1`}>輸入金額 💰</p>
+               <p className={`${themeText} font-extrabold text-[14px] mb-1`}>輸入金額 💰</p>
                <input 
                  ref={amountInputRef}
                  type="number" placeholder="0" required min="0"
@@ -1955,9 +2042,9 @@ export default function App() {
             <div className={`bg-white rounded-[1.5rem] p-5 shadow-sm border-2 ${themeBorder}`}>
               <div className="grid grid-cols-2 gap-3 mb-5 z-40">
                 <div>
-                  <label className="flex items-center justify-between text-[15px] font-bold text-gray-500 mb-2.5 ml-1 w-full pr-1">
-                    <span className="flex items-center gap-1.5"><Calendar size={16} className="text-gray-400" /> 日期 🗓️</span>
-                    <button type="button" onClick={() => setRecordDate(getLocalTodayStr())} className="bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-1 rounded-lg text-[13px] transition shadow-sm">今天</button>
+                  <label className="flex items-center justify-between text-[16px] font-bold text-gray-500 mb-2.5 ml-1 w-full pr-1">
+                    <span className="flex items-center gap-1.5"><Calendar size={18} className="text-gray-400" /> 日期 🗓️</span>
+                    <button type="button" onClick={() => setRecordDate(getLocalTodayStr())} className="bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-1 rounded-lg text-[14px] transition shadow-sm">今天</button>
                   </label>
                   <div className="relative w-full bg-gray-50 border border-gray-100 p-4 rounded-[1.2rem] flex items-center shadow-sm cursor-pointer hover:bg-white transition overflow-hidden">
                     <input 
@@ -1967,10 +2054,10 @@ export default function App() {
                       value={recordDate} 
                       onChange={(e) => setRecordDate(e.target.value)} 
                     />
-                    <span className="font-bold text-gray-700 text-[16px] z-0">
+                    <span className="font-bold text-gray-700 text-[17px] z-0">
                       {recordDate ? toROCYearStr(recordDate) : '選擇日期'}
                     </span>
-                    <span className="absolute right-3 text-gray-400 text-[12px] z-0 pointer-events-none">▼</span>
+                    <span className="absolute right-3 text-gray-400 text-[14px] z-0 pointer-events-none">▼</span>
                   </div>
                 </div>
                 {recordType === 'expense' && (
@@ -1982,34 +2069,34 @@ export default function App() {
 
               {recordType === 'expense' && recordFrequency === '每週' && (
                 <div className="mb-5 bg-gray-50 p-4 rounded-xl border border-gray-100 shadow-sm">
-                  <label className="text-[14px] font-bold text-gray-500 mb-3 block">請選擇星期 (可複選)</label>
+                  <label className="text-[15px] font-bold text-gray-500 mb-3 block">請選擇星期 (可複選)</label>
                   <div className="flex flex-wrap gap-2">
                     {daysOfWeek.map(d => (
-                      <button key={d} type="button" onClick={() => toggleFrequencyDay(d)} className={`px-3 py-2 rounded-lg text-[14px] font-bold transition-all ${recordFrequencyDays.includes(d) ? 'bg-[#FFE28A] text-gray-800 shadow-sm border-2 border-[#FCD34D] transform -translate-y-0.5' : 'bg-white text-gray-500 border border-gray-100'}`}>{d}</button>
+                      <button key={d} type="button" onClick={() => toggleFrequencyDay(d)} className={`px-3 py-2 rounded-lg text-[15px] font-bold transition-all ${recordFrequencyDays.includes(d) ? 'bg-[#FFE28A] text-gray-800 shadow-sm border-2 border-[#FCD34D] transform -translate-y-0.5' : 'bg-white text-gray-500 border border-gray-100'}`}>{d}</button>
                     ))}
                   </div>
                 </div>
               )}
               {recordType === 'expense' && recordFrequency === '每月' && (
                 <div className="mb-5 bg-gray-50 p-4 rounded-xl border border-gray-100 shadow-sm">
-                  <label className="text-[14px] font-bold text-gray-500 mb-3 block">請選擇日期 (可複選)</label>
+                  <label className="text-[15px] font-bold text-gray-500 mb-3 block">請選擇日期 (可複選)</label>
                   <div className="grid grid-cols-7 gap-1.5">
                     {daysOfMonth.map(d => (
-                      <button key={d} type="button" onClick={() => toggleFrequencyDay(d)} className={`aspect-square rounded-lg text-[14px] font-bold transition-all ${recordFrequencyDays.includes(d) ? 'bg-[#FFE28A] text-gray-800 shadow-sm border-2 border-[#FCD34D] transform -translate-y-0.5' : 'bg-white text-gray-500 border border-gray-100'}`}>{d}</button>
+                      <button key={d} type="button" onClick={() => toggleFrequencyDay(d)} className={`aspect-square rounded-lg text-[15px] font-bold transition-all ${recordFrequencyDays.includes(d) ? 'bg-[#FFE28A] text-gray-800 shadow-sm border-2 border-[#FCD34D] transform -translate-y-0.5' : 'bg-white text-gray-500 border border-gray-100'}`}>{d}</button>
                     ))}
                   </div>
                 </div>
               )}
               {recordType === 'expense' && recordFrequency === '區間' && (
                 <div className="mb-5 bg-gray-50 p-4 rounded-xl border border-gray-100 shadow-sm">
-                  <label className="text-[14px] font-bold text-gray-500 mb-3 block">請選擇時間區間</label>
+                  <label className="text-[15px] font-bold text-gray-500 mb-3 block">請選擇時間區間</label>
                   <div className="flex flex-wrap gap-2 mb-3">
                       {intervalOptions.map(opt => (
-                          <button key={opt} type="button" onClick={() => setRecordFrequencyInterval(opt)} className={`px-3 py-2 rounded-lg text-[14px] font-bold transition-all ${recordFrequencyInterval === opt ? 'bg-[#FFE28A] text-gray-800 shadow-sm border-2 border-[#FCD34D] transform -translate-y-0.5' : 'bg-white text-gray-500 border border-gray-100'}`}>{opt}</button>
+                          <button key={opt} type="button" onClick={() => setRecordFrequencyInterval(opt)} className={`px-3 py-2 rounded-lg text-[15px] font-bold transition-all ${recordFrequencyInterval === opt ? 'bg-[#FFE28A] text-gray-800 shadow-sm border-2 border-[#FCD34D] transform -translate-y-0.5' : 'bg-white text-gray-500 border border-gray-100'}`}>{opt}</button>
                       ))}
                   </div>
                   {recordFrequencyInterval === '自訂' && (
-                      <input type="text" placeholder="自行填寫區間 (例如: 100天)" value={recordFrequencyCustomText} onChange={e => setRecordFrequencyCustomText(e.target.value)} className="w-full bg-white border border-gray-100 p-3 rounded-lg font-bold text-[15px] outline-none focus:border-[#FCD34D] transition shadow-sm" />
+                      <input type="text" placeholder="自行填寫區間 (例如: 100天)" value={recordFrequencyCustomText} onChange={e => setRecordFrequencyCustomText(e.target.value)} className="w-full bg-white border border-gray-100 p-3 rounded-lg font-bold text-[16px] outline-none focus:border-[#FCD34D] transition shadow-sm" />
                   )}
                 </div>
               )}
@@ -2027,10 +2114,10 @@ export default function App() {
                   </div>
 
                   <div className="mb-2 z-10">
-                    <label className="flex items-center gap-1.5 text-[14px] font-bold text-gray-500 mb-1.5 ml-1"><CreditCard size={14} className="text-gray-400" /> 付款方式 💳</label>
+                    <label className="flex items-center gap-1.5 text-[15px] font-bold text-gray-500 mb-1.5 ml-1"><CreditCard size={16} className="text-gray-400" /> 付款方式 💳</label>
                     <div className="flex bg-gray-50 rounded-xl p-1 border border-gray-100 mb-3 shadow-inner min-h-[60px]">
                       {(currentRoom?.paymentMethods || []).map(opt => (
-                        <button key={opt} type="button" onClick={() => handleMethodSelect(opt)} className={`flex-1 py-1.5 px-1 rounded-[1rem] text-[14px] leading-snug font-bold transition-all duration-200 flex flex-col items-center justify-center ${recordMethod === opt ? 'bg-white text-blue-600 shadow-md border border-gray-100 transform scale-100' : 'text-gray-400 hover:text-gray-600 scale-95'}`}>
+                        <button key={opt} type="button" onClick={() => handleMethodSelect(opt)} className={`flex-1 py-1.5 px-1 rounded-[1rem] text-[15px] leading-snug font-bold transition-all duration-200 flex flex-col items-center justify-center ${recordMethod === opt ? 'bg-white text-blue-600 shadow-md border border-gray-100 transform scale-100' : 'text-gray-400 hover:text-gray-600 scale-95'}`}>
                           {opt.includes(' / ') ? (
                             <>
                               <span>{opt.split(' / ')[0]}</span>
@@ -2087,12 +2174,12 @@ export default function App() {
               )}
 
               <div className="mt-5 pt-5 border-t border-gray-100">
-                <label className="flex items-center gap-1.5 text-[14px] font-bold text-gray-500 mb-1.5 ml-1">📝 備註 (選填)</label>
-                <input type="text" placeholder="輸入額外備註..." className="bg-gray-50 border border-gray-100 rounded-xl p-3 focus:bg-white focus:border-blue-400 outline-none w-full text-gray-700 font-bold text-[16px] transition shadow-sm" value={recordNote} onChange={(e) => setRecordNote(e.target.value)} />
+                <label className="flex items-center gap-1.5 text-[15px] font-bold text-gray-500 mb-1.5 ml-1">📝 備註 (選填)</label>
+                <input type="text" placeholder="輸入額外備註..." className="bg-gray-50 border border-gray-100 rounded-xl p-3 focus:bg-white focus:border-blue-400 outline-none w-full text-gray-700 font-bold text-[17px] transition shadow-sm" value={recordNote} onChange={(e) => setRecordNote(e.target.value)} />
               </div>
             </div>
 
-            <button type="submit" disabled={!isFormValid} className={`w-full font-extrabold text-[18px] py-4 mt-2 rounded-[1.2rem] transition-all duration-300 shadow-md ${isFormValid ? `${themeBg} text-white hover:opacity-90 transform hover:-translate-y-1 active:translate-y-0` : 'bg-gray-200 text-gray-400 cursor-not-allowed opacity-70 shadow-none'}`}>
+            <button type="submit" disabled={!isFormValid} className={`w-full font-extrabold text-[20px] py-4 mt-2 rounded-[1.2rem] transition-all duration-300 shadow-md ${isFormValid ? `${themeBg} text-white hover:opacity-90 transform hover:-translate-y-1 active:translate-y-0` : 'bg-gray-200 text-gray-400 cursor-not-allowed opacity-70 shadow-none'}`}>
               {isFormValid ? '儲存紀錄 ✨' : '請填寫完整資料'}
             </button>
           </form>
@@ -2116,14 +2203,14 @@ export default function App() {
             <p className="text-purple-500 font-bold bg-purple-50 border border-purple-100 inline-block px-4 py-2 rounded-full text-[14px] shadow-sm leading-relaxed">💡 在此編輯的項目，全家人的畫面都會同步更新喔！</p>
           </div>
           
-          <button onClick={() => setSyncSettingsModalOpen(true)} className="w-full bg-gradient-to-r from-indigo-500 to-blue-500 text-white p-3.5 rounded-[1.2rem] font-bold text-[17px] shadow-md hover:shadow-lg transition flex justify-center items-center gap-2 active:scale-95">
-             <RefreshCw size={18} /> 🔄 複製設定至其他房間
+          <button onClick={() => setSyncSettingsModalOpen(true)} className="w-full bg-gradient-to-r from-indigo-500 to-blue-500 text-white p-3.5 rounded-[1.2rem] font-bold text-[18px] shadow-md hover:shadow-lg transition flex justify-center items-center gap-2 active:scale-95">
+             <RefreshCw size={20} /> 🔄 複製設定至其他房間
           </button>
 
           <div className="flex bg-white rounded-xl p-1.5 border border-gray-100 shadow-sm">
-             <button onClick={() => setSettingsTab('expense')} className={`flex-1 py-2 px-1 rounded-lg text-[17px] font-extrabold transition-all duration-200 truncate ${settingsTab === 'expense' ? 'bg-orange-400 text-white shadow-sm transform scale-100' : 'text-gray-400 hover:text-gray-600 bg-gray-50 scale-95'}`}>支出</button>
-             <button onClick={() => setSettingsTab('income')} className={`flex-1 py-2 px-1 rounded-lg text-[17px] font-extrabold transition-all duration-200 truncate ${settingsTab === 'income' ? 'bg-green-500 text-white shadow-sm transform scale-100' : 'text-gray-400 hover:text-gray-600 bg-gray-50 scale-95'}`}>收入</button>
-             <button onClick={() => setSettingsTab('transfer')} className={`flex-1 py-2 px-1 rounded-lg text-[17px] font-extrabold transition-all duration-200 truncate ${settingsTab === 'transfer' ? 'bg-blue-500 text-white shadow-sm transform scale-100' : 'text-gray-400 hover:text-gray-600 bg-gray-50 scale-95'}`}>轉帳</button>
+             <button onClick={() => setSettingsTab('expense')} className={`flex-1 py-2 px-1 rounded-lg text-[18px] font-extrabold transition-all duration-200 truncate ${settingsTab === 'expense' ? 'bg-orange-400 text-white shadow-sm transform scale-100' : 'text-gray-400 hover:text-gray-600 bg-gray-50 scale-95'}`}>支出</button>
+             <button onClick={() => setSettingsTab('income')} className={`flex-1 py-2 px-1 rounded-lg text-[18px] font-extrabold transition-all duration-200 truncate ${settingsTab === 'income' ? 'bg-green-500 text-white shadow-sm transform scale-100' : 'text-gray-400 hover:text-gray-600 bg-gray-50 scale-95'}`}>收入</button>
+             <button onClick={() => setSettingsTab('transfer')} className={`flex-1 py-2 px-1 rounded-lg text-[18px] font-extrabold transition-all duration-200 truncate ${settingsTab === 'transfer' ? 'bg-blue-500 text-white shadow-sm transform scale-100' : 'text-gray-400 hover:text-gray-600 bg-gray-50 scale-95'}`}>轉帳</button>
           </div>
 
           <div className="space-y-4">
@@ -2138,7 +2225,7 @@ export default function App() {
                 
                 <div className={`p-4 sm:p-5 rounded-[1.5rem] border-2 border-pink-100 bg-white shadow-sm mb-4`}>
                   <h3 className="font-bold text-gray-700 mb-4 text-[18px] flex items-center gap-2">📝 編輯「分類」專屬項目清單</h3>
-                  <select value={settingSelectedCategory} onChange={e => setSettingSelectedCategory(e.target.value)} className="w-full bg-pink-50 border border-pink-100 p-3 rounded-xl outline-none mb-1 font-bold text-[16px] text-pink-700 shadow-sm cursor-pointer appearance-none">
+                  <select value={settingSelectedCategory} onChange={e => setSettingSelectedCategory(e.target.value)} className="w-full bg-pink-50 border border-pink-100 p-3 rounded-xl outline-none mb-1 font-bold text-[17px] text-pink-700 shadow-sm cursor-pointer appearance-none">
                       <option value="">請先選擇一個主分類...</option>
                       {(currentRoom?.categories || []).map(c => <option key={c} value={c}>{c}</option>)}
                   </select>
@@ -2167,9 +2254,9 @@ export default function App() {
                       <div key={item} className="flex justify-between items-center bg-orange-50 p-2 sm:p-2.5 rounded-xl border border-orange-100 shadow-sm gap-2">
                         <span className="text-[15px] font-bold text-orange-700 flex-1 min-w-0 truncate pl-1">[{item}] ➜ {currentRoom.autoFillRules[item]}</span>
                         <div className="flex items-center gap-1 shrink-0 ml-1">
-                            <button onClick={()=>handleMoveRule(item, -1)} disabled={idx===0} className="w-6 h-6 flex items-center justify-center bg-white border border-gray-200 rounded text-gray-400 hover:bg-gray-100 hover:text-blue-500 disabled:opacity-30 transition font-black text-[12px]">↑</button>
-                            <button onClick={()=>handleMoveRule(item, 1)} disabled={idx===arr.length-1} className="w-6 h-6 flex items-center justify-center bg-white border border-gray-200 rounded text-gray-400 hover:bg-gray-100 hover:text-blue-500 disabled:opacity-30 transition font-black text-[12px]">↓</button>
-                            <button onClick={() => handleDeleteRule(item)} className="w-6 h-6 flex items-center justify-center bg-white border border-gray-200 rounded text-gray-400 hover:bg-gray-100 hover:text-red-500 transition"><Trash2 size={12}/></button>
+                            <button onClick={()=>handleMoveRule(item, -1)} disabled={idx===0} className="w-8 h-8 flex items-center justify-center bg-white border border-gray-200 rounded-md text-gray-400 hover:bg-gray-100 hover:text-blue-500 disabled:opacity-30 transition font-black text-[14px]">↑</button>
+                            <button onClick={()=>handleMoveRule(item, 1)} disabled={idx===arr.length-1} className="w-8 h-8 flex items-center justify-center bg-white border border-gray-200 rounded-md text-gray-400 hover:bg-gray-100 hover:text-blue-500 disabled:opacity-30 transition font-black text-[14px]">↓</button>
+                            <button onClick={() => handleDeleteRule(item)} className="w-8 h-8 flex items-center justify-center bg-white border border-gray-200 rounded-md text-gray-400 hover:bg-gray-100 hover:text-red-500 transition"><Trash2 size={14}/></button>
                         </div>
                       </div>
                     ))}
@@ -2214,9 +2301,9 @@ export default function App() {
                         <div key={merchant} className="flex justify-between items-center bg-blue-50 p-2 sm:p-2.5 rounded-xl border border-blue-100 shadow-sm gap-2">
                           <span className="text-[15px] font-bold text-blue-700 flex-1 min-w-0 truncate pl-1">[{merchant}] ➜ {rule.method} {rule.subMethod ? `(${rule.subMethod})` : ''}</span>
                           <div className="flex items-center gap-1 shrink-0 ml-1">
-                              <button onClick={()=>handleMoveMethodRule(merchant, -1)} disabled={idx===0} className="w-6 h-6 flex items-center justify-center bg-white border border-gray-200 rounded-md text-gray-400 hover:bg-gray-100 hover:text-blue-500 disabled:opacity-30 transition font-black text-[12px]">↑</button>
-                              <button onClick={()=>handleMoveMethodRule(merchant, 1)} disabled={idx===arr.length-1} className="w-6 h-6 flex items-center justify-center bg-white border border-gray-200 rounded-md text-gray-400 hover:bg-gray-100 hover:text-blue-500 disabled:opacity-30 transition font-black text-[12px]">↓</button>
-                              <button onClick={() => handleDeleteMethodRule(merchant)} className="w-6 h-6 flex items-center justify-center bg-white border border-gray-200 rounded-md text-gray-400 hover:bg-gray-100 hover:text-red-500 transition"><Trash2 size={12}/></button>
+                              <button onClick={()=>handleMoveMethodRule(merchant, -1)} disabled={idx===0} className="w-8 h-8 flex items-center justify-center bg-white border border-gray-200 rounded-md text-gray-400 hover:bg-gray-100 hover:text-blue-500 disabled:opacity-30 transition font-black text-[14px]">↑</button>
+                              <button onClick={()=>handleMoveMethodRule(merchant, 1)} disabled={idx===arr.length-1} className="w-8 h-8 flex items-center justify-center bg-white border border-gray-200 rounded-md text-gray-400 hover:bg-gray-100 hover:text-blue-500 disabled:opacity-30 transition font-black text-[14px]">↓</button>
+                              <button onClick={() => handleDeleteMethodRule(merchant)} className="w-8 h-8 flex items-center justify-center bg-white border border-gray-200 rounded-md text-gray-400 hover:bg-gray-100 hover:text-red-500 transition"><Trash2 size={14}/></button>
                           </div>
                         </div>
                       )
@@ -2299,24 +2386,24 @@ export default function App() {
         {syncSettingsModalOpen && (
           <div className="fixed inset-0 bg-black/40 z-[100] flex justify-center items-end sm:items-center p-0 sm:p-4 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setSyncSettingsModalOpen(false)}>
             <div className="bg-white w-full max-w-md rounded-t-[1.5rem] sm:rounded-[1.5rem] p-5 shadow-2xl relative animate-in slide-in-from-bottom-10" onClick={e => e.stopPropagation()}>
-              <button onClick={() => setSyncSettingsModalOpen(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 bg-gray-100 p-1.5 rounded-full transition"><X size={18}/></button>
-              <h3 className="font-black text-[20px] text-gray-800 mb-2 flex items-center gap-1.5">🔄 複製設定至其他房間</h3>
-              <p className="text-[14px] text-gray-500 font-bold mb-4 leading-relaxed">選擇目標房間及想同步的項目，系統會將目前的設定合併到目標房間中。</p>
+              <button onClick={() => setSyncSettingsModalOpen(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 bg-gray-100 p-1.5 rounded-full transition"><X size={20}/></button>
+              <h3 className="font-black text-[22px] text-gray-800 mb-2 flex items-center gap-1.5">🔄 複製設定至其他房間</h3>
+              <p className="text-[15px] text-gray-500 font-bold mb-4 leading-relaxed">選擇目標房間及想同步的項目，系統會將目前的設定合併到目標房間中。</p>
               
               <div className="space-y-4">
                 <div>
-                   <label className="block text-[15px] font-bold text-gray-500 mb-1.5 ml-1">選擇目標房間</label>
-                   <select value={syncTargetRoom} onChange={e => setSyncTargetRoom(e.target.value)} className="w-full border border-indigo-100 bg-indigo-50 text-indigo-700 p-3 rounded-xl font-bold text-[16px] outline-none shadow-sm cursor-pointer appearance-none">
+                   <label className="block text-[16px] font-bold text-gray-500 mb-1.5 ml-1">選擇目標房間</label>
+                   <select value={syncTargetRoom} onChange={e => setSyncTargetRoom(e.target.value)} className="w-full border border-indigo-100 bg-indigo-50 text-indigo-700 p-3 rounded-xl font-bold text-[17px] outline-none shadow-sm cursor-pointer appearance-none">
                      <option value="">請選擇要同步過去的房間...</option>
                      {savedRooms.filter(r => r.id !== activeRoomId).map(r => (
                         <option key={r.id} value={r.id}>{r.name} ({r.id})</option>
                      ))}
                    </select>
-                   {savedRooms.filter(r => r.id !== activeRoomId).length === 0 && <p className="text-red-400 text-xs mt-1.5 font-bold ml-1">無其他已儲存房間可選</p>}
+                   {savedRooms.filter(r => r.id !== activeRoomId).length === 0 && <p className="text-red-400 text-sm mt-1.5 font-bold ml-1">無其他已儲存房間可選</p>}
                 </div>
 
                 <div>
-                   <label className="block text-[15px] font-bold text-gray-500 mb-1.5 ml-1">勾選要同步的項目群組</label>
+                   <label className="block text-[16px] font-bold text-gray-500 mb-1.5 ml-1">勾選要同步的項目群組</label>
                    <div className="grid grid-cols-1 gap-2 max-h-[35vh] overflow-y-auto pr-1">
                       {SYNC_GROUPS.map(group => {
                         const isChecked = selectedSyncGroups.includes(group.id);
@@ -2327,12 +2414,12 @@ export default function App() {
                               if (isChecked) setSelectedSyncGroups(selectedSyncGroups.filter(id => id !== group.id));
                               else setSelectedSyncGroups([...selectedSyncGroups, group.id]);
                             }}
-                            className={`flex items-center text-left p-3 rounded-xl border transition-all ${isChecked ? 'border-blue-400 bg-blue-50 text-blue-700' : 'border-gray-100 bg-gray-50 text-gray-600 hover:border-blue-200'}`}
+                            className={`flex items-center text-left p-3.5 rounded-xl border transition-all ${isChecked ? 'border-blue-400 bg-blue-50 text-blue-700' : 'border-gray-100 bg-gray-50 text-gray-600 hover:border-blue-200'}`}
                           >
-                            <div className={`w-4 h-4 rounded flex justify-center items-center mr-2.5 border transition-colors ${isChecked ? 'bg-blue-500 border-blue-500' : 'border-gray-300 bg-white'}`}>
-                               {isChecked && <Check size={12} className="text-white stroke-[3]"/>}
+                            <div className={`w-5 h-5 rounded flex justify-center items-center mr-2.5 border transition-colors ${isChecked ? 'bg-blue-500 border-blue-500' : 'border-gray-300 bg-white'}`}>
+                               {isChecked && <Check size={14} className="text-white stroke-[3]"/>}
                             </div>
-                            <span className="font-bold text-[15px]">{group.label}</span>
+                            <span className="font-bold text-[16px]">{group.label}</span>
                           </button>
                         )
                       })}
@@ -2342,7 +2429,7 @@ export default function App() {
                 <button 
                   onClick={handleSyncSettings}
                   disabled={!syncTargetRoom || selectedSyncGroups.length === 0}
-                  className="w-full bg-blue-500 text-white font-black text-[17px] py-3 rounded-xl transition-all hover:bg-blue-600 disabled:opacity-50 disabled:active:scale-100 active:scale-95 shadow-md mt-1"
+                  className="w-full bg-blue-500 text-white font-black text-[18px] py-3.5 rounded-xl transition-all hover:bg-blue-600 disabled:opacity-50 disabled:active:scale-100 active:scale-95 shadow-md mt-1"
                 >
                   確認同步
                 </button>
@@ -2367,8 +2454,8 @@ export default function App() {
       <>
         <header className="bg-gradient-to-r from-teal-400 to-emerald-400 px-5 py-5 shadow-md shrink-0 z-10 rounded-b-[1.5rem] border-b-4 border-white/20">
           <div className="flex justify-between items-center">
-            <h1 className="text-xl font-black text-white flex items-center gap-2 drop-shadow-md"><BarChart size={24} className="text-white/80"/> 統計分析</h1>
-            <button onClick={() => setView('room')} className="px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-xl transition text-[14px] font-bold backdrop-blur-sm">返回</button>
+            <h1 className="text-2xl font-black text-white flex items-center gap-2 drop-shadow-md"><BarChart size={26} className="text-white/80"/> 統計分析</h1>
+            <button onClick={() => setView('room')} className="px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-xl transition text-[15px] font-bold backdrop-blur-sm">返回</button>
           </div>
         </header>
 
@@ -2376,14 +2463,14 @@ export default function App() {
           <div className="bg-white p-5 rounded-[1.5rem] shadow-sm border-2 border-teal-50">
             
             <div className="mb-5">
-               <label className="block text-[14px] font-bold text-gray-500 mb-2 ml-1">分析類型 (單選)</label>
+               <label className="block text-[15px] font-bold text-gray-500 mb-2 ml-1">分析類型 (單選)</label>
                <div className="flex bg-gray-50 rounded-xl p-1 border border-gray-100 shadow-inner">
                  {['expense', 'income', 'transfer'].map(type => {
                     const label = type === 'expense' ? '支出' : type === 'income' ? '收入' : '轉帳';
                     const isSel = analysisType === type;
                     const activeColor = type === 'expense' ? 'bg-orange-400' : type === 'income' ? 'bg-green-500' : 'bg-blue-500';
                     return (
-                      <button key={type} onClick={() => handleAnalysisTypeChange(type)} className={`flex-1 py-2 rounded-lg text-[15px] font-extrabold transition-all duration-200 ${isSel ? `${activeColor} text-white shadow-md transform scale-100` : 'text-gray-400 hover:text-gray-600 scale-95'}`}>
+                      <button key={type} onClick={() => handleAnalysisTypeChange(type)} className={`flex-1 py-2 rounded-lg text-[16px] font-extrabold transition-all duration-200 ${isSel ? `${activeColor} text-white shadow-md transform scale-100` : 'text-gray-400 hover:text-gray-600 scale-95'}`}>
                         {label}
                       </button>
                     )
@@ -2394,24 +2481,24 @@ export default function App() {
             <div className="grid grid-cols-2 gap-3 mb-5">
               <div>
                 <div className="flex justify-between items-center mb-1.5 ml-1">
-                  <label className="block text-[13px] font-bold text-gray-500">開始日期</label>
-                  <button type="button" onClick={() => setAnalysisStartDate(getLocalTodayStr())} className="text-teal-600 bg-teal-50 hover:bg-teal-100 px-2 py-0.5 rounded text-[11px] font-bold transition">今天</button>
+                  <label className="block text-[14px] font-bold text-gray-500">開始日期</label>
+                  <button type="button" onClick={() => setAnalysisStartDate(getLocalTodayStr())} className="text-teal-600 bg-teal-50 hover:bg-teal-100 px-2 py-0.5 rounded text-[12px] font-bold transition">今天</button>
                 </div>
-                <div className="text-[11px] font-bold text-gray-400 mb-1 ml-1">({analysisStartDate ? toROCYearStr(analysisStartDate) : ''})</div>
-                <input type="date" value={analysisStartDate} onChange={e => setAnalysisStartDate(e.target.value)} className="w-full bg-gray-50 border border-gray-100 p-3 rounded-xl outline-none font-bold text-gray-700 text-[14px] focus:bg-white focus:border-teal-300 transition shadow-sm" />
+                <div className="text-[12px] font-bold text-gray-400 mb-1 ml-1">({analysisStartDate ? toROCYearStr(analysisStartDate) : ''})</div>
+                <input type="date" value={analysisStartDate} onChange={e => setAnalysisStartDate(e.target.value)} className="w-full bg-gray-50 border border-gray-100 p-3 rounded-xl outline-none font-bold text-gray-700 text-[15px] focus:bg-white focus:border-teal-300 transition shadow-sm" />
               </div>
               <div>
                 <div className="flex justify-between items-center mb-1.5 ml-1">
-                  <label className="block text-[13px] font-bold text-gray-500">結束日期</label>
-                  <button type="button" onClick={() => setAnalysisEndDate(getLocalTodayStr())} className="text-teal-600 bg-teal-50 hover:bg-teal-100 px-2 py-0.5 rounded text-[11px] font-bold transition">今天</button>
+                  <label className="block text-[14px] font-bold text-gray-500">結束日期</label>
+                  <button type="button" onClick={() => setAnalysisEndDate(getLocalTodayStr())} className="text-teal-600 bg-teal-50 hover:bg-teal-100 px-2 py-0.5 rounded text-[12px] font-bold transition">今天</button>
                 </div>
-                <div className="text-[11px] font-bold text-gray-400 mb-1 ml-1">({analysisEndDate ? toROCYearStr(analysisEndDate) : ''})</div>
-                <input type="date" value={analysisEndDate} onChange={e => setAnalysisEndDate(e.target.value)} className="w-full bg-gray-50 border border-gray-100 p-3 rounded-xl outline-none font-bold text-gray-700 text-[14px] focus:bg-white focus:border-teal-300 transition shadow-sm" />
+                <div className="text-[12px] font-bold text-gray-400 mb-1 ml-1">({analysisEndDate ? toROCYearStr(analysisEndDate) : ''})</div>
+                <input type="date" value={analysisEndDate} onChange={e => setAnalysisEndDate(e.target.value)} className="w-full bg-gray-50 border border-gray-100 p-3 rounded-xl outline-none font-bold text-gray-700 text-[15px] focus:bg-white focus:border-teal-300 transition shadow-sm" />
               </div>
             </div>
 
             <div className="mb-4">
-              <label className="block text-[14px] font-bold text-gray-500 mb-2 ml-1">分析選單 (可複選)</label>
+              <label className="block text-[15px] font-bold text-gray-500 mb-2 ml-1">分析選單 (可複選)</label>
               <div className="flex flex-wrap gap-2">
                 {analysisOptions.map(opt => {
                   const isSelected = analysisMenus.includes(opt.id);
@@ -2422,7 +2509,7 @@ export default function App() {
                         if (isSelected) setAnalysisMenus(analysisMenus.filter(d => d !== opt.id));
                         else setAnalysisMenus([...analysisMenus, opt.id]);
                       }}
-                      className={`px-3 py-2 rounded-xl text-[14px] font-bold transition-all duration-200 ${isSelected ? 'bg-[#A7F3D0] text-teal-800 border-2 border-[#34D399] shadow-sm transform -translate-y-0.5' : 'bg-white text-gray-500 border border-gray-100 hover:bg-gray-50 shadow-sm'}`}
+                      className={`px-3 py-2 rounded-xl text-[15px] font-bold transition-all duration-200 ${isSelected ? 'bg-[#A7F3D0] text-teal-800 border-2 border-[#34D399] shadow-sm transform -translate-y-0.5' : 'bg-white text-gray-500 border border-gray-100 hover:bg-gray-50 shadow-sm'}`}
                     >
                       {opt.label}
                     </button>
@@ -2433,14 +2520,14 @@ export default function App() {
 
             {analysisMenus.length > 0 && (
               <div className="pt-5 border-t border-dashed border-gray-100 space-y-5">
-                <label className="block text-[12px] font-bold text-teal-600 bg-teal-50 px-3 py-1.5 rounded-lg inline-block leading-relaxed">💡 依選擇選單篩選細項 (不選代表全部分析)</label>
+                <label className="block text-[13px] font-bold text-teal-600 bg-teal-50 px-3 py-1.5 rounded-lg inline-block leading-relaxed">💡 依選擇選單篩選細項 (不選代表全部分析)</label>
                 
                 {analysisMenus.includes('category') && (
                   <PillGroupMulti label="🌸 主分類" options={currentRoom?.categories || []} values={analysisSubSelections.category} onChange={(vals) => setAnalysisSubSelections({...analysisSubSelections, category: vals})} />
                 )}
                 {analysisMenus.includes('title') && (
                   <div className="mb-5 bg-gray-50 p-4 rounded-xl border border-gray-100 shadow-sm">
-                    <label className="block text-[13px] font-bold text-gray-500 mb-3 leading-relaxed">請先選擇上方的主分類篩選，這裡會列出對應的項目讓您勾選</label>
+                    <label className="block text-[14px] font-bold text-gray-500 mb-3 leading-relaxed">請先選擇上方的主分類篩選，這裡會列出對應的項目讓您勾選</label>
                     <div className="flex flex-wrap gap-2">
                       {(() => {
                         const targetCats = analysisSubSelections.category.length > 0 ? analysisSubSelections.category : Object.keys(currentRoom?.categoryItems || {});
@@ -2450,7 +2537,7 @@ export default function App() {
                              let newVals = [...analysisSubSelections.title];
                              if (newVals.includes(item)) newVals = newVals.filter(v => v !== item); else newVals.push(item);
                              setAnalysisSubSelections({...analysisSubSelections, title: newVals});
-                          }} className={`px-3 py-1.5 rounded-lg text-[13px] font-bold transition-all ${analysisSubSelections.title.includes(item) ? 'bg-[#A7F3D0] text-teal-800 border-2 border-[#34D399] shadow-sm' : 'bg-white text-gray-500 border border-gray-100'}`}>
+                          }} className={`px-3 py-1.5 rounded-lg text-[14px] font-bold transition-all ${analysisSubSelections.title.includes(item) ? 'bg-[#A7F3D0] text-teal-800 border-2 border-[#34D399] shadow-sm' : 'bg-white text-gray-500 border border-gray-100'}`}>
                              {item}
                           </button>
                         ));
@@ -2485,20 +2572,20 @@ export default function App() {
           </div>
 
           <div className="bg-white p-5 rounded-[1.5rem] shadow-sm border-2 border-teal-50">
-            <h2 className="font-bold text-teal-700 mb-5 text-[16px] flex items-center gap-2"><LucidePieChart size={18} className="text-teal-400"/> 統計結果</h2>
+            <h2 className="font-bold text-teal-700 mb-5 text-[17px] flex items-center gap-2"><LucidePieChart size={20} className="text-teal-400"/> 統計結果</h2>
             <MyCustomPieChart data={chartData} colors={chartColors} />
             
             <div className="mt-6 space-y-2.5">
               {chartData.length === 0 ? (
-                <p className="text-center text-gray-400 font-bold text-[14px] bg-gray-50 py-4 rounded-xl">此條件沒有紀錄喔！</p>
+                <p className="text-center text-gray-400 font-bold text-[15px] bg-gray-50 py-4 rounded-xl">此條件沒有紀錄喔！</p>
               ) : (
                 chartData.map((d, idx) => (
                   <div key={d.label} className="flex justify-between items-center bg-gray-50 p-3 rounded-xl border border-gray-100 hover:shadow-sm transition">
                     <div className="flex items-center gap-2.5">
-                      <div className="w-4 h-4 rounded shadow-inner" style={{ backgroundColor: chartColors[idx % chartColors.length] }}></div>
-                      <span className="font-bold text-gray-700 text-[14px] truncate max-w-[150px]">{d.label}</span>
+                      <div className="w-5 h-5 rounded shadow-inner" style={{ backgroundColor: chartColors[idx % chartColors.length] }}></div>
+                      <span className="font-bold text-gray-700 text-[15px] truncate max-w-[150px]">{d.label}</span>
                     </div>
-                    <span className="font-black text-gray-800 text-[16px]">${d.value.toLocaleString()}</span>
+                    <span className="font-black text-gray-800 text-[17px]">${d.value.toLocaleString()}</span>
                   </div>
                 ))
               )}
@@ -2522,21 +2609,21 @@ export default function App() {
           <div className="absolute bottom-0 left-0 w-full bg-white/95 backdrop-blur-xl p-2 pb-6 sm:pb-4 rounded-t-[2rem] shadow-[0_-15px_40px_rgba(0,0,0,0.08)] flex justify-between items-center z-20 border-t border-gray-100 px-6">
             
             <button onClick={() => setView('accounts')} className="flex flex-col items-center gap-1 text-gray-400 hover:text-indigo-500 transition px-4 py-2">
-              <Wallet size={24} />
-              <span className="font-extrabold text-[12px]">帳戶</span>
+              <Wallet size={26} />
+              <span className="font-extrabold text-[13px]">帳戶</span>
             </button>
 
             {/* 大大的 + 號 */}
             <button 
               onClick={() => { resetForm(); setRecordType('expense'); setShowAddForm(true); }} 
-              className="absolute left-1/2 -translate-x-1/2 -top-6 bg-gradient-to-tr from-pink-400 to-orange-400 text-white w-[64px] h-[64px] rounded-full flex items-center justify-center shadow-[0_10px_20px_rgba(251,146,60,0.4)] border-[4px] border-[#FFFBF0] transform hover:scale-105 transition active:scale-95"
+              className="absolute left-1/2 -translate-x-1/2 -top-6 bg-gradient-to-tr from-pink-400 to-orange-400 text-white w-[68px] h-[68px] rounded-full flex items-center justify-center shadow-[0_10px_20px_rgba(251,146,60,0.4)] border-[4px] border-[#FFFBF0] transform hover:scale-105 transition active:scale-95"
             >
-              <Plus size={36} strokeWidth={3} />
+              <Plus size={38} strokeWidth={3} />
             </button>
 
             <button onClick={() => setView('analysis')} className="flex flex-col items-center gap-1 text-gray-400 hover:text-teal-500 transition px-4 py-2">
-              <BarChart size={24} />
-              <span className="font-extrabold text-[12px]">統計</span>
+              <BarChart size={26} />
+              <span className="font-extrabold text-[13px]">統計</span>
             </button>
 
           </div>
