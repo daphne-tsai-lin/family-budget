@@ -511,12 +511,6 @@ export default function App() {
     }
   }, [recordMerchant, recordType, currentRoom?.methodRules]);
 
-  useEffect(() => { 
-    setRecordFrequencyDays([]); 
-    setRecordFrequencyInterval('');
-    setRecordFrequencyCustomText('');
-  }, [recordFrequency]);
-
   // ==========================================
   // 日期左右滑動切換邏輯
   // ==========================================
@@ -1781,20 +1775,20 @@ export default function App() {
                     if (freqDisplay === '區間') freqDisplay = exp.frequencyInterval === '自訂' ? exp.frequencyCustomText : exp.frequencyInterval;
 
                     return (
-                      <div key={exp.id} onClick={() => setViewingRecord(exp)} className="bg-gray-50 p-2.5 rounded-xl border border-gray-100 flex justify-between items-center cursor-pointer hover:bg-gray-100 transition">
+                      <div key={exp.id} onClick={() => setViewingRecord(exp)} className="bg-gray-50 p-3 rounded-xl border border-gray-100 flex justify-between items-center cursor-pointer hover:bg-gray-100 transition">
                         <div className="overflow-hidden pr-2">
-                           <div className="flex items-center gap-1.5 mb-0.5">
-                             <span className="text-[12px] font-bold text-gray-400">{toROCYearStr(exp.date)}</span>
-                             <span className="bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded text-[10px] font-bold tracking-wide">
+                           <div className="flex flex-wrap items-center gap-1.5 mb-1">
+                             <span className="text-[13px] font-bold text-gray-400">{toROCYearStr(exp.date)}</span>
+                             <span className="bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded text-[11px] font-bold tracking-wide">
                                {freqDisplay || '一次'}
                              </span>
-                             {exp.payer && <span className="bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded text-[10px] font-bold tracking-wide">{Array.isArray(exp.payer)?exp.payer[0]:exp.payer}</span>}
+                             {exp.payer && <span className="bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded text-[11px] font-bold tracking-wide">{Array.isArray(exp.payer) ? exp.payer.join(', ') : exp.payer}</span>}
                            </div>
-                           <div className="font-black text-[15px] text-gray-700 truncate">
+                           <div className="font-black text-[16px] text-gray-700 truncate">
                               {isTransfer ? `轉帳: ${exp.method}➜${exp.transferToMethod}` : exp.title}
                            </div>
                         </div>
-                        <div className={`font-black text-[17px] shrink-0 ${isPositive ? 'text-green-500' : 'text-gray-800'}`}>
+                        <div className={`font-black text-[19px] shrink-0 ${isPositive ? 'text-green-500' : 'text-gray-800'}`}>
                            {isPositive ? '+' : '-'}${exp.amount.toLocaleString()}
                         </div>
                       </div>
@@ -1867,7 +1861,15 @@ export default function App() {
                 )}
                 <div className="flex justify-between items-center border-b border-gray-100 pb-1.5">
                    <span className="text-gray-400">頻率</span>
-                   <span className="text-gray-800">{viewingRecord.frequency === '區間' && viewingRecord.frequencyInterval === '自訂' ? viewingRecord.frequencyCustomText : (viewingRecord.frequencyInterval || viewingRecord.frequency)}</span>
+                   <span className="text-gray-800">
+                     {viewingRecord.frequency === '每週' && viewingRecord.frequencyDays?.length > 0
+                       ? `每週 (${viewingRecord.frequencyDays.join('、')})`
+                       : viewingRecord.frequency === '每月' && viewingRecord.frequencyDays?.length > 0
+                         ? `每月 (${viewingRecord.frequencyDays.join('、')}號)`
+                         : viewingRecord.frequency === '區間'
+                           ? (viewingRecord.frequencyInterval === '自訂' ? viewingRecord.frequencyCustomText : viewingRecord.frequencyInterval)
+                           : viewingRecord.frequency}
+                   </span>
                 </div>
                 <div className="flex justify-between items-center border-b border-gray-100 pb-1.5">
                    <span className="text-gray-400">建立者</span>
@@ -1984,58 +1986,54 @@ export default function App() {
                     <div key={exp.id} onClick={() => setViewingRecord(exp)} className="bg-white p-3 rounded-xl shadow-sm border border-gray-100 flex justify-between items-start group relative hover:shadow-md transition duration-300 cursor-pointer">
                       <div className={`absolute left-0 top-1/2 -translate-y-1/2 h-1/2 w-1 rounded-r-md ${isIncome ? 'bg-green-400' : isTransfer ? 'bg-blue-400' : 'bg-orange-400'}`}></div>
                       
-                      <div className="flex-1 pl-3 pr-2 overflow-hidden flex flex-col justify-center py-1">
-                        {/* 第 1 排：建檔日期時間 */}
-                        <div className="text-[12px] font-bold text-gray-400 mb-1.5">
-                          建檔: {toROCYearStr(exp.timestamp)} {new Date(exp.timestamp).toLocaleTimeString('zh-TW', { hour12: false, hour: '2-digit', minute: '2-digit' })}
-                        </div>
-
-                        {/* 第 2 排：[建立者][頻率][分類]標題 */}
-                        <div className="flex items-center gap-1.5 mb-2 flex-wrap">
+                      <div className="flex-1 pl-2.5 pr-2 overflow-hidden flex flex-col justify-center py-1.5">
+                        {/* 第一排：建檔日期時間、建立者與頻率 (緊靠排列) */}
+                        <div className="flex flex-wrap items-center gap-1.5 mb-1.5">
+                          <div className="text-[12px] font-bold text-gray-400">
+                            建檔: {toROCYearStr(exp.timestamp)} {new Date(exp.timestamp).toLocaleTimeString('zh-TW', { hour12: false, hour: '2-digit', minute: '2-digit' })}
+                          </div>
                           {exp.addedByRole && (
-                            <span className="bg-gray-100 px-1.5 py-0.5 rounded text-gray-600 text-[12px] font-bold tracking-wide shrink-0">
+                            <span className="bg-gray-100 px-1.5 py-0.5 rounded text-gray-500 text-[12px] font-bold tracking-wide shrink-0">
                               {exp.addedByRole}
                             </span>
                           )}
                           <span className="bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded text-[12px] font-bold tracking-wide shrink-0">
                             {freqDisplay || '一次'}
                           </span>
+                        </div>
+
+                        {/* 第二排：所有詳細資訊自動換行排列 (省空間又整齊) */}
+                        <div className="flex flex-wrap items-center gap-1.5">
                           {!isTransfer && (
-                            <span className={`font-bold text-[13px] px-1.5 py-0.5 rounded whitespace-nowrap border shrink-0 ${isIncome ? 'bg-green-50 text-green-600 border-green-100' : 'bg-orange-50 text-orange-600 border-orange-100'}`}>
+                            <span className={`font-bold text-[14px] px-1.5 py-0.5 rounded whitespace-nowrap border shrink-0 ${isIncome ? 'bg-green-50 text-green-600 border-green-100' : 'bg-orange-50 text-orange-600 border-orange-100'}`}>
                               {exp.category}
                             </span>
                           )}
-                          <span className="font-black text-gray-800 text-[18px] truncate shrink-0 max-w-full">
+                          <span className="font-black text-gray-800 text-[18px] shrink-0 mr-1">
                             {isTransfer ? `🔄 轉帳: ${exp.method}➜${exp.transferToMethod}` : exp.title}
                           </span>
-                        </div>
-
-                        {/* 第 3 排：[對象][付款方式][商家] */}
-                        <div className="flex flex-wrap gap-1.5 items-center">
+                          
                           {payerStr && payerStr !== '未指定' && <span className="text-gray-500 text-[13px] font-bold bg-gray-50 px-1.5 py-0.5 rounded border border-gray-200">👤 {payerStr}</span>}
                           {!isTransfer && exp.method && exp.method !== '未指定' && <span className="text-gray-500 text-[13px] font-bold bg-gray-50 px-1.5 py-0.5 rounded border border-gray-200">💳 {exp.method}{exp.subMethod ? `(${exp.subMethod})` : ''}</span>}
                           {exp.merchant && exp.merchant !== '未指定' && <span className="text-gray-500 text-[13px] font-bold bg-gray-50 px-1.5 py-0.5 rounded border border-gray-200">🏪 {exp.merchant}</span>}
+                          {exp.note && (
+                             <span className="text-gray-500 text-[13px] font-bold bg-[#FFFDF9] px-1.5 py-0.5 rounded border border-[#F2EFE9] max-w-full truncate mt-0.5">
+                               📝 {exp.note}
+                             </span>
+                          )}
                         </div>
-
-                        {/* 第 4 排：備註 */}
-                        {exp.note && (
-                           <div className="text-gray-500 text-[13px] font-bold bg-[#FFFDF9] px-2 py-1 rounded border border-[#F2EFE9] mt-2 truncate w-max max-w-full">
-                             📝 {exp.note}
-                           </div>
-                        )}
                       </div>
 
-                      <div className="flex flex-col items-end shrink-0 pt-1">
+                      <div className="flex flex-col items-end shrink-0 pt-0.5">
                         <span className={`font-black text-[22px] sm:text-[24px] ${isIncome ? 'text-green-500' : isTransfer ? 'text-blue-500' : 'text-gray-800'}`}>
                           {isIncome ? '+' : isTransfer ? '⇆' : '-'}${exp.amount.toLocaleString()}
                         </span>
                         
-                        {/* 需求 3: 右側動作按鈕 2x2 網格排版 */}
-                        <div className="grid grid-cols-2 gap-1.5 mt-2.5 w-[76px] relative z-20">
-                          <button onClick={(e) => { e.stopPropagation(); handleMoveRecord(idx, -1); }} disabled={idx === 0} className="text-gray-400 hover:text-blue-500 font-bold p-1.5 transition bg-gray-50 hover:bg-blue-50 rounded-lg shadow-sm flex items-center justify-center disabled:opacity-30" title="往上移"><ArrowUp size={15} /></button>
-                          <button onClick={(e) => { e.stopPropagation(); openEditForm(exp); }} className="text-gray-400 hover:text-blue-500 font-bold p-1.5 transition bg-gray-50 hover:bg-blue-50 rounded-lg shadow-sm flex items-center justify-center" title="編輯"><Pencil size={15} /></button>
-                          <button onClick={(e) => { e.stopPropagation(); handleMoveRecord(idx, 1); }} disabled={idx === displayRecords.length - 1} className="text-gray-400 hover:text-blue-500 font-bold p-1.5 transition bg-gray-50 hover:bg-blue-50 rounded-lg shadow-sm flex items-center justify-center disabled:opacity-30" title="往下移"><ArrowDown size={15} /></button>
-                          <button onClick={(e) => { e.stopPropagation(); setCrossRoomRecord(exp); }} className="text-gray-400 hover:text-orange-500 font-bold p-1.5 transition bg-gray-50 hover:bg-orange-50 rounded-lg shadow-sm flex items-center justify-center" title="傳送"><Send size={15} /></button>
+                        <div className="grid grid-cols-2 gap-1 mt-1.5 w-[72px] relative z-20">
+                          <button onClick={(e) => { e.stopPropagation(); handleMoveRecord(idx, -1); }} disabled={idx === 0} className="text-gray-400 hover:text-blue-500 font-bold p-1.5 transition bg-gray-50 hover:bg-blue-50 rounded-md shadow-sm flex items-center justify-center disabled:opacity-30" title="往上移"><ArrowUp size={15} /></button>
+                          <button onClick={(e) => { e.stopPropagation(); openEditForm(exp); }} className="text-gray-400 hover:text-blue-500 font-bold p-1.5 transition bg-gray-50 hover:bg-blue-50 rounded-md shadow-sm flex items-center justify-center" title="編輯"><Pencil size={15} /></button>
+                          <button onClick={(e) => { e.stopPropagation(); handleMoveRecord(idx, 1); }} disabled={idx === displayRecords.length - 1} className="text-gray-400 hover:text-blue-500 font-bold p-1.5 transition bg-gray-50 hover:bg-blue-50 rounded-md shadow-sm flex items-center justify-center disabled:opacity-30" title="往下移"><ArrowDown size={15} /></button>
+                          <button onClick={(e) => { e.stopPropagation(); setCrossRoomRecord(exp); }} className="text-gray-400 hover:text-orange-500 font-bold p-1.5 transition bg-gray-50 hover:bg-orange-50 rounded-md shadow-sm flex items-center justify-center" title="傳送"><Send size={15} /></button>
                         </div>
                       </div>
                     </div>
@@ -2107,7 +2105,15 @@ export default function App() {
                 )}
                 <div className="flex justify-between items-center border-b border-gray-100 pb-1.5">
                    <span className="text-gray-400">頻率</span>
-                   <span className="text-gray-800">{viewingRecord.frequency === '區間' && viewingRecord.frequencyInterval === '自訂' ? viewingRecord.frequencyCustomText : (viewingRecord.frequencyInterval || viewingRecord.frequency)}</span>
+                   <span className="text-gray-800">
+                     {viewingRecord.frequency === '每週' && viewingRecord.frequencyDays?.length > 0
+                       ? `每週 (${viewingRecord.frequencyDays.join('、')})`
+                       : viewingRecord.frequency === '每月' && viewingRecord.frequencyDays?.length > 0
+                         ? `每月 (${viewingRecord.frequencyDays.join('、')}號)`
+                         : viewingRecord.frequency === '區間'
+                           ? (viewingRecord.frequencyInterval === '自訂' ? viewingRecord.frequencyCustomText : viewingRecord.frequencyInterval)
+                           : viewingRecord.frequency}
+                   </span>
                 </div>
                 <div className="flex justify-between items-center border-b border-gray-100 pb-1.5">
                    <span className="text-gray-400">建立者</span>
@@ -2230,7 +2236,7 @@ export default function App() {
                 </div>
                 {recordType === 'expense' && (
                   <div className="z-40">
-                    <CustomDropdown label="頻率 🔄" icon={RefreshCw} options={['一次', '每週', '每月', '區間']} value={recordFrequency} onChange={setRecordFrequency} placeholder="選擇頻率" />
+                    <CustomDropdown label="頻率 🔄" icon={RefreshCw} options={['一次', '每週', '每月', '區間']} value={recordFrequency} onChange={(val) => { setRecordFrequency(val); setRecordFrequencyDays([]); setRecordFrequencyInterval(''); setRecordFrequencyCustomText(''); }} placeholder="選擇頻率" />
                   </div>
                 )}
               </div>
