@@ -1,6 +1,6 @@
 /* eslint-disable */
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { LogOut, AlertCircle, Settings, Trash2, X, Sparkles, Home, Plus, Pencil, BarChart, Calendar, Store, Tag, User, CreditCard, RefreshCw, Wallet, PiggyBank, PieChart as LucidePieChart, Download, Upload, Copy, Send, Landmark, ArrowRightLeft, Check, ArrowUp, ArrowDown, Search } from 'lucide-react';
+import { LogOut, AlertCircle, Settings, Trash2, X, Sparkles, Home, Plus, Pencil, BarChart, Calendar, Store, Tag, User, CreditCard, RefreshCw, Wallet, PiggyBank, PieChart as LucidePieChart, Download, Upload, Copy, Send, Landmark, ArrowRightLeft, Check, ArrowUp, ArrowDown, Search, Camera } from 'lucide-react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'firebase/auth';
 import { getFirestore, collection, doc, setDoc, getDoc, updateDoc, onSnapshot, addDoc, deleteDoc, deleteField, writeBatch } from 'firebase/firestore';
@@ -385,6 +385,7 @@ export default function App() {
   const [viewingRecord, setViewingRecord] = useState(null); 
   const [viewingAccountHistory, setViewingAccountHistory] = useState(null); 
   const [viewingAnalysisItem, setViewingAnalysisItem] = useState(null); 
+  const [enlargedPhoto, setEnlargedPhoto] = useState(null); // 全螢幕放大看照片
   
   const [historyStartDate, setHistoryStartDate] = useState(getLocalMonthStartStr());
   const [historyEndDate, setHistoryEndDate] = useState(getLocalTodayStr());
@@ -403,6 +404,7 @@ export default function App() {
   const [recordMethod, setRecordMethod] = useState('');
   const [recordSubMethod, setRecordSubMethod] = useState('');
   const [recordNote, setRecordNote] = useState('');
+  const [recordPhoto, setRecordPhoto] = useState(null); // 存放壓縮後的 Base64 圖片
 
   const [transferToMethod, setTransferToMethod] = useState('');
   const [transferToSubMethod, setTransferToSubMethod] = useState('');
@@ -444,6 +446,7 @@ export default function App() {
 
   const amountInputRef = useRef(null);
   const fileInputRef = useRef(null); 
+  const photoInputRef = useRef(null); // 新增：照相與選圖片功能
 
   const globalWrapperStyle = "min-h-screen bg-gray-100 sm:py-8 flex justify-center items-center font-sans text-[16px]";
   const phoneContainerStyle = `w-full ${view === 'login' || view === 'create' ? 'max-w-[420px]' : 'max-w-[480px]'} min-h-screen sm:min-h-0 sm:h-[844px] bg-[#FFFBF0] flex flex-col relative sm:rounded-[3rem] sm:border-[8px] sm:border-gray-800 shadow-2xl overflow-hidden transition-all duration-500`;
@@ -526,6 +529,86 @@ export default function App() {
     
     return () => { unsubscribeRoom(); unsubscribeExpenses(); };
   }, [user, activeRoomId]);
+
+  // ==========================================
+  // 圖片自動清理機制 (保留 2 個月，約 60 天)
+  // ==========================================
+  useEffect(() => {
+    if (!records || records.length === 0 || !activeRoomId) return;
+
+    // 60天的毫秒數： 60天 * 24小時 * 60分 * 60秒 * 1000
+    const TWO_MONTHS_MS = 60 * 24 * 60 * 60 * 1000;
+    const now = Date.now();
+
+    // 找出有帶圖片，且建檔時間超過2個月的紀錄
+    const recordsToPrune = records.filter(r => r.photoBase64 && (now - r.timestamp > TWO_MONTHS_MS));
+
+    if (recordsToPrune.length > 0) {
+      const pruneOldPhotos = async () => {
+        try {
+          const batch = writeBatch(db);
+          recordsToPrune.forEach(r => {
+            const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'expenses', r.id);
+            const newNote = r.note ? `${r.note} (圖檔已自動刪除)` : '(圖檔已自動刪除)';
+            batch.update(docRef, {
+              photoBase64: deleteField(),
+              note: newNote
+            });
+          });
+          await batch.commit();
+          console.log(`已自動清理 ${recordsToPrune.length} 筆過期圖片`);
+        } catch (e) {
+          console.error("圖片自動清理失敗", e);
+        }
+      };
+      pruneOldPhotos();
+    }
+  }, [records, activeRoomId]);
+
+  // ==========================================
+  // 處理拍照/選圖與極限壓縮
+  // ==========================================
+  const handlePhotoUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    // 清空 input，允許重複選同一張圖
+    e.target.value = null;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+        // 極限壓縮：將長邊限制在最大 800px
+        const MAX_SIZE = 800;
+        
+        if (width > height) {
+          if (width > MAX_SIZE) {
+            height *= MAX_SIZE / width;
+            width = MAX_SIZE;
+          }
+        } else {
+          if (height > MAX_SIZE) {
+            width *= MAX_SIZE / height;
+            height = MAX_SIZE;
+          }
+        }
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        
+        // 壓縮成 JPEG，品質 0.4 (大幅減少檔案大小至約 50KB)
+        const base64 = canvas.toDataURL('image/jpeg', 0.4);
+        setRecordPhoto(base64);
+      };
+      img.src = event.target.result;
+    };
+    reader.readAsDataURL(file);
+  };
 
   // 自動升級舊有房間的 "銀行" 選項至 "銀行 / 電子票證"
   useEffect(() => {
@@ -773,7 +856,9 @@ export default function App() {
         frequencyInterval: recordFrequencyInterval, frequencyCustomText: recordFrequencyCustomText,
         method: recordMethod || '未指定', subMethod: recordSubMethod || '',
         note: recordNote, addedBy: user.uid, addedByRole: currentUserRole,
-        groupId: finalGroupId
+        groupId: finalGroupId,
+        // 加入壓縮後的 Base64 照片，若為 null 則代表沒照片
+        photoBase64: recordPhoto || null
       };
 
       if (recordType === 'expense') {
@@ -807,6 +892,12 @@ export default function App() {
         }
       } else {
         const curRef = doc(db, 'artifacts', appId, 'public', 'data', 'expenses', editRecordId);
+        
+        // 若使用者在編輯時刪除了照片，需要手動補上 deleteField 以清除原本 Firestore 裡的欄位
+        if (!recordPhoto && oldRecord?.photoBase64) {
+          baseData.photoBase64 = deleteField();
+        }
+        
         batch.update(curRef, { ...baseData, timestamp: oldRecord.timestamp });
         opsCount++;
 
@@ -859,6 +950,7 @@ export default function App() {
     setRecordPayer([]); setRecordCategory(''); setSelectedItem('');
     setRecordMerchant(''); setRecordMethod(''); setRecordSubMethod('');
     setTransferToMethod(''); setTransferToSubMethod(''); setRecordNote('');
+    setRecordPhoto(null);
     setEditRecordId(null);
   };
 
@@ -874,6 +966,9 @@ export default function App() {
     
     setRecordMethod(record.method === '未指定' ? '' : record.method);
     setRecordSubMethod(record.subMethod || '');
+    
+    // 載入照片
+    setRecordPhoto(record.photoBase64 || null);
     
     if (record.type === 'expense' || !record.type) {
       setSelectedItem(record.title); setRecordMerchant(record.merchant === '未指定' ? '' : record.merchant);
@@ -898,6 +993,9 @@ export default function App() {
     
     setRecordMethod(record.method === '未指定' ? '' : record.method);
     setRecordSubMethod(record.subMethod || '');
+    
+    // 複製時一併保留原本的照片
+    setRecordPhoto(record.photoBase64 || null);
 
     if (record.type === 'expense' || !record.type) {
       setSelectedItem(record.title); setRecordMerchant(record.merchant === '未指定' ? '' : record.merchant);
@@ -1899,7 +1997,8 @@ export default function App() {
                              </span>
                              {exp.payer && <span className="bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded text-[11px] font-bold tracking-wide">{Array.isArray(exp.payer)?exp.payer.join(', '):exp.payer}</span>}
                            </div>
-                           <div className="font-black text-[16px] text-gray-700 truncate">
+                           <div className="font-black text-[16px] text-gray-700 truncate flex items-center gap-1.5">
+                              {exp.photoBase64 && <span className="shrink-0 w-5 h-5 rounded overflow-hidden shadow-sm inline-block"><img src={exp.photoBase64} alt="圖" className="w-full h-full object-cover" /></span>}
                               {isTransfer ? `轉帳: ${exp.method}➜${exp.transferToMethod}` : exp.title}
                            </div>
                         </div>
@@ -2035,8 +2134,9 @@ export default function App() {
                               {exp.category}
                             </span>
                           )}
-                          <span className="font-black text-gray-800 text-[18px] shrink-0 mr-1">
-                            {isTransfer ? `🔄 轉帳: ${exp.method}${exp.subMethod ? '('+exp.subMethod+')' : ''} ➜ ${exp.transferToMethod}${exp.transferToSubMethod ? '('+exp.transferToSubMethod+')' : ''}` : exp.title}
+                          <span className="font-black text-gray-800 text-[18px] shrink-0 mr-1 flex items-center gap-1.5">
+                            {exp.photoBase64 && <span className="shrink-0 w-6 h-6 rounded-md overflow-hidden shadow-sm inline-block"><img src={exp.photoBase64} alt="圖" className="w-full h-full object-cover" /></span>}
+                            {isTransfer ? `轉帳: ${exp.method}${exp.subMethod ? '('+exp.subMethod+')' : ''} ➜ ${exp.transferToMethod}${exp.transferToSubMethod ? '('+exp.transferToSubMethod+')' : ''}` : exp.title}
                           </span>
                           
                           {payerStr && payerStr !== '未指定' && <span className="text-gray-500 text-[13px] font-bold bg-gray-50 px-1.5 py-0.5 rounded border border-gray-200">👤 {payerStr}</span>}
@@ -2228,9 +2328,28 @@ export default function App() {
                 </>
               )}
 
-              <div className="mt-5 pt-5 border-t border-gray-100">
-                <label className="flex items-center gap-1.5 text-[15px] font-bold text-gray-500 mb-1.5 ml-1">📝 備註 (選填)</label>
-                <input type="text" placeholder="輸入額外備註..." className="bg-gray-50 border border-gray-100 rounded-xl p-3 focus:bg-white focus:border-blue-400 outline-none w-full text-gray-700 font-bold text-[17px] transition shadow-sm" value={recordNote} onChange={(e) => setRecordNote(e.target.value)} />
+              <div className="mt-5 pt-5 border-t border-gray-100 flex gap-2 items-start">
+                <div className="flex-1 w-full min-w-0">
+                  <label className="flex items-center gap-1.5 text-[15px] font-bold text-gray-500 mb-1.5 ml-1">📝 備註 (選填)</label>
+                  <input type="text" placeholder="輸入額外備註..." className="bg-gray-50 border border-gray-100 rounded-xl p-3 focus:bg-white focus:border-blue-400 outline-none w-full text-gray-700 font-bold text-[17px] transition shadow-sm" value={recordNote} onChange={(e) => setRecordNote(e.target.value)} />
+                </div>
+                
+                <div className="shrink-0 w-[72px]">
+                   <label className="flex items-center justify-center gap-1.5 text-[15px] font-bold text-gray-500 mb-1.5 w-full text-center">📷 照片</label>
+                   <div className="relative w-[72px] h-[52px] bg-gray-50 border border-gray-100 rounded-xl shadow-sm hover:bg-gray-100 transition flex items-center justify-center cursor-pointer overflow-hidden group">
+                     {recordPhoto ? (
+                       <>
+                         <img src={recordPhoto} alt="預覽" className="w-full h-full object-cover" />
+                         <div onClick={(e) => { e.stopPropagation(); setRecordPhoto(null); }} className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition">
+                           <Trash2 size={20} className="text-white" />
+                         </div>
+                       </>
+                     ) : (
+                       <Camera size={24} className="text-gray-400" />
+                     )}
+                     {!recordPhoto && <input type="file" accept="image/*" className="absolute inset-0 opacity-0 cursor-pointer" onChange={handlePhotoUpload} ref={photoInputRef} />}
+                   </div>
+                </div>
               </div>
             </div>
 
@@ -2683,6 +2802,16 @@ export default function App() {
         
         {content}
 
+        {/* 全螢幕放大檢視照片的 Modal (最高層級 z-[130]) */}
+        {enlargedPhoto && (
+          <div className="fixed inset-0 bg-black/90 z-[130] flex flex-col items-center justify-center p-4 backdrop-blur-md animate-in zoom-in duration-200" onClick={() => setEnlargedPhoto(null)}>
+            <div className="absolute top-6 right-6 p-2 bg-white/20 hover:bg-white/40 rounded-full cursor-pointer transition">
+               <X size={28} className="text-white" />
+            </div>
+            <img src={enlargedPhoto} alt="放大圖" className="max-w-full max-h-[85vh] object-contain rounded-2xl shadow-2xl" onClick={e => e.stopPropagation()} />
+          </div>
+        )}
+
         {/* 統計分析明細清單 Modal (全域疊加) */}
         {viewingAnalysisItem && (
           <div className="fixed inset-0 bg-black/40 z-[100] flex justify-center items-center p-4 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setViewingAnalysisItem(null)}>
@@ -2718,7 +2847,8 @@ export default function App() {
                              </span>
                              {exp.payer && <span className="bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded text-[11px] font-bold tracking-wide">{Array.isArray(exp.payer)?exp.payer.join(', '):exp.payer}</span>}
                            </div>
-                           <div className="font-black text-[16px] text-gray-700 truncate">
+                           <div className="font-black text-[16px] text-gray-700 truncate flex items-center gap-1.5">
+                              {exp.photoBase64 && <span className="shrink-0 w-5 h-5 rounded overflow-hidden shadow-sm inline-block"><img src={exp.photoBase64} alt="圖" className="w-full h-full object-cover" /></span>}
                               {isTransfer ? `轉帳: ${exp.method}➜${exp.transferToMethod}` : exp.title}
                            </div>
                         </div>
@@ -2813,6 +2943,18 @@ export default function App() {
                   <div className="pt-1.5">
                      <span className="text-gray-400 block mb-1">備註</span>
                      <span className="text-gray-800 block bg-gray-50 p-2.5 rounded-xl border border-gray-100">{viewingRecord.note}</span>
+                  </div>
+                )}
+                {/* 詳細資料顯示放大版照片 */}
+                {viewingRecord.photoBase64 && (
+                  <div className="pt-2">
+                     <span className="text-gray-400 block mb-1">附加照片 (點擊放大)</span>
+                     <div 
+                       className="w-full h-32 bg-gray-50 rounded-xl border border-gray-200 overflow-hidden cursor-pointer shadow-sm hover:opacity-90 transition"
+                       onClick={() => setEnlargedPhoto(viewingRecord.photoBase64)}
+                     >
+                        <img src={viewingRecord.photoBase64} alt="附加照片" className="w-full h-full object-cover" />
+                     </div>
                   </div>
                 )}
               </div>
