@@ -298,17 +298,49 @@ const MyCustomPieChart = ({ data, colors }) => {
   if (total === 0) return <div className="text-gray-400 text-center py-10 font-bold bg-white rounded-[1.5rem] border-2 border-dashed border-gray-200 text-base">無分析數據 📊</div>;
 
   return (
-    <svg viewBox="-1 -1 2 2" className="w-56 h-56 mx-auto transform -rotate-90 drop-shadow-lg">
+    <svg viewBox="-1 -1 2 2" className="w-56 h-56 mx-auto drop-shadow-lg">
       {data.map((slice, i) => {
         const startPercent = cumulativeValue / total;
         cumulativeValue += slice.value;
         const endPercent = cumulativeValue / total;
-        if (slice.value === total) return <circle key={i} r="1" cx="0" cy="0" fill={colors[i % colors.length]} />;
-        const [startX, startY] = [Math.cos(2 * Math.PI * startPercent), Math.sin(2 * Math.PI * startPercent)];
-        const [endX, endY] = [Math.cos(2 * Math.PI * endPercent), Math.sin(2 * Math.PI * endPercent)];
-        const largeArcFlag = slice.value / total > 0.5 ? 1 : 0;
+        const slicePercent = slice.value / total;
+
+        // 計算角度，將起點轉向正上方 12 點鐘方向 (-0.25)
+        const startAngle = (startPercent - 0.25) * 2 * Math.PI;
+        const endAngle = (endPercent - 0.25) * 2 * Math.PI;
+
+        if (slice.value === total) {
+          return (
+            <g key={i}>
+               <circle r="1" cx="0" cy="0" fill={colors[i % colors.length]} />
+               <text x="0" y="0" fill="white" fontSize="0.25" fontWeight="black" textAnchor="middle" dominantBaseline="central" style={{ textShadow: '0px 1px 3px rgba(0,0,0,0.4)' }}>100%</text>
+            </g>
+          );
+        }
+
+        const startX = Math.cos(startAngle);
+        const startY = Math.sin(startAngle);
+        const endX = Math.cos(endAngle);
+        const endY = Math.sin(endAngle);
+        const largeArcFlag = slicePercent > 0.5 ? 1 : 0;
         const pathData = [`M 0 0`, `L ${startX} ${startY}`, `A 1 1 0 ${largeArcFlag} 1 ${endX} ${endY}`, `Z`].join(' ');
-        return <path key={i} d={pathData} fill={colors[i % colors.length]} className="transition-all duration-300 hover:opacity-80" />;
+        
+        // 標註文字的位置 (半徑的 0.65 倍處)
+        const midAngle = (startPercent + slicePercent / 2 - 0.25) * 2 * Math.PI;
+        const textRadius = 0.65;
+        const textX = Math.cos(midAngle) * textRadius;
+        const textY = Math.sin(midAngle) * textRadius;
+
+        return (
+          <g key={i}>
+            <path d={pathData} fill={colors[i % colors.length]} className="transition-all duration-300 hover:opacity-80" />
+            {slicePercent > 0.04 && (
+              <text x={textX} y={textY} fill="white" fontSize="0.2" fontWeight="black" textAnchor="middle" dominantBaseline="central" style={{ textShadow: '0px 1px 3px rgba(0,0,0,0.6)' }}>
+                {Math.round(slicePercent * 100)}%
+              </text>
+            )}
+          </g>
+        );
       })}
     </svg>
   );
@@ -1771,7 +1803,10 @@ export default function App() {
                      const fromAcc = getAccName(r.method, r.subMethod);
                      const toAcc = getAccName(r.transferToMethod, r.transferToSubMethod);
                      return fromAcc === viewingAccountHistory || toAcc === viewingAccountHistory;
-                  }).sort((a, b) => b.timestamp - a.timestamp); 
+                  }).sort((a, b) => {
+                      if (a.date !== b.date) return a.date > b.date ? -1 : 1;
+                      return b.timestamp - a.timestamp;
+                  }); 
 
                   if (accHistory.length === 0) return <p className="text-center text-gray-400 font-bold py-10 text-[15px]">此區間尚無明細</p>;
 
@@ -2406,10 +2441,12 @@ export default function App() {
   // --- 統計分析畫面 ---
   else if (view === 'analysis') {
     const analysisOptions = [
-      { id: 'category', label: '🌸 主分類' },
-      { id: 'title', label: '📝 項目' },
-      { id: 'merchant', label: '🏪 商家' },
-      { id: 'method', label: '💳 付款方式/帳戶' }
+      { id: 'category', label: analysisType === 'income' ? '💰 收入主分類' : analysisType === 'transfer' ? '🔄 轉帳主分類' : '🌸 支出主分類' },
+      ...(analysisType === 'expense' ? [
+        { id: 'title', label: '📝 項目' }, 
+        { id: 'merchant', label: '🏪 商家' },
+        { id: 'method', label: '💳 付款方式/帳戶' }
+      ] : [])
     ];
 
     content = (
@@ -2446,7 +2483,6 @@ export default function App() {
                   <label className="block text-[13px] font-bold text-gray-500">開始日期</label>
                   <button type="button" onClick={() => setAnalysisStartDate(getLocalTodayStr())} className="text-teal-600 bg-teal-50 hover:bg-teal-100 px-2 py-0.5 rounded text-[11px] font-bold transition">今天</button>
                 </div>
-                <div className="text-[11px] font-bold text-gray-400 mb-1 ml-1">({analysisStartDate ? toROCYearStr(analysisStartDate) : ''})</div>
                 <input type="date" value={analysisStartDate} onChange={e => setAnalysisStartDate(e.target.value)} className="w-full bg-gray-50 border border-gray-100 p-3 rounded-xl outline-none font-bold text-gray-700 text-[14px] focus:bg-white focus:border-teal-300 transition shadow-sm" />
               </div>
               <div>
@@ -2454,7 +2490,6 @@ export default function App() {
                   <label className="block text-[13px] font-bold text-gray-500">結束日期</label>
                   <button type="button" onClick={() => setAnalysisEndDate(getLocalTodayStr())} className="text-teal-600 bg-teal-50 hover:bg-teal-100 px-2 py-0.5 rounded text-[11px] font-bold transition">今天</button>
                 </div>
-                <div className="text-[11px] font-bold text-gray-400 mb-1 ml-1">({analysisEndDate ? toROCYearStr(analysisEndDate) : ''})</div>
                 <input type="date" value={analysisEndDate} onChange={e => setAnalysisEndDate(e.target.value)} className="w-full bg-gray-50 border border-gray-100 p-3 rounded-xl outline-none font-bold text-gray-700 text-[14px] focus:bg-white focus:border-teal-300 transition shadow-sm" />
               </div>
             </div>
@@ -2485,9 +2520,14 @@ export default function App() {
                 <label className="block text-[12px] font-bold text-teal-600 bg-teal-50 px-3 py-1.5 rounded-lg inline-block leading-relaxed">💡 依選擇選單篩選細項 (不選代表全部分析)</label>
                 
                 {analysisMenus.includes('category') && (
-                  <PillGroupMulti label="🌸 主分類" options={currentRoom?.categories || []} values={analysisSubSelections.category} onChange={(vals) => setAnalysisSubSelections({...analysisSubSelections, category: vals})} />
+                  <PillGroupMulti 
+                    label={analysisType === 'income' ? '💰 收入主分類' : analysisType === 'transfer' ? '🔄 轉帳主分類' : '🌸 支出主分類'} 
+                    options={analysisType === 'income' ? (currentRoom?.incomeCategories || []) : analysisType === 'transfer' ? (currentRoom?.transferCategories || []) : (currentRoom?.categories || [])} 
+                    values={analysisSubSelections.category} 
+                    onChange={(vals) => setAnalysisSubSelections({...analysisSubSelections, category: vals})} 
+                  />
                 )}
-                {analysisMenus.includes('title') && (
+                {analysisType === 'expense' && analysisMenus.includes('title') && (
                   <div className="mb-5 bg-gray-50 p-4 rounded-xl border border-gray-100 shadow-sm">
                     <label className="block text-[13px] font-bold text-gray-500 mb-3 leading-relaxed">請先選擇上方的主分類篩選，這裡會列出對應的項目讓您勾選</label>
                     <div className="flex flex-wrap gap-2">
@@ -2507,25 +2547,17 @@ export default function App() {
                     </div>
                   </div>
                 )}
-                {analysisMenus.includes('merchant') && (
+                {analysisType === 'expense' && analysisMenus.includes('merchant') && (
                   <PillGroupMulti label="🏪 商家" options={currentRoom?.merchants || []} values={analysisSubSelections.merchant} onChange={(vals) => setAnalysisSubSelections({...analysisSubSelections, merchant: vals})} />
                 )}
-                {analysisMenus.includes('method') && (
+                {analysisType === 'expense' && analysisMenus.includes('method') && (
                   <>
-                    {analysisType === 'expense' ? (
-                      <>
-                        <PillGroupMulti label="💳 付款方式" options={currentRoom?.paymentMethods || []} values={analysisSubSelections.method} onChange={(vals) => setAnalysisSubSelections({...analysisSubSelections, method: vals, subMethod: []})} />
-                        {(analysisSubSelections.method.includes('信用卡 / 行動支付') || analysisSubSelections.method.includes('信用卡')) && (
-                          <PillGroupMulti label="💳 選擇信用卡" options={currentRoom?.creditCards || []} values={analysisSubSelections.subMethod} onChange={(vals) => setAnalysisSubSelections({...analysisSubSelections, subMethod: vals})} />
-                        )}
-                        {(analysisSubSelections.method.includes('銀行 / 電子票證') || analysisSubSelections.method.includes('銀行 / 儲值卡') || analysisSubSelections.method.includes('銀行 / 卡片') || analysisSubSelections.method.includes('銀行')) && (
-                          <PillGroupMulti label="🏦 選擇銀行/電子票證" options={currentRoom?.bankAccounts || []} values={analysisSubSelections.subMethod} onChange={(vals) => setAnalysisSubSelections({...analysisSubSelections, subMethod: vals})} />
-                        )}
-                      </>
-                    ) : analysisType === 'income' ? (
-                        <PillGroupMulti label="🏦 存入帳戶" options={currentRoom?.incomeAccounts || []} values={analysisSubSelections.method} onChange={(vals) => setAnalysisSubSelections({...analysisSubSelections, method: vals})} />
-                    ) : (
-                        <PillGroupMulti label="📤 轉出帳戶" options={currentRoom?.transferOutAccounts || []} values={analysisSubSelections.method} onChange={(vals) => setAnalysisSubSelections({...analysisSubSelections, method: vals})} />
+                    <PillGroupMulti label="💳 付款方式" options={currentRoom?.paymentMethods || []} values={analysisSubSelections.method} onChange={(vals) => setAnalysisSubSelections({...analysisSubSelections, method: vals, subMethod: []})} />
+                    {(analysisSubSelections.method.includes('信用卡 / 行動支付') || analysisSubSelections.method.includes('信用卡')) && (
+                      <PillGroupMulti label="💳 選擇信用卡" options={currentRoom?.creditCards || []} values={analysisSubSelections.subMethod} onChange={(vals) => setAnalysisSubSelections({...analysisSubSelections, subMethod: vals})} />
+                    )}
+                    {(analysisSubSelections.method.includes('銀行 / 電子票證') || analysisSubSelections.method.includes('銀行 / 儲值卡') || analysisSubSelections.method.includes('銀行 / 卡片') || analysisSubSelections.method.includes('銀行')) && (
+                      <PillGroupMulti label="🏦 選擇銀行/電子票證" options={currentRoom?.bankAccounts || []} values={analysisSubSelections.subMethod} onChange={(vals) => setAnalysisSubSelections({...analysisSubSelections, subMethod: vals})} />
                     )}
                   </>
                 )}
@@ -2690,14 +2722,24 @@ export default function App() {
             {/* 大大的 + 號 */}
             <button 
               onClick={() => { resetForm(); setRecordType('expense'); setShowAddForm(true); }} 
-              className="absolute left-1/2 -translate-x-1/2 -top-6 bg-gradient-to-tr from-pink-400 to-orange-400 text-white w-[64px] h-[64px] rounded-full flex items-center justify-center shadow-[0_10px_20px_rgba(251,146,60,0.4)] border-[4px] border-[#FFFBF0] transform hover:scale-105 transition active:scale-95"
+              className="absolute left-1/2 -translate-x-1/2 -top-6 bg-gradient-to-tr from-pink-400 to-orange-400 text-white w-[68px] h-[68px] rounded-full flex items-center justify-center shadow-[0_10px_20px_rgba(251,146,60,0.4)] border-[4px] border-[#FFFBF0] transform hover:scale-105 transition active:scale-95"
             >
-              <Plus size={36} strokeWidth={3} />
+              <Plus size={38} strokeWidth={3} />
             </button>
 
-            <button onClick={() => setView('analysis')} className="flex flex-col items-center gap-1 text-gray-400 hover:text-teal-500 transition px-4 py-2">
-              <BarChart size={24} />
-              <span className="font-extrabold text-[12px]">統計</span>
+            <button 
+              onClick={() => { 
+                setAnalysisType('expense');
+                setAnalysisStartDate(getLocalMonthStartStr());
+                setAnalysisEndDate(getLocalTodayStr());
+                setAnalysisMenus([]);
+                setAnalysisSubSelections({ category: [], title: [], merchant: [], method: [], subMethod: [] });
+                setView('analysis'); 
+              }} 
+              className="flex flex-col items-center gap-1 text-gray-400 hover:text-teal-500 transition px-4 py-2"
+            >
+              <BarChart size={26} />
+              <span className="font-extrabold text-[13px]">統計</span>
             </button>
 
           </div>
