@@ -1126,15 +1126,28 @@ export default function App() {
       const amt = Number(r.amount) || 0;
       if (r.type === 'expense' || !r.type) {
         const key = getAccKey(r.method, r.subMethod);
-        if (key) balances[key] = (balances[key] || 0) - amt;
+        if (key) {
+           if (key.startsWith('cc_')) balances[key] = (balances[key] || 0) + amt; // 信用卡刷卡，負債增加
+           else balances[key] = (balances[key] || 0) - amt; // 一般帳戶支出，資產減少
+        }
       } else if (r.type === 'income') {
         const key = getAccKey(r.method, r.subMethod); 
-        if (key) balances[key] = (balances[key] || 0) + amt;
+        if (key) {
+           if (key.startsWith('cc_')) balances[key] = (balances[key] || 0) - amt; // 信用卡退款/入帳，負債減少
+           else balances[key] = (balances[key] || 0) + amt; // 一般帳戶收入，資產增加
+        }
       } else if (r.type === 'transfer') {
         const fromKey = getAccKey(r.method, r.subMethod);
         const toKey = getAccKey(r.transferToMethod, r.transferToSubMethod);
-        if (fromKey) balances[fromKey] = (balances[fromKey] || 0) - amt;
-        if (toKey) balances[toKey] = (balances[toKey] || 0) + amt;
+        
+        if (fromKey) {
+           if (fromKey.startsWith('cc_')) balances[fromKey] = (balances[fromKey] || 0) + amt;
+           else balances[fromKey] = (balances[fromKey] || 0) - amt;
+        }
+        if (toKey) {
+           if (toKey.startsWith('cc_')) balances[toKey] = (balances[toKey] || 0) - amt; // 轉入信用卡(繳卡費)，負債減少
+           else balances[toKey] = (balances[toKey] || 0) + amt; // 轉入一般帳戶，資產增加
+        }
       }
     });
     return balances;
@@ -1799,8 +1812,8 @@ export default function App() {
     const ccs = currentRoom?.creditCards || [];
     const ccTotal = ccs.reduce((sum, c) => sum + (balances[`cc_${c}`] || 0), 0);
     const totalAssets = cashBal + bankTotal;
-    const totalLiabilities = Math.abs(ccTotal);
-    const netWorth = totalAssets + ccTotal;
+    const totalLiabilities = ccTotal; // 信用卡已被計算為正數的負債
+    const netWorth = totalAssets - totalLiabilities; // 淨資產 = 資產 - 負債
 
     content = (
       <>
@@ -1926,13 +1939,13 @@ export default function App() {
                            onFocus={e => e.target.select()}
                            placeholder="0" />
                       ) : (
-                         <span className={`font-black text-[20px] shrink-0 ${bal < 0 ? 'text-red-500' : 'text-gray-800'}`}>${bal.toLocaleString()}</span>
+                         <span className={`font-black text-[20px] shrink-0 ${bal > 0 ? 'text-orange-500' : 'text-gray-800'}`}>${bal.toLocaleString()}</span>
                       )}
                    </div>
                  )
                })}
              </div>
-             <p className="text-[12px] font-bold text-orange-400 mt-4 bg-orange-50 p-3 rounded-xl text-center leading-relaxed">* 信用卡金額通常為負數（代表應繳卡費或負債），轉帳繳費後金額會回升。</p>
+             <p className="text-[12px] font-bold text-orange-400 mt-4 bg-orange-50 p-3 rounded-xl text-center leading-relaxed">* 信用卡金額代表「累積應繳卡費（負債）」。刷卡會增加金額，透過轉帳繳費後金額會減少。</p>
           </div>
         </main>
 
