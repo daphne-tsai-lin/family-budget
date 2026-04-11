@@ -582,17 +582,9 @@ export default function App() {
   // 紀錄上下調整順序
   // ==========================================
   const handleMoveRecord = async (index, direction) => {
-    if (!user || (!homeFilterDate && !searchQuery)) return; 
+    if (!user || !homeFilterDate || searchQuery) return; 
     
-    const displayRecs = searchQuery 
-       ? records.filter(r => {
-            const todayStr = getLocalTodayStr();
-            if (r.date > todayStr) return false;
-            const q = searchQuery.toLowerCase();
-            const textToSearch = `${r.title || ''} ${r.merchant || ''} ${r.note || ''} ${r.category || ''} ${r.method || ''} ${r.subMethod || ''} ${r.transferToMethod || ''} ${r.transferToSubMethod || ''} ${Array.isArray(r.payer)?r.payer.join(' '):r.payer || ''}`.toLowerCase();
-            return textToSearch.includes(q);
-         })
-       : records.filter(r => r.date === homeFilterDate);
+    const displayRecs = records.filter(r => r.date === homeFilterDate);
        
     if (index + direction < 0 || index + direction >= displayRecs.length) return;
     
@@ -1413,6 +1405,14 @@ export default function App() {
     return true;
   });
 
+  // 如果是在搜尋模式，或者是顯示全部日期模式，將結果依照消費日期（最新到最舊）排序
+  if (searchQuery || !homeFilterDate) {
+    displayRecords.sort((a, b) => {
+      if (a.date !== b.date) return a.date > b.date ? -1 : 1;
+      return b.timestamp - a.timestamp; // 相同日期依建檔時間新到舊
+    });
+  }
+
   const totalIncome = displayRecords.filter(r => r.type === 'income').reduce((sum, r) => sum + r.amount, 0);
   const totalExpense = displayRecords.filter(r => r.type === 'expense' || !r.type).reduce((sum, r) => sum + r.amount, 0);
   const netBalance = totalIncome - totalExpense;
@@ -1936,6 +1936,7 @@ export default function App() {
                   const isIncome = exp.type === 'income';
                   const isTransfer = exp.type === 'transfer';
                   const payerStr = Array.isArray(exp.payer) ? exp.payer.join(', ') : exp.payer;
+                  const isSortable = !searchQuery && homeFilterDate;
                   
                   let freqDisplay = exp.frequency;
                   if (freqDisplay === '區間') freqDisplay = exp.frequencyInterval === '自訂' ? exp.frequencyCustomText : exp.frequencyInterval;
@@ -1968,7 +1969,7 @@ export default function App() {
                             </span>
                           )}
                           <span className="font-black text-gray-800 text-[18px] shrink-0 mr-1">
-                            {isTransfer ? `🔄 轉帳: ${exp.method}➜${exp.transferToMethod}` : exp.title}
+                            {isTransfer ? `🔄 轉帳: ${exp.method}${exp.subMethod ? '('+exp.subMethod+')' : ''} ➜ ${exp.transferToMethod}${exp.transferToSubMethod ? '('+exp.transferToSubMethod+')' : ''}` : exp.title}
                           </span>
                           
                           {payerStr && payerStr !== '未指定' && <span className="text-gray-500 text-[13px] font-bold bg-gray-50 px-1.5 py-0.5 rounded border border-gray-200">👤 {payerStr}</span>}
@@ -1988,9 +1989,9 @@ export default function App() {
                         </span>
                         
                         <div className="grid grid-cols-2 gap-1 mt-1.5 w-[72px] relative z-20">
-                          <button onClick={(e) => { e.stopPropagation(); handleMoveRecord(idx, -1); }} disabled={idx === 0} className="text-gray-400 hover:text-blue-500 font-bold p-1.5 transition bg-gray-50 hover:bg-blue-50 rounded-md shadow-sm flex items-center justify-center disabled:opacity-30" title="往上移"><ArrowUp size={15} /></button>
+                          <button onClick={(e) => { e.stopPropagation(); handleMoveRecord(idx, -1); }} disabled={idx === 0 || !isSortable} className={`text-gray-400 hover:text-blue-500 font-bold p-1.5 transition bg-gray-50 hover:bg-blue-50 rounded-md shadow-sm flex items-center justify-center disabled:opacity-30 ${!isSortable ? 'cursor-not-allowed' : ''}`} title="往上移"><ArrowUp size={15} /></button>
                           <button onClick={(e) => { e.stopPropagation(); openEditForm(exp); }} className="text-gray-400 hover:text-blue-500 font-bold p-1.5 transition bg-gray-50 hover:bg-blue-50 rounded-md shadow-sm flex items-center justify-center" title="編輯"><Pencil size={15} /></button>
-                          <button onClick={(e) => { e.stopPropagation(); handleMoveRecord(idx, 1); }} disabled={idx === displayRecords.length - 1} className="text-gray-400 hover:text-blue-500 font-bold p-1.5 transition bg-gray-50 hover:bg-blue-50 rounded-md shadow-sm flex items-center justify-center disabled:opacity-30" title="往下移"><ArrowDown size={15} /></button>
+                          <button onClick={(e) => { e.stopPropagation(); handleMoveRecord(idx, 1); }} disabled={idx === displayRecords.length - 1 || !isSortable} className={`text-gray-400 hover:text-blue-500 font-bold p-1.5 transition bg-gray-50 hover:bg-blue-50 rounded-md shadow-sm flex items-center justify-center disabled:opacity-30 ${!isSortable ? 'cursor-not-allowed' : ''}`} title="往下移"><ArrowDown size={15} /></button>
                           <button onClick={(e) => { e.stopPropagation(); setCrossRoomRecord(exp); }} className="text-gray-400 hover:text-orange-500 font-bold p-1.5 transition bg-gray-50 hover:bg-orange-50 rounded-md shadow-sm flex items-center justify-center" title="傳送"><Send size={15} /></button>
                         </div>
                       </div>
