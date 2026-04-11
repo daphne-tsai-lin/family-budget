@@ -1,5 +1,5 @@
 /* eslint-disable */
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { LogOut, AlertCircle, Settings, Trash2, X, Sparkles, Home, Plus, Pencil, BarChart, Calendar, Store, Tag, User, CreditCard, RefreshCw, Wallet, PiggyBank, PieChart as LucidePieChart, Download, Upload, Copy, Send, Landmark, ArrowRightLeft, Check, ArrowUp, ArrowDown, Search } from 'lucide-react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'firebase/auth';
@@ -290,7 +290,7 @@ const CustomDropdown = ({ label, icon: Icon, options, value, onChange, placehold
 };
 
 // ==========================================
-// 共用組件：圓餅圖 SVG
+// 共用組件：圓餅圖 SVG (支援全顯示與折線指示)
 // ==========================================
 const MyCustomPieChart = ({ data, colors }) => {
   let cumulativeValue = 0;
@@ -298,7 +298,7 @@ const MyCustomPieChart = ({ data, colors }) => {
   if (total === 0) return <div className="text-gray-400 text-center py-10 font-bold bg-white rounded-[1.5rem] border-2 border-dashed border-gray-200 text-base">無分析數據 📊</div>;
 
   return (
-    <svg viewBox="-1 -1 2 2" className="w-56 h-56 mx-auto drop-shadow-lg">
+    <svg viewBox="-1.5 -1.5 3 3" className="w-full max-w-[260px] h-auto mx-auto drop-shadow-md overflow-visible">
       {data.map((slice, i) => {
         const startPercent = cumulativeValue / total;
         cumulativeValue += slice.value;
@@ -308,12 +308,13 @@ const MyCustomPieChart = ({ data, colors }) => {
         // 計算角度，將起點轉向正上方 12 點鐘方向 (-0.25)
         const startAngle = (startPercent - 0.25) * 2 * Math.PI;
         const endAngle = (endPercent - 0.25) * 2 * Math.PI;
+        const midAngle = (startPercent + slicePercent / 2 - 0.25) * 2 * Math.PI;
 
         if (slice.value === total) {
           return (
             <g key={i}>
                <circle r="1" cx="0" cy="0" fill={colors[i % colors.length]} />
-               <text x="0" y="0" fill="white" fontSize="0.25" fontWeight="black" textAnchor="middle" dominantBaseline="central" style={{ textShadow: '0px 1px 3px rgba(0,0,0,0.4)' }}>100%</text>
+               <text x="0" y="0" fill="white" fontSize="0.25" fontWeight="bold" textAnchor="middle" dominantBaseline="central" style={{ textShadow: '0px 1px 3px rgba(0,0,0,0.4)' }}>100%</text>
             </g>
           );
         }
@@ -324,23 +325,40 @@ const MyCustomPieChart = ({ data, colors }) => {
         const endY = Math.sin(endAngle);
         const largeArcFlag = slicePercent > 0.5 ? 1 : 0;
         const pathData = [`M 0 0`, `L ${startX} ${startY}`, `A 1 1 0 ${largeArcFlag} 1 ${endX} ${endY}`, `Z`].join(' ');
-        
-        // 標註文字的位置 (半徑的 0.65 倍處)
-        const midAngle = (startPercent + slicePercent / 2 - 0.25) * 2 * Math.PI;
-        const textRadius = 0.65;
-        const textX = Math.cos(midAngle) * textRadius;
-        const textY = Math.sin(midAngle) * textRadius;
 
-        return (
-          <g key={i}>
-            <path d={pathData} fill={colors[i % colors.length]} className="transition-all duration-300 hover:opacity-80" />
-            {slicePercent > 0.04 && (
-              <text x={textX} y={textY} fill="white" fontSize="0.2" fontWeight="black" textAnchor="middle" dominantBaseline="central" style={{ textShadow: '0px 1px 3px rgba(0,0,0,0.6)' }}>
-                {Math.round(slicePercent * 100)}%
-              </text>
-            )}
-          </g>
-        );
+        // 若佔比小於 8%，採用折線拉到圖外顯示
+        const isSmall = slicePercent < 0.08;
+        
+        if (isSmall) {
+            const lineStartX = Math.cos(midAngle) * 0.85;
+            const lineStartY = Math.sin(midAngle) * 0.85;
+            const lineEndX = Math.cos(midAngle) * 1.15;
+            const lineEndY = Math.sin(midAngle) * 1.15;
+            const textAnchorSide = Math.cos(midAngle) >= 0 ? 1 : -1;
+            const elbowX = lineEndX + (0.1 * textAnchorSide);
+            
+            return (
+              <g key={i}>
+                <path d={pathData} fill={colors[i % colors.length]} stroke="white" strokeWidth="0.015" className="transition-all duration-300 hover:opacity-80" />
+                <polyline points={`${lineStartX},${lineStartY} ${lineEndX},${lineEndY} ${elbowX},${lineEndY}`} stroke={colors[i % colors.length]} strokeWidth="0.015" fill="none" />
+                <text x={elbowX + (0.02 * textAnchorSide)} y={lineEndY} fill={colors[i % colors.length]} fontSize="0.14" fontWeight="bold" textAnchor={textAnchorSide === 1 ? "start" : "end"} dominantBaseline="central">
+                  {Math.round(slicePercent * 100)}%
+                </text>
+              </g>
+            );
+        } else {
+            const textRadius = 0.65;
+            const textX = Math.cos(midAngle) * textRadius;
+            const textY = Math.sin(midAngle) * textRadius;
+            return (
+              <g key={i}>
+                <path d={pathData} fill={colors[i % colors.length]} stroke="white" strokeWidth="0.015" className="transition-all duration-300 hover:opacity-80" />
+                <text x={textX} y={textY} fill="white" fontSize="0.18" fontWeight="bold" textAnchor="middle" dominantBaseline="central" style={{ textShadow: '0px 1px 3px rgba(0,0,0,0.6)' }}>
+                  {Math.round(slicePercent * 100)}%
+                </text>
+              </g>
+            );
+        }
       })}
     </svg>
   );
@@ -411,6 +429,7 @@ export default function App() {
   const [analysisSubSelections, setAnalysisSubSelections] = useState({
     category: [], title: [], merchant: [], method: [], subMethod: []
   });
+  const [analysisRoleFilter, setAnalysisRoleFilter] = useState('全部');
 
   const [isEditingBalances, setIsEditingBalances] = useState(false);
   const [tempBalances, setTempBalances] = useState({});
@@ -582,9 +601,17 @@ export default function App() {
   // 紀錄上下調整順序
   // ==========================================
   const handleMoveRecord = async (index, direction) => {
-    if (!user || !homeFilterDate || searchQuery) return; 
+    if (!user || (!homeFilterDate && !searchQuery)) return; 
     
-    const displayRecs = records.filter(r => r.date === homeFilterDate);
+    const displayRecs = searchQuery 
+       ? records.filter(r => {
+            const todayStr = getLocalTodayStr();
+            if (r.date > todayStr) return false;
+            const q = searchQuery.toLowerCase();
+            const textToSearch = `${r.title || ''} ${r.merchant || ''} ${r.note || ''} ${r.category || ''} ${r.method || ''} ${r.subMethod || ''} ${r.transferToMethod || ''} ${r.transferToSubMethod || ''} ${Array.isArray(r.payer)?r.payer.join(' '):r.payer || ''}`.toLowerCase();
+            return textToSearch.includes(q);
+         })
+       : records.filter(r => r.date === homeFilterDate);
        
     if (index + direction < 0 || index + direction >= displayRecs.length) return;
     
@@ -661,6 +688,7 @@ export default function App() {
       await setDoc(roomRef, newRoomData);
       saveRoomToLocal(roomCode, roomName, roomPin, currentUserRole);
       setActiveRoomId(roomCode);
+      setHomeFilterDate(getLocalTodayStr());
       setView('room');
     } catch (err) { 
       setErrorMsg('建立房間失敗：' + err.message);
@@ -687,6 +715,7 @@ export default function App() {
         else { 
           saveRoomToLocal(roomCode, data.name, roomPin, currentUserRole);
           setActiveRoomId(roomCode); 
+          setHomeFilterDate(getLocalTodayStr());
           setView('room'); 
         }
       }
@@ -706,7 +735,9 @@ export default function App() {
       const roomSnap = await getDoc(roomRef);
       if (roomSnap.exists() && roomSnap.data().pin === savedRoom.pin) {
         setRoomCode(savedRoom.id); setRoomPin(savedRoom.pin); setCurrentUserRole(savedRoom.role || '其他家人');
-        setActiveRoomId(savedRoom.id); setView('room');
+        setActiveRoomId(savedRoom.id); 
+        setHomeFilterDate(getLocalTodayStr());
+        setView('room');
         saveRoomToLocal(savedRoom.id, roomSnap.data().name, savedRoom.pin, savedRoom.role || '其他家人');
       } else {
         setErrorMsg(`進入「${savedRoom.name}」失敗，密碼可能已被更改`);
@@ -1029,6 +1060,27 @@ export default function App() {
   };
 
   // ==========================================
+  // 規則排序用的 ordered keys (確保顯示順序)
+  // ==========================================
+  const orderedAutoFillKeys = useMemo(() => {
+    if (!currentRoom) return [];
+    const keys = Object.keys(currentRoom.autoFillRules || {});
+    const order = currentRoom.autoFillRuleOrder || [];
+    const validOrder = order.filter(k => keys.includes(k));
+    const missing = keys.filter(k => !validOrder.includes(k));
+    return [...validOrder, ...missing];
+  }, [currentRoom?.autoFillRules, currentRoom?.autoFillRuleOrder]);
+
+  const orderedMethodKeys = useMemo(() => {
+    if (!currentRoom) return [];
+    const keys = Object.keys(currentRoom.methodRules || {});
+    const order = currentRoom.methodRuleOrder || [];
+    const validOrder = order.filter(k => keys.includes(k));
+    const missing = keys.filter(k => !validOrder.includes(k));
+    return [...validOrder, ...missing];
+  }, [currentRoom?.methodRules, currentRoom?.methodRuleOrder]);
+
+  // ==========================================
   // 選項設定更新與規則管理
   // ==========================================
   const syncHistoricalData = async (settingField, oldItem, newItem) => {
@@ -1191,33 +1243,30 @@ export default function App() {
   };
 
   const handleMoveRule = async (itemKey, dir) => {
-      if (!user) return;
-      const keys = Object.keys(currentRoom.autoFillRules || {});
+      if (!user || !currentRoom) return;
+      const keys = [...orderedAutoFillKeys];
       const idx = keys.indexOf(itemKey);
       if (idx + dir < 0 || idx + dir >= keys.length) return;
-      const newKeys = [...keys];
-      [newKeys[idx], newKeys[idx+dir]] = [newKeys[idx+dir], newKeys[idx]];
-      const newRules = {};
-      newKeys.forEach(k => { newRules[k] = currentRoom.autoFillRules[k]; });
-      await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', activeRoomId), { autoFillRules: newRules });
+      [keys[idx], keys[idx+dir]] = [keys[idx+dir], keys[idx]];
+      await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', activeRoomId), { autoFillRuleOrder: keys });
   };
 
   const handleMoveMethodRule = async (merchantKey, dir) => {
-      if (!user) return;
-      const keys = Object.keys(currentRoom.methodRules || {});
+      if (!user || !currentRoom) return;
+      const keys = [...orderedMethodKeys];
       const idx = keys.indexOf(merchantKey);
       if (idx + dir < 0 || idx + dir >= keys.length) return;
-      const newKeys = [...keys];
-      [newKeys[idx], newKeys[idx+dir]] = [newKeys[idx+dir], newKeys[idx]];
-      const newRules = {};
-      newKeys.forEach(k => { newRules[k] = currentRoom.methodRules[k]; });
-      await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', activeRoomId), { methodRules: newRules });
+      [keys[idx], keys[idx+dir]] = [keys[idx+dir], keys[idx]];
+      await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', activeRoomId), { methodRuleOrder: keys });
   };
 
   const handleAddRule = async () => {
     if (!newRuleItem || !newRuleMerchant || !activeRoomId || !user) return;
     try {
-      await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', activeRoomId), { [`autoFillRules.${newRuleItem}`]: newRuleMerchant });
+      await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', activeRoomId), { 
+        [`autoFillRules.${newRuleItem}`]: newRuleMerchant,
+        autoFillRuleOrder: [...orderedAutoFillKeys, newRuleItem]
+      });
       setNewRuleItem(''); setNewRuleMerchant('');
     } catch (err) { alert('新增失敗：請檢查網路連線'); }
   };
@@ -1227,7 +1276,11 @@ export default function App() {
     try {
       const newRules = { ...currentRoom.autoFillRules };
       delete newRules[itemToRemove];
-      await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', activeRoomId), { autoFillRules: newRules });
+      const newOrder = orderedAutoFillKeys.filter(k => k !== itemToRemove);
+      await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', activeRoomId), { 
+        autoFillRules: newRules,
+        autoFillRuleOrder: newOrder
+      });
     } catch (err) { alert('刪除失敗：請檢查網路連線'); }
   }
 
@@ -1235,7 +1288,8 @@ export default function App() {
     if (!newMethodRuleMerchant || !newMethodRuleMethod || !activeRoomId || !user) return;
     try {
       await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', activeRoomId), {
-        [`methodRules.${newMethodRuleMerchant}`]: { method: newMethodRuleMethod, subMethod: newMethodRuleSubMethod }
+        [`methodRules.${newMethodRuleMerchant}`]: { method: newMethodRuleMethod, subMethod: newMethodRuleSubMethod },
+        methodRuleOrder: [...orderedMethodKeys, newMethodRuleMerchant]
       });
       setNewMethodRuleMerchant(''); setNewMethodRuleMethod(''); setNewMethodRuleSubMethod('');
     } catch (err) { alert('新增失敗：請檢查網路連線'); }
@@ -1246,7 +1300,11 @@ export default function App() {
     try {
       const newRules = { ...currentRoom.methodRules };
       delete newRules[merchant];
-      await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', activeRoomId), { methodRules: newRules });
+      const newOrder = orderedMethodKeys.filter(k => k !== merchant);
+      await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', activeRoomId), { 
+        methodRules: newRules,
+        methodRuleOrder: newOrder
+      });
     } catch (err) { alert('刪除失敗：請檢查網路連線'); }
   }
 
@@ -1422,6 +1480,7 @@ export default function App() {
     if (rType !== analysisType) return false; 
     if (analysisStartDate && r.date < analysisStartDate) return false;
     if (analysisEndDate && r.date > analysisEndDate) return false;
+    if (analysisRoleFilter !== '全部' && r.addedByRole !== analysisRoleFilter) return false;
 
     if (analysisMenus.includes('category') && analysisSubSelections.category.length > 0 && !analysisSubSelections.category.includes(r.category)) return false;
     if (analysisMenus.includes('title') && analysisSubSelections.title.length > 0 && !analysisSubSelections.title.includes(r.title)) return false;
@@ -1455,6 +1514,11 @@ export default function App() {
 
   const chartData = Object.keys(analysisGroupedData).map(key => ({ label: key, value: analysisGroupedData[key] })).sort((a, b) => b.value - a.value);
   const chartColors = ['#F472B6', '#60A5FA', '#34D399', '#FBBF24', '#A78BFA', '#F87171', '#38BDF8', '#4ADE80', '#FCD34D', '#C084FC'];
+
+  // 取得不重複的所有付款人 (addedByRole) 供分析過濾器使用
+  const uniqueRoles = useMemo(() => {
+    return ['全部', ...new Set(records.map(r => r.addedByRole).filter(Boolean))];
+  }, [records]);
 
   let isFormValid = false;
   if (recordAmount && recordDate && recordPayer.length > 0) {
@@ -1585,7 +1649,7 @@ export default function App() {
               <button type="button" onClick={() => setCurrentUserRole('老婆')} className={`p-4 rounded-xl font-bold text-[18px] flex justify-center items-center gap-1.5 transition-all duration-200 ${currentUserRole === '老婆' ? 'bg-pink-500 text-white shadow-md transform -translate-y-0.5' : 'bg-gray-50 border border-gray-100 text-gray-500 hover:bg-gray-100'}`}>👩 老婆</button>
             </div>
           </div>
-          <button type="submit" disabled={isLoading} className="w-full bg-gray-800 text-white font-extrabold text-[20px] p-4 rounded-full hover:bg-gray-700 shadow-md transition active:scale-95 disabled:opacity-50 mt-2">{isLoading ? '處理中...' : '開啟小財庫 🚀'}</button>
+          <button type="submit" disabled={isLoading} className="w-full bg-gray-800 text-white font-extrabold text-[20px] p-4 rounded-[1.5rem] hover:bg-gray-700 shadow-md transition active:scale-95 disabled:opacity-50 mt-2">{isLoading ? '處理中...' : '開啟小財庫 🚀'}</button>
         </form>
         <div className="mt-6 text-center w-full pb-6">
           <button onClick={() => {setView('create'); setErrorMsg('');}} className="text-gray-500 text-[17px] font-bold hover:text-gray-700 transition bg-white px-6 py-3 rounded-full shadow-sm border border-gray-200">💡 建立新的家庭房間</button>
@@ -1613,7 +1677,7 @@ export default function App() {
           <input type="text" className="w-full bg-gray-50 text-center border border-gray-100 p-3.5 rounded-xl focus:bg-white focus:border-green-300 outline-none font-bold text-gray-700 text-[18px] transition shadow-sm" placeholder="🏠 房間名稱 (例: 林北小財庫)" value={roomName} onChange={(e) => setRoomName(e.target.value)} />
           <input type="text" className="w-full bg-gray-50 text-center border border-gray-100 p-3.5 rounded-xl focus:bg-white focus:border-green-300 outline-none font-bold text-gray-700 text-[18px] transition shadow-sm" placeholder="🎀 自訂通關代碼 (需唯一)" value={roomCode} onChange={(e) => setRoomCode(e.target.value)} />
           <input type="password" className="w-full bg-gray-50 text-center border border-gray-100 p-3.5 rounded-xl focus:bg-white focus:border-green-300 outline-none font-bold text-gray-700 text-[18px] transition shadow-sm" placeholder="🔑 設定房間密碼" value={roomPin} onChange={(e) => setRoomPin(e.target.value)} />
-          <button type="submit" disabled={isLoading} className="w-full bg-green-500 text-white font-extrabold text-[20px] p-4 rounded-full hover:bg-green-600 shadow-md transition active:scale-95 mt-2">{isLoading ? '處理中...' : '建立並進入 🚀'}</button>
+          <button type="submit" disabled={isLoading} className="w-full bg-green-500 text-white font-extrabold text-[20px] py-4 rounded-[1.5rem] hover:bg-green-600 shadow-md transition active:scale-95 mt-2">{isLoading ? '處理中...' : '建立並進入 🚀'}</button>
         </form>
         <div className="mt-6 text-center w-full pb-6">
            <button onClick={() => {setView('login'); setErrorMsg('');}} className="text-gray-500 text-[17px] font-bold hover:text-gray-700 transition bg-white px-6 py-3 rounded-full shadow-sm border border-gray-200">返回登入</button>
@@ -1866,7 +1930,7 @@ export default function App() {
               <button onClick={() => fileInputRef.current?.click()} className="p-2 bg-white/20 hover:bg-white/30 text-white rounded-xl transition backdrop-blur-sm" title="匯入資料"><Upload size={20} /></button>
               <button onClick={handleBackup} className="p-2 bg-white/20 hover:bg-white/30 text-white rounded-xl transition backdrop-blur-sm" title="備份雲端資料"><Download size={20} /></button>
               <button onClick={() => { setSettingsTab('expense'); setView('settings'); }} className="p-2 bg-white/20 hover:bg-white/30 text-white rounded-xl transition backdrop-blur-sm" title="設定"><Settings size={20} /></button>
-              <button onClick={() => { setActiveRoomId(null); setView('login'); setRoomPin(''); }} className="p-2 bg-white/20 hover:bg-white/30 text-white rounded-xl transition backdrop-blur-sm" title="登出"><LogOut size={20} /></button>
+              <button onClick={() => { setActiveRoomId(null); setView('login'); setRoomPin(''); setHomeFilterDate(getLocalTodayStr()); }} className="p-2 bg-white/20 hover:bg-white/30 text-white rounded-xl transition backdrop-blur-sm" title="登出"><LogOut size={20} /></button>
             </div>
           </div>
           
@@ -2238,7 +2302,7 @@ export default function App() {
                 <div className={`p-4 sm:p-5 rounded-[1.5rem] border-2 border-orange-100 bg-white shadow-sm mb-4`}>
                   <h3 className="font-bold text-gray-700 mb-4 text-[18px] flex items-center gap-2">🤖 商家預設規則</h3>
                   <div className="flex flex-col gap-2 mb-5">
-                    {Object.keys(currentRoom?.autoFillRules || {}).map((item, idx, arr) => (
+                    {orderedAutoFillKeys.map((item, idx, arr) => (
                       <div key={item} className="flex justify-between items-center bg-orange-50 p-2 sm:p-2.5 rounded-xl border border-orange-100 shadow-sm gap-2">
                         <span className="text-[15px] font-bold text-orange-700 flex-1 min-w-0 truncate pl-1">[{item}] ➜ {currentRoom.autoFillRules[item]}</span>
                         <div className="flex items-center gap-1 shrink-0 ml-1">
@@ -2283,7 +2347,7 @@ export default function App() {
                 <div className={`p-4 sm:p-5 rounded-[1.5rem] border-2 border-blue-100 bg-white shadow-sm mb-4`}>
                   <h3 className="font-bold text-gray-700 mb-4 text-[18px] flex items-center gap-2">🤖 付款方式預設規則</h3>
                   <div className="flex flex-col gap-2 mb-5">
-                    {Object.keys(currentRoom?.methodRules || {}).map((merchant, idx, arr) => {
+                    {orderedMethodKeys.map((merchant, idx, arr) => {
                       const rule = currentRoom.methodRules[merchant];
                       return (
                         <div key={merchant} className="flex justify-between items-center bg-blue-50 p-2 sm:p-2.5 rounded-xl border border-blue-100 shadow-sm gap-2">
@@ -2463,6 +2527,20 @@ export default function App() {
           <div className="bg-white p-5 rounded-[1.5rem] shadow-sm border-2 border-teal-50">
             
             <div className="mb-5">
+               <label className="block text-[14px] font-bold text-gray-500 mb-2 ml-1">付款人 (單選)</label>
+               <div className="flex flex-wrap gap-2">
+                 {uniqueRoles.map(role => {
+                    const isSel = analysisRoleFilter === role;
+                    return (
+                      <button key={role} onClick={() => setAnalysisRoleFilter(role)} className={`px-4 py-1.5 rounded-xl text-[14px] font-bold transition-all duration-200 ${isSel ? 'bg-teal-500 text-white shadow-md' : 'bg-white text-gray-500 border border-gray-200 hover:bg-gray-50'}`}>
+                        {role}
+                      </button>
+                    )
+                 })}
+               </div>
+            </div>
+
+            <div className="mb-5">
                <label className="block text-[14px] font-bold text-gray-500 mb-2 ml-1">分析類型 (單選)</label>
                <div className="flex bg-gray-50 rounded-xl p-1 border border-gray-100 shadow-inner">
                  {['expense', 'income', 'transfer'].map(type => {
@@ -2577,7 +2655,7 @@ export default function App() {
                 chartData.map((d, idx) => (
                   <div key={d.label} className="flex justify-between items-center bg-gray-50 p-3 rounded-xl border border-gray-100 hover:shadow-sm transition">
                     <div className="flex items-center gap-2.5">
-                      <div className="w-4 h-4 rounded shadow-inner" style={{ backgroundColor: chartColors[idx % chartColors.length] }}></div>
+                      <div className="w-5 h-5 rounded shadow-inner" style={{ backgroundColor: chartColors[idx % chartColors.length] }}></div>
                       <span className="font-bold text-gray-700 text-[15px] truncate max-w-[150px]">{d.label}</span>
                     </div>
                     <span className="font-black text-gray-800 text-[17px]">${d.value.toLocaleString()}</span>
@@ -2671,7 +2749,7 @@ export default function App() {
                    </span>
                 </div>
                 <div className="flex justify-between items-center border-b border-gray-100 pb-1.5">
-                   <span className="text-gray-400">建立者</span>
+                   <span className="text-gray-400">付款人</span>
                    <span className="text-gray-800">{viewingRecord.addedByRole}</span>
                 </div>
                 {viewingRecord.note && (
@@ -2735,6 +2813,7 @@ export default function App() {
                 setAnalysisEndDate(getLocalTodayStr());
                 setAnalysisMenus([]);
                 setAnalysisSubSelections({ category: [], title: [], merchant: [], method: [], subMethod: [] });
+                setAnalysisRoleFilter('全部');
                 setView('analysis'); 
               }} 
               className="flex flex-col items-center gap-1 text-gray-400 hover:text-teal-500 transition px-4 py-2"
