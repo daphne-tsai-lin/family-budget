@@ -293,68 +293,90 @@ const CustomDropdown = ({ label, icon: Icon, options, value, onChange, placehold
 // 共用組件：圓餅圖 SVG (支援全顯示與折線指示)
 // ==========================================
 const MyCustomPieChart = ({ data, colors }) => {
-  let cumulativeValue = 0;
   const total = data.reduce((sum, d) => sum + d.value, 0);
   if (total === 0) return <div className="text-gray-400 text-center py-10 font-bold bg-white rounded-[1.5rem] border-2 border-dashed border-gray-200 text-base">無分析數據 📊</div>;
 
+  let cumulativeValue = 0;
+  const slices = data.map((slice, i) => {
+    const startPercent = cumulativeValue / total;
+    cumulativeValue += slice.value;
+    const endPercent = cumulativeValue / total;
+    const slicePercent = slice.value / total;
+
+    // 計算角度，將起點轉向正上方 12 點鐘方向 (-0.25)
+    const startAngle = (startPercent - 0.25) * 2 * Math.PI;
+    const endAngle = (endPercent - 0.25) * 2 * Math.PI;
+    const midAngle = (startPercent + slicePercent / 2 - 0.25) * 2 * Math.PI;
+    const isSmall = slicePercent < 0.08;
+
+    return {
+      ...slice,
+      i, startPercent, endPercent, slicePercent, startAngle, endAngle, midAngle, isSmall,
+      anchorSide: Math.cos(midAngle) >= 0 ? 1 : -1,
+      targetY: Math.sin(midAngle) * 1.15
+    };
+  });
+
+  // 智慧避讓演算法：防止多個小區塊的文字重疊
+  const resolveCollisions = (sideSlices) => {
+    const MIN_DIST = 0.16; // 垂直最小安全距離
+    sideSlices.sort((a, b) => a.targetY - b.targetY); // 由上到下排序
+    for (let j = 1; j < sideSlices.length; j++) {
+      if (sideSlices[j].targetY - sideSlices[j-1].targetY < MIN_DIST) {
+        sideSlices[j].targetY = sideSlices[j-1].targetY + MIN_DIST;
+      }
+    }
+  };
+
+  resolveCollisions(slices.filter(s => s.isSmall && s.anchorSide === 1));
+  resolveCollisions(slices.filter(s => s.isSmall && s.anchorSide === -1));
+
   return (
-    <svg viewBox="-1.5 -1.5 3 3" className="w-full max-w-[260px] h-auto mx-auto drop-shadow-md overflow-visible">
-      {data.map((slice, i) => {
-        const startPercent = cumulativeValue / total;
-        cumulativeValue += slice.value;
-        const endPercent = cumulativeValue / total;
-        const slicePercent = slice.value / total;
+    <svg viewBox="-1.6 -1.6 3.2 3.2" className="w-full max-w-[320px] h-auto mx-auto drop-shadow-md overflow-visible">
+      {slices.map((s) => {
+        const color = colors[s.i % colors.length];
 
-        // 計算角度，將起點轉向正上方 12 點鐘方向 (-0.25)
-        const startAngle = (startPercent - 0.25) * 2 * Math.PI;
-        const endAngle = (endPercent - 0.25) * 2 * Math.PI;
-        const midAngle = (startPercent + slicePercent / 2 - 0.25) * 2 * Math.PI;
-
-        if (slice.value === total) {
+        if (s.value === total) {
           return (
-            <g key={i}>
-               <circle r="1" cx="0" cy="0" fill={colors[i % colors.length]} />
+            <g key={s.i}>
+               <circle r="1" cx="0" cy="0" fill={color} />
                <text x="0" y="0" fill="white" fontSize="0.25" fontWeight="bold" textAnchor="middle" dominantBaseline="central" style={{ textShadow: '0px 1px 3px rgba(0,0,0,0.4)' }}>100%</text>
             </g>
           );
         }
 
-        const startX = Math.cos(startAngle);
-        const startY = Math.sin(startAngle);
-        const endX = Math.cos(endAngle);
-        const endY = Math.sin(endAngle);
-        const largeArcFlag = slicePercent > 0.5 ? 1 : 0;
+        const startX = Math.cos(s.startAngle);
+        const startY = Math.sin(s.startAngle);
+        const endX = Math.cos(s.endAngle);
+        const endY = Math.sin(s.endAngle);
+        const largeArcFlag = s.slicePercent > 0.5 ? 1 : 0;
         const pathData = [`M 0 0`, `L ${startX} ${startY}`, `A 1 1 0 ${largeArcFlag} 1 ${endX} ${endY}`, `Z`].join(' ');
 
-        // 若佔比小於 8%，採用折線拉到圖外顯示
-        const isSmall = slicePercent < 0.08;
-        
-        if (isSmall) {
-            const lineStartX = Math.cos(midAngle) * 0.85;
-            const lineStartY = Math.sin(midAngle) * 0.85;
-            const lineEndX = Math.cos(midAngle) * 1.15;
-            const lineEndY = Math.sin(midAngle) * 1.15;
-            const textAnchorSide = Math.cos(midAngle) >= 0 ? 1 : -1;
-            const elbowX = lineEndX + (0.1 * textAnchorSide);
+        // 若佔比小於 8%，採用折線拉到圖外顯示並避讓
+        if (s.isSmall) {
+            const lineStartX = Math.cos(s.midAngle) * 0.9;
+            const lineStartY = Math.sin(s.midAngle) * 0.9;
+            const bendX = Math.cos(s.midAngle) * 1.05;
+            const elbowX = bendX + (0.15 * s.anchorSide);
             
             return (
-              <g key={i}>
-                <path d={pathData} fill={colors[i % colors.length]} stroke="white" strokeWidth="0.015" className="transition-all duration-300 hover:opacity-80" />
-                <polyline points={`${lineStartX},${lineStartY} ${lineEndX},${lineEndY} ${elbowX},${lineEndY}`} stroke={colors[i % colors.length]} strokeWidth="0.015" fill="none" />
-                <text x={elbowX + (0.02 * textAnchorSide)} y={lineEndY} fill={colors[i % colors.length]} fontSize="0.14" fontWeight="bold" textAnchor={textAnchorSide === 1 ? "start" : "end"} dominantBaseline="central">
-                  {Math.round(slicePercent * 100)}%
+              <g key={s.i}>
+                <path d={pathData} fill={color} stroke="white" strokeWidth="0.015" className="transition-all duration-300 hover:opacity-80" />
+                <polyline points={`${lineStartX},${lineStartY} ${bendX},${s.targetY} ${elbowX},${s.targetY}`} stroke={color} strokeWidth="0.015" fill="none" />
+                <text x={elbowX + (0.02 * s.anchorSide)} y={s.targetY} fill={color} fontSize="0.12" fontWeight="bold" textAnchor={s.anchorSide === 1 ? "start" : "end"} dominantBaseline="central">
+                  {Math.round(s.slicePercent * 100)}%
                 </text>
               </g>
             );
         } else {
             const textRadius = 0.65;
-            const textX = Math.cos(midAngle) * textRadius;
-            const textY = Math.sin(midAngle) * textRadius;
+            const textX = Math.cos(s.midAngle) * textRadius;
+            const textY = Math.sin(s.midAngle) * textRadius;
             return (
-              <g key={i}>
-                <path d={pathData} fill={colors[i % colors.length]} stroke="white" strokeWidth="0.015" className="transition-all duration-300 hover:opacity-80" />
+              <g key={s.i}>
+                <path d={pathData} fill={color} stroke="white" strokeWidth="0.015" className="transition-all duration-300 hover:opacity-80" />
                 <text x={textX} y={textY} fill="white" fontSize="0.18" fontWeight="bold" textAnchor="middle" dominantBaseline="central" style={{ textShadow: '0px 1px 3px rgba(0,0,0,0.6)' }}>
-                  {Math.round(slicePercent * 100)}%
+                  {Math.round(s.slicePercent * 100)}%
                 </text>
               </g>
             );
@@ -446,7 +468,7 @@ export default function App() {
 
   const amountInputRef = useRef(null);
   const fileInputRef = useRef(null); 
-  const photoInputRef = useRef(null); // 新增：照相與選圖片功能
+  const photoInputRef = useRef(null); // 照相與選圖片功能
 
   const globalWrapperStyle = "min-h-screen bg-gray-100 sm:py-8 flex justify-center items-center font-sans text-[16px]";
   const phoneContainerStyle = `w-full ${view === 'login' || view === 'create' ? 'max-w-[420px]' : 'max-w-[480px]'} min-h-screen sm:min-h-0 sm:h-[844px] bg-[#FFFBF0] flex flex-col relative sm:rounded-[3rem] sm:border-[8px] sm:border-gray-800 shadow-2xl overflow-hidden transition-all duration-500`;
@@ -1641,15 +1663,15 @@ export default function App() {
   const parsedAmt = Number(String(recordAmount).replace(/,/g, '').replace(/[^\d]/g, ''));
   if (parsedAmt > 0 && recordDate && recordPayer.length > 0) {
     if (recordType === 'expense') {
-      isFormValid = recordCategory && selectedItem && recordMethod;
+      isFormValid = !!(recordCategory && selectedItem && recordMethod);
     } else if (recordType === 'income') {
-      isFormValid = recordCategory && recordMethod;
+      isFormValid = !!(recordCategory && recordMethod);
     } else if (recordType === 'transfer') {
-      isFormValid = recordCategory && recordMethod && transferToMethod;
+      isFormValid = !!(recordCategory && recordMethod && transferToMethod);
     }
     
     if (isFormValid) {
-      const needsSubMethod = (m) => m === '信用卡 / 行動支付' || m === '信用卡' || m === '銀行 / 電子票證' || m === '銀行 / 儲值卡' || m === '銀行 / 卡片' || m === '銀行';
+      const needsSubMethod = (m) => ['信用卡 / 行動支付', '信用卡', '銀行 / 電子票證', '銀行 / 儲值卡', '銀行 / 卡片', '銀行'].includes(m);
       if (needsSubMethod(recordMethod) && !recordSubMethod) isFormValid = false;
       if (recordType === 'transfer') {
         if (needsSubMethod(transferToMethod) && !transferToSubMethod) isFormValid = false;
@@ -2360,7 +2382,7 @@ export default function App() {
                      ) : (
                        <Camera size={24} className="text-gray-400" />
                      )}
-                     {!recordPhoto && <input type="file" accept="image/*" className="absolute inset-0 opacity-0 cursor-pointer" onChange={handlePhotoUpload} ref={photoInputRef} />}
+                     {!recordPhoto && <input type="file" accept="image/*" capture="environment" className="absolute inset-0 opacity-0 cursor-pointer" onChange={handlePhotoUpload} ref={photoInputRef} />}
                    </div>
                 </div>
               </div>
@@ -2535,9 +2557,6 @@ export default function App() {
                   onUpdate={(newList, oldItem, newItem) => updateSettingField('incomeCategories', newList, oldItem, newItem)} 
                   themeClass="border-green-100" spanClass="text-green-600" btnClass="bg-green-400" placeholder="輸入收入分類..." 
                 />
-                <div className="bg-green-50 p-4 rounded-[1.5rem] border border-green-100 text-green-700 font-bold text-[15px] leading-relaxed text-center shadow-sm">
-                   💡 收入的「存入帳戶」選項，已全面升級與您的「現金 / 銀行 / 信用卡」清單同步連動，請至【支出】設定頁統一管理帳戶清單喔！
-                </div>
               </>
             )}
 
@@ -2548,15 +2567,12 @@ export default function App() {
                   onUpdate={(newList, oldItem, newItem) => updateSettingField('transferCategories', newList, oldItem, newItem)} 
                   themeClass="border-blue-100" spanClass="text-blue-600" btnClass="bg-blue-400" placeholder="輸入轉帳分類..." 
                 />
-                <div className="bg-blue-50 p-4 rounded-[1.5rem] border border-blue-100 text-blue-700 font-bold text-[15px] leading-relaxed text-center shadow-sm">
-                   💡 轉帳的「扣款與存入帳戶」選項，已全面升級與您的「現金 / 銀行 / 信用卡」清單同步連動，請至【支出】設定頁統一管理帳戶清單喔！
-                </div>
               </>
             )}
           </div>
         </main>
 
-        {/* 需求 3: 跨房間同步設定 Modal 移回正確的設定頁區塊內 */}
+        {/* 跨房間同步設定 Modal */}
         {syncSettingsModalOpen && (
           <div className="fixed inset-0 bg-black/40 z-[100] flex justify-center items-end sm:items-center p-0 sm:p-4 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setSyncSettingsModalOpen(false)}>
             <div className="bg-white w-full max-w-md rounded-t-[1.5rem] sm:rounded-[1.5rem] p-5 shadow-2xl relative animate-in slide-in-from-bottom-10" onClick={e => e.stopPropagation()}>
@@ -2579,7 +2595,6 @@ export default function App() {
                 <div className="max-h-[35vh] overflow-y-auto pr-2 space-y-3">
                   {SYNC_FIELDS.map(fieldObj => {
                      const fKey = fieldObj.key;
-                     // Only show fields that have content
                      let contentList = [];
                      if (fKey === 'categories') contentList = currentRoom?.categories || [];
                      else if (fKey === 'merchants') contentList = currentRoom?.merchants || [];
@@ -2654,7 +2669,7 @@ export default function App() {
           </div>
         </header>
 
-        <main className="px-4 py-4 flex-1 overflow-y-auto pb-[100px] [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] space-y-4">
+        <main key="analysis-main" className="px-4 py-4 flex-1 overflow-y-auto pb-[100px] [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] space-y-4">
           <div className="bg-white p-5 rounded-[1.5rem] shadow-sm border-2 border-teal-50">
             
             <div className="mb-5">
@@ -2776,10 +2791,10 @@ export default function App() {
           </div>
 
           <div className="bg-white p-5 rounded-[1.5rem] shadow-sm border-2 border-teal-50">
-            <h2 className="font-bold text-teal-700 mb-3 text-[16px] flex items-center gap-2"><LucidePieChart size={18} className="text-teal-400"/> 統計結果</h2>
+            <h2 className="font-bold text-teal-700 mb-2 text-[16px] flex items-center gap-2"><LucidePieChart size={18} className="text-teal-400"/> 統計結果</h2>
             <MyCustomPieChart data={chartData} colors={chartColors} />
             
-            <div className="mt-3 space-y-2.5">
+            <div className="mt-1 space-y-2.5">
               {chartData.length === 0 ? (
                 <p className="text-center text-gray-400 font-bold text-[14px] bg-gray-50 py-4 rounded-xl">此條件沒有紀錄喔！</p>
               ) : (
@@ -2811,7 +2826,7 @@ export default function App() {
     <div className={globalWrapperStyle}>
       <div className={phoneContainerStyle}>
         {/* 隱藏的匯入檔案上傳框 */}
-        <input type="file" accept=".json" style={{display: 'none'}} ref={fileInputRef} onChange={handleImport} />
+        <input type="file" accept="image/*" capture="environment" style={{display: 'none'}} ref={fileInputRef} onChange={handleImport} />
         
         {content}
 
