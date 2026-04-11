@@ -632,9 +632,6 @@ export default function App() {
         creditCards: ['玉山銀行', '國泰世華', '台北富邦', '元大銀行'],
         bankAccounts: ['元大銀行', '台北富邦', '中國信託', '悠遊卡', '一卡通'],
         merchants: ['早餐店', '小吃店', '飲料店', '加油站', '便利商店', '全聯', '家樂福', '好市多', '蝦皮拍賣'],
-        incomeAccounts: ['現金', '元大銀行', '台北富邦', '中國信託', '悠遊卡'],
-        transferOutAccounts: ['現金', '玉山銀行', '國泰世華', '元大銀行', '台北富邦', '中國信託', '悠遊卡'],
-        transferInAccounts: ['現金', '元大銀行', '台北富邦', '中國信託', '悠遊卡'],
         initialBalances: { '現金': 0 }
       };
       await setDoc(roomRef, newRoomData);
@@ -819,21 +816,14 @@ export default function App() {
     setRecordPayer(Array.isArray(record.payer) ? record.payer : (record.payer && record.payer !== '未指定' ? [record.payer] : []));
     setRecordCategory(record.category === '未指定' ? '' : record.category);
     
+    setRecordMethod(record.method === '未指定' ? '' : record.method);
+    setRecordSubMethod(record.subMethod || '');
+    
     if (record.type === 'expense' || !record.type) {
       setSelectedItem(record.title); setRecordMerchant(record.merchant === '未指定' ? '' : record.merchant);
-      setRecordMethod(record.method === '未指定' ? '' : record.method);
-      setRecordSubMethod(record.subMethod || '');
-    } else if (record.type === 'income') {
-      const flatMethod = record.subMethod ? record.subMethod : (record.method === '未指定' ? '' : record.method);
-      setRecordMethod(flatMethod);
-      setRecordSubMethod('');
     } else if (record.type === 'transfer') {
-      const flatMethodOut = record.subMethod ? record.subMethod : (record.method === '未指定' ? '' : record.method);
-      const flatMethodIn = record.transferToSubMethod ? record.transferToSubMethod : (record.transferToMethod === '未指定' ? '' : record.transferToMethod);
-      setRecordMethod(flatMethodOut);
-      setTransferToMethod(flatMethodIn);
-      setRecordSubMethod('');
-      setTransferToSubMethod('');
+      setTransferToMethod(record.transferToMethod === '未指定' ? '' : record.transferToMethod);
+      setTransferToSubMethod(record.transferToSubMethod || '');
     }
     setEditRecordId(record.id); 
     setShowAddForm(true);
@@ -850,21 +840,14 @@ export default function App() {
     setRecordPayer(Array.isArray(record.payer) ? record.payer : (record.payer && record.payer !== '未指定' ? [record.payer] : []));
     setRecordCategory(record.category === '未指定' ? '' : record.category);
     
+    setRecordMethod(record.method === '未指定' ? '' : record.method);
+    setRecordSubMethod(record.subMethod || '');
+
     if (record.type === 'expense' || !record.type) {
       setSelectedItem(record.title); setRecordMerchant(record.merchant === '未指定' ? '' : record.merchant);
-      setRecordMethod(record.method === '未指定' ? '' : record.method);
-      setRecordSubMethod(record.subMethod || '');
-    } else if (record.type === 'income') {
-      const flatMethod = record.subMethod ? record.subMethod : (record.method === '未指定' ? '' : record.method);
-      setRecordMethod(flatMethod);
-      setRecordSubMethod('');
     } else if (record.type === 'transfer') {
-      const flatMethodOut = record.subMethod ? record.subMethod : (record.method === '未指定' ? '' : record.method);
-      const flatMethodIn = record.transferToSubMethod ? record.transferToSubMethod : (record.transferToMethod === '未指定' ? '' : record.transferToMethod);
-      setRecordMethod(flatMethodOut);
-      setTransferToMethod(flatMethodIn);
-      setRecordSubMethod('');
-      setTransferToSubMethod('');
+      setTransferToMethod(record.transferToMethod === '未指定' ? '' : record.transferToMethod);
+      setTransferToSubMethod(record.transferToSubMethod || '');
     }
     setEditRecordId(null); 
     setShowAddForm(true);
@@ -962,7 +945,11 @@ export default function App() {
   const getAccKey = (method, subMethod) => {
     if (method === '現金') return '現金';
     if (method === '信用卡 / 行動支付' || method === '信用卡') return `cc_${subMethod}`;
-    return `bank_${subMethod}`; // Default for banks and others
+    if (method === '銀行 / 電子票證' || method === '銀行 / 儲值卡' || method === '銀行 / 卡片' || method === '銀行') return `bank_${subMethod}`;
+    // 向後相容舊資料 (直接存銀行名稱)
+    const isCC = (currentRoom?.creditCards || []).includes(method);
+    if (isCC) return `cc_${method}`;
+    return `bank_${method}`;
   };
 
   const getBalances = () => {
@@ -1250,10 +1237,7 @@ export default function App() {
     { key: 'creditCards', label: '💳 信用卡清單' },
     { key: 'bankAccounts', label: '🏦 銀行/電子票證清單' },
     { key: 'incomeCategories', label: '💰 收入分類' },
-    { key: 'incomeAccounts', label: '🏦 收入-存入帳戶' },
-    { key: 'transferCategories', label: '🔄 轉帳分類' },
-    { key: 'transferOutAccounts', label: '📤 轉帳-轉出帳戶' },
-    { key: 'transferInAccounts', label: '📥 轉帳-轉入帳戶' },
+    { key: 'transferCategories', label: '🔄 轉帳分類' }
   ];
 
   const handleToggleSyncItem = (field, item) => {
@@ -1336,26 +1320,49 @@ export default function App() {
     }
   };
 
-  // 兼容相容：包含 銀行 / 電子票證
-  const handleMethodSelect = (method, isTransferTo = false) => {
-    if (!isTransferTo) {
-      setRecordMethod(method);
-      if (method === '信用卡 / 行動支付' || method === '信用卡') setRecordSubMethod(currentRoom?.creditCards?.[0] || '');
-      else if (method === '銀行 / 電子票證' || method === '銀行 / 儲值卡' || method === '銀行 / 卡片' || method === '銀行') setRecordSubMethod(currentRoom?.bankAccounts?.[0] || '');
-      else setRecordSubMethod('');
-    } else {
-      setTransferToMethod(method);
-      if (method === '信用卡 / 行動支付' || method === '信用卡') setTransferToSubMethod(currentRoom?.creditCards?.[0] || '');
-      else if (method === '銀行 / 電子票證' || method === '銀行 / 儲值卡' || method === '銀行 / 卡片' || method === '銀行') setTransferToSubMethod(currentRoom?.bankAccounts?.[0] || '');
-      else setTransferToSubMethod('');
-    }
-  };
-
   const handleAnalysisTypeChange = (type) => {
     setAnalysisType(type);
     setAnalysisMenus([]);
     setAnalysisSubSelections({ category: [], title: [], merchant: [], method: [], subMethod: [] });
   };
+
+  // ==========================================
+  // 共用方法選擇器 (支出/收入/轉帳通用)
+  // ==========================================
+  const MethodSelector = ({ label, icon: IconComponent, method, subMethod, setMethod, setSubMethod, currentRoom }) => (
+    <div className="mb-3 z-10">
+      <label className="flex items-center gap-1.5 text-[15px] font-bold text-gray-500 mb-1.5 ml-1"><IconComponent size={16} className="text-gray-400" /> {label}</label>
+      <div className="flex bg-gray-50 rounded-xl p-1 border border-gray-100 mb-3 shadow-inner min-h-[60px]">
+        {(currentRoom?.paymentMethods || []).map(opt => (
+          <button key={opt} type="button" onClick={() => {
+              setMethod(opt);
+              if (opt === '信用卡 / 行動支付' || opt === '信用卡') setSubMethod(currentRoom?.creditCards?.[0] || '');
+              else if (opt === '銀行 / 電子票證' || opt === '銀行 / 儲值卡' || opt === '銀行 / 卡片' || opt === '銀行') setSubMethod(currentRoom?.bankAccounts?.[0] || '');
+              else setSubMethod('');
+          }} className={`flex-1 py-1.5 px-1 rounded-[1rem] text-[14px] leading-snug font-bold transition-all duration-200 flex flex-col items-center justify-center ${method === opt ? 'bg-white text-blue-600 shadow-md border border-gray-100 transform scale-100' : 'text-gray-400 hover:text-gray-600 scale-95'}`}>
+            {opt.includes(' / ') ? (
+              <>
+                <span>{opt.split(' / ')[0]}</span>
+                <span>{opt.split(' / ')[1]}</span>
+              </>
+            ) : (
+              <span>{opt}</span>
+            )}
+          </button>
+        ))}
+      </div>
+      {(method === '信用卡 / 行動支付' || method === '信用卡') && (
+        <div className="z-10 relative">
+          <CustomDropdown options={currentRoom?.creditCards || []} value={subMethod} onChange={setSubMethod} placeholder="選擇信用卡" />
+        </div>
+      )}
+      {(method === '銀行 / 電子票證' || method === '銀行 / 儲值卡' || method === '銀行 / 卡片' || method === '銀行') && (
+        <div className="z-10 relative">
+          <CustomDropdown options={currentRoom?.bankAccounts || []} value={subMethod} onChange={setSubMethod} placeholder="選擇銀行/電子票證" />
+        </div>
+      )}
+    </div>
+  );
 
   // ==========================================
   // 報表、統計與驗證 (需求 2: 搜尋功能)
@@ -1389,17 +1396,12 @@ export default function App() {
     if (analysisMenus.includes('merchant') && analysisSubSelections.merchant.length > 0 && !analysisSubSelections.merchant.includes(r.merchant)) return false;
     
     if (analysisMenus.includes('method') && analysisSubSelections.method.length > 0) {
-      if (analysisType === 'expense') {
-         if (!analysisSubSelections.method.includes(r.method)) return false;
-         if (['信用卡 / 行動支付', '信用卡', '銀行 / 電子票證', '銀行 / 儲值卡', '銀行 / 卡片', '銀行'].includes(r.method)) {
-            if (analysisSubSelections.subMethod.length > 0 && !analysisSubSelections.subMethod.includes(r.subMethod)) {
-               return false;
-            }
-         }
-      } else {
-         const actualMethod = r.subMethod ? r.subMethod : (r.method || '無方式');
-         if (!analysisSubSelections.method.includes(actualMethod)) return false;
-      }
+       if (!analysisSubSelections.method.includes(r.method)) return false;
+       if (['信用卡 / 行動支付', '信用卡', '銀行 / 電子票證', '銀行 / 儲值卡', '銀行 / 卡片', '銀行'].includes(r.method)) {
+          if (analysisSubSelections.subMethod.length > 0 && !analysisSubSelections.subMethod.includes(r.subMethod)) {
+             return false;
+          }
+       }
     }
     return true;
   });
@@ -1411,13 +1413,8 @@ export default function App() {
     if (analysisMenus.includes('title')) keyParts.push(r.title || '無項目');
     if (analysisMenus.includes('merchant')) keyParts.push(r.merchant || '無商家');
     if (analysisMenus.includes('method')) {
-      if (analysisType === 'expense') {
         keyParts.push(r.method || '無方式');
         if (r.subMethod) keyParts.push(`(${r.subMethod})`);
-      } else {
-        const actualMethod = r.subMethod ? r.subMethod : (r.method || '無方式');
-        keyParts.push(actualMethod);
-      }
     }
     const key = keyParts.length > 0 ? keyParts.join(' - ') : (r.category || '未分類');
     if (!analysisGroupedData[key]) analysisGroupedData[key] = 0;
@@ -1431,16 +1428,22 @@ export default function App() {
   if (recordAmount && recordDate && recordPayer.length > 0) {
     if (recordType === 'expense') {
       isFormValid = recordCategory && selectedItem && recordMethod;
-      if ((recordMethod === '信用卡 / 行動支付' || recordMethod === '信用卡') && !recordSubMethod) isFormValid = false;
-      if ((recordMethod === '銀行 / 電子票證' || recordMethod === '銀行 / 儲值卡' || recordMethod === '銀行 / 卡片' || recordMethod === '銀行') && !recordSubMethod) isFormValid = false;
-      if (recordFrequency === '每週' && recordFrequencyDays.length === 0) isFormValid = false;
-      if (recordFrequency === '每月' && recordFrequencyDays.length === 0) isFormValid = false;
-      if (recordFrequency === '區間' && !recordFrequencyInterval) isFormValid = false;
-      if (recordFrequency === '區間' && recordFrequencyInterval === '自訂' && !recordFrequencyCustomText) isFormValid = false;
     } else if (recordType === 'income') {
       isFormValid = recordCategory && recordMethod;
     } else if (recordType === 'transfer') {
       isFormValid = recordCategory && recordMethod && transferToMethod;
+    }
+    
+    if (isFormValid) {
+      const needsSubMethod = (m) => m === '信用卡 / 行動支付' || m === '信用卡' || m === '銀行 / 電子票證' || m === '銀行 / 儲值卡' || m === '銀行 / 卡片' || m === '銀行';
+      if (needsSubMethod(recordMethod) && !recordSubMethod) isFormValid = false;
+      if (recordType === 'transfer') {
+        if (needsSubMethod(transferToMethod) && !transferToSubMethod) isFormValid = false;
+      }
+      if (recordFrequency === '每週' && recordFrequencyDays.length === 0) isFormValid = false;
+      if (recordFrequency === '每月' && recordFrequencyDays.length === 0) isFormValid = false;
+      if (recordFrequency === '區間' && !recordFrequencyInterval) isFormValid = false;
+      if (recordFrequency === '區間' && recordFrequencyInterval === '自訂' && !recordFrequencyCustomText) isFormValid = false;
     }
   }
 
@@ -1463,7 +1466,7 @@ export default function App() {
 
     return (
       <div className="mb-4 w-full">
-        {label && <label className="flex items-center gap-1.5 text-[14px] font-bold text-gray-500 mb-2 ml-1">{Icon && <Icon size={14} className="text-gray-400" />} {label}</label>}
+        {label && <label className="flex items-center gap-1.5 text-[15px] font-bold text-gray-500 mb-2 ml-1">{Icon && <Icon size={16} className="text-gray-400" />} {label}</label>}
         <div className="flex flex-nowrap gap-2 overflow-x-auto pb-1.5 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
           {options.map(opt => {
             const isSelected = values.includes(opt);
@@ -1550,8 +1553,7 @@ export default function App() {
               <button type="button" onClick={() => setCurrentUserRole('老婆')} className={`p-4 rounded-xl font-bold text-[18px] flex justify-center items-center gap-1.5 transition-all duration-200 ${currentUserRole === '老婆' ? 'bg-pink-500 text-white shadow-md transform -translate-y-0.5' : 'bg-gray-50 border border-gray-100 text-gray-500 hover:bg-gray-100'}`}>👩 老婆</button>
             </div>
           </div>
-          {/* 需求 1: 回復為大橢圓形按鈕 py-4 rounded-[1.5rem] */}
-          <button type="submit" disabled={isLoading} className="w-full bg-gray-800 text-white font-extrabold text-[20px] py-4 rounded-[1.5rem] hover:bg-gray-700 shadow-md transition active:scale-95 disabled:opacity-50 mt-2">{isLoading ? '處理中...' : '開啟小財庫 🚀'}</button>
+          <button type="submit" disabled={isLoading} className="w-full bg-gray-800 text-white font-extrabold text-[20px] py-4 rounded-[2rem] hover:bg-gray-700 shadow-md transition active:scale-95 disabled:opacity-50 mt-2">{isLoading ? '處理中...' : '開啟小財庫 🚀'}</button>
         </form>
         <div className="mt-6 text-center w-full pb-6">
           <button onClick={() => {setView('create'); setErrorMsg('');}} className="text-gray-500 text-[17px] font-bold hover:text-gray-700 transition bg-white px-6 py-3 rounded-full shadow-sm border border-gray-200">💡 建立新的家庭房間</button>
@@ -1564,7 +1566,7 @@ export default function App() {
     content = (
       <div className="flex flex-col items-center justify-center flex-1 p-4 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
          <div className="flex flex-col items-center mb-6 w-full mt-2">
-          <div className="bg-gradient-to-tr from-[#A7F3D0] to-[#34D399] p-5 rounded-[1.5rem] mb-5 shadow-sm"><Home size={44} className="text-white drop-shadow-sm" strokeWidth={2.5} /></div>
+          <div className="bg-gradient-to-tr from-[#A7F3D0] to-[#34D399] p-5 rounded-[1.5rem] mb-5 shadow-sm"><Home size={48} className="text-white drop-shadow-sm" strokeWidth={2.5} /></div>
           <h1 className="text-2xl sm:text-3xl font-black text-gray-800 mb-1">建立新家庭 ✨</h1>
         </div>
         {errorMsg && <div className="w-full bg-red-50 text-red-500 font-bold p-3 rounded-xl mb-4 flex items-center justify-center gap-2 text-[16px] shadow-sm border border-red-100"><AlertCircle size={20} /> {errorMsg}</div>}
@@ -1579,8 +1581,7 @@ export default function App() {
           <input type="text" className="w-full bg-gray-50 text-center border border-gray-100 p-3.5 rounded-xl focus:bg-white focus:border-green-300 outline-none font-bold text-gray-700 text-[18px] transition shadow-sm" placeholder="🏠 房間名稱 (例: 林北小財庫)" value={roomName} onChange={(e) => setRoomName(e.target.value)} />
           <input type="text" className="w-full bg-gray-50 text-center border border-gray-100 p-3.5 rounded-xl focus:bg-white focus:border-green-300 outline-none font-bold text-gray-700 text-[18px] transition shadow-sm" placeholder="🎀 自訂通關代碼 (需唯一)" value={roomCode} onChange={(e) => setRoomCode(e.target.value)} />
           <input type="password" className="w-full bg-gray-50 text-center border border-gray-100 p-3.5 rounded-xl focus:bg-white focus:border-green-300 outline-none font-bold text-gray-700 text-[18px] transition shadow-sm" placeholder="🔑 設定房間密碼" value={roomPin} onChange={(e) => setRoomPin(e.target.value)} />
-          {/* 需求 1: 回復為大橢圓形按鈕 py-4 rounded-[1.5rem] */}
-          <button type="submit" disabled={isLoading} className="w-full bg-green-500 text-white font-extrabold text-[20px] py-4 rounded-[1.5rem] hover:bg-green-600 shadow-md transition active:scale-95 mt-2">{isLoading ? '處理中...' : '建立並進入 🚀'}</button>
+          <button type="submit" disabled={isLoading} className="w-full bg-green-500 text-white font-extrabold text-[20px] py-4 rounded-[2rem] hover:bg-green-600 shadow-md transition active:scale-95 mt-2">{isLoading ? '處理中...' : '建立並進入 🚀'}</button>
         </form>
         <div className="mt-6 text-center w-full pb-6">
            <button onClick={() => {setView('login'); setErrorMsg('');}} className="text-gray-500 text-[17px] font-bold hover:text-gray-700 transition bg-white px-6 py-3 rounded-full shadow-sm border border-gray-200">返回登入</button>
@@ -1596,7 +1597,9 @@ export default function App() {
     const bankTotal = banks.reduce((sum, b) => sum + (balances[`bank_${b}`] || 0), 0);
     const ccs = currentRoom?.creditCards || [];
     const ccTotal = ccs.reduce((sum, c) => sum + (balances[`cc_${c}`] || 0), 0);
-    const netWorth = cashBal + bankTotal + ccTotal;
+    const totalAssets = cashBal + bankTotal;
+    const totalLiabilities = Math.abs(ccTotal);
+    const netWorth = totalAssets + ccTotal;
 
     content = (
       <>
@@ -1626,10 +1629,20 @@ export default function App() {
             <p className="text-indigo-500 font-bold bg-indigo-50 border border-indigo-100 inline-block px-4 py-2 rounded-full text-[13px] shadow-sm leading-relaxed">👉 點擊各帳戶列即可查看歷史明細</p>
           </div>
 
-          <div className="bg-white p-5 rounded-[1.5rem] border-2 border-indigo-100 text-center shadow-sm relative overflow-hidden">
+          <div className="bg-white py-3.5 px-5 rounded-[1.5rem] border-2 border-indigo-100 text-center shadow-sm relative overflow-hidden">
              <div className="absolute -right-6 -top-6 bg-indigo-50 w-24 h-24 rounded-full opacity-50"></div>
-             <p className="text-indigo-400 font-extrabold text-[16px] mb-1 relative z-10">💰 總資產淨值</p>
-             <p className={`text-[46px] font-black relative z-10 ${netWorth < 0 ? 'text-red-500' : 'text-indigo-700'}`}>${netWorth.toLocaleString()}</p>
+             <p className="text-indigo-400 font-extrabold text-[14px] relative z-10">💎 淨資產</p>
+             <p className={`text-[38px] leading-tight font-black relative z-10 ${netWorth < 0 ? 'text-red-500' : 'text-indigo-700'}`}>${netWorth.toLocaleString()}</p>
+             <div className="flex justify-center gap-5 mt-2 relative z-10 border-t border-indigo-50 pt-2">
+                 <div className="flex flex-col">
+                     <span className="text-gray-400 text-[11px] font-bold">💰 總資產 (現金+銀行)</span>
+                     <span className="text-indigo-500 font-black text-[15px]">${totalAssets.toLocaleString()}</span>
+                 </div>
+                 <div className="flex flex-col border-l border-indigo-50 pl-5">
+                     <span className="text-gray-400 text-[11px] font-bold">💳 總負債 (信用卡)</span>
+                     <span className="text-orange-500 font-black text-[15px]">${totalLiabilities.toLocaleString()}</span>
+                 </div>
+             </div>
           </div>
 
           {/* 帳戶列可點擊 */}
@@ -1777,12 +1790,12 @@ export default function App() {
                     return (
                       <div key={exp.id} onClick={() => setViewingRecord(exp)} className="bg-gray-50 p-3 rounded-xl border border-gray-100 flex justify-between items-center cursor-pointer hover:bg-gray-100 transition">
                         <div className="overflow-hidden pr-2">
-                           <div className="flex flex-wrap items-center gap-1.5 mb-1">
+                           <div className="flex items-center gap-1.5 mb-1">
                              <span className="text-[13px] font-bold text-gray-400">{toROCYearStr(exp.date)}</span>
                              <span className="bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded text-[11px] font-bold tracking-wide">
                                {freqDisplay || '一次'}
                              </span>
-                             {exp.payer && <span className="bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded text-[11px] font-bold tracking-wide">{Array.isArray(exp.payer) ? exp.payer.join(', ') : exp.payer}</span>}
+                             {exp.payer && <span className="bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded text-[11px] font-bold tracking-wide">{Array.isArray(exp.payer)?exp.payer[0]:exp.payer}</span>}
                            </div>
                            <div className="font-black text-[16px] text-gray-700 truncate">
                               {isTransfer ? `轉帳: ${exp.method}➜${exp.transferToMethod}` : exp.title}
@@ -1795,96 +1808,6 @@ export default function App() {
                     )
                   });
                 })()}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* 需求 2: 將詳細紀錄 Modal 獨立出來，使其可以疊加在帳戶明細之上 */}
-        {viewingRecord && (
-          <div className="fixed inset-0 bg-black/40 z-[110] flex justify-center items-center p-4 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setViewingRecord(null)}>
-            <div className="bg-white w-full max-w-sm rounded-[1.5rem] p-5 shadow-2xl relative" onClick={e => e.stopPropagation()}>
-              <button onClick={() => setViewingRecord(null)} className="absolute top-3 right-3 text-gray-400 hover:text-gray-600 bg-gray-100 p-1.5 rounded-full transition"><X size={22}/></button>
-              <h3 className="font-black text-2xl text-gray-800 mb-3 border-b border-gray-100 pb-2">詳細紀錄</h3>
-              <div className="space-y-2.5 text-[16px] text-gray-600 font-bold max-h-[65vh] overflow-y-auto pr-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-                <div className="flex justify-between items-center bg-gray-50 p-2.5 rounded-xl border border-gray-100">
-                   <span className="text-gray-400">類型</span>
-                   <span className={`${viewingRecord.type === 'income' ? 'text-green-500' : viewingRecord.type === 'transfer' ? 'text-blue-500' : 'text-orange-500'} font-black text-[17px]`}>
-                     {viewingRecord.type === 'income' ? '收入' : viewingRecord.type === 'transfer' ? '轉帳' : '支出'}
-                   </span>
-                </div>
-                <div className="flex justify-between items-center bg-gray-50 p-2.5 rounded-xl border border-gray-100">
-                   <span className="text-gray-400">金額</span>
-                   <span className="text-[26px] text-gray-800 font-black">${viewingRecord.amount.toLocaleString()}</span>
-                </div>
-                <div className="flex justify-between items-center border-b border-gray-100 pb-1.5 pt-1">
-                   <span className="text-gray-400">消費日期</span>
-                   <span className="text-gray-800">{toROCYearStr(viewingRecord.date)}</span>
-                </div>
-                <div className="flex justify-between items-center border-b border-gray-100 pb-1.5">
-                   <span className="text-gray-400">建檔時間</span>
-                   <span className="text-gray-800 text-[14px]">{toROCYearStr(viewingRecord.timestamp)} {new Date(viewingRecord.timestamp).toLocaleTimeString('zh-TW', {hour12: false, hour: '2-digit', minute:'2-digit'})}</span>
-                </div>
-                <div className="flex justify-between items-center border-b border-gray-100 pb-1.5">
-                   <span className="text-gray-400">分類</span>
-                   <span className="text-gray-800">{viewingRecord.category}</span>
-                </div>
-                {viewingRecord.type !== 'transfer' && (
-                  <div className="flex justify-between items-center border-b border-gray-100 pb-1.5">
-                     <span className="text-gray-400">項目</span>
-                     <span className="text-gray-800">{viewingRecord.title}</span>
-                  </div>
-                )}
-                {viewingRecord.merchant && viewingRecord.merchant !== '未指定' && (
-                  <div className="flex justify-between items-center border-b border-gray-100 pb-1.5">
-                     <span className="text-gray-400">商家</span>
-                     <span className="text-gray-800">{viewingRecord.merchant}</span>
-                  </div>
-                )}
-                {viewingRecord.payer && viewingRecord.payer.length > 0 && (
-                  <div className="flex justify-between items-center border-b border-gray-100 pb-1.5">
-                     <span className="text-gray-400">對象</span>
-                     <span className="text-gray-800">{Array.isArray(viewingRecord.payer) ? viewingRecord.payer.join(', ') : viewingRecord.payer}</span>
-                  </div>
-                )}
-                {viewingRecord.method && viewingRecord.method !== '未指定' && (
-                  <div className="flex justify-between items-center border-b border-gray-100 pb-1.5">
-                     <span className="text-gray-400">{viewingRecord.type === 'transfer' ? '轉出帳戶' : '付款方式'}</span>
-                     <span className="text-gray-800">{viewingRecord.method} {viewingRecord.subMethod ? `(${viewingRecord.subMethod})` : ''}</span>
-                  </div>
-                )}
-                {viewingRecord.transferToMethod && (
-                  <div className="flex justify-between items-center border-b border-gray-100 pb-1.5">
-                     <span className="text-gray-400">轉入帳戶</span>
-                     <span className="text-gray-800">{viewingRecord.transferToMethod} {viewingRecord.transferToSubMethod ? `(${viewingRecord.transferToSubMethod})` : ''}</span>
-                  </div>
-                )}
-                <div className="flex justify-between items-center border-b border-gray-100 pb-1.5">
-                   <span className="text-gray-400">頻率</span>
-                   <span className="text-gray-800">
-                     {viewingRecord.frequency === '每週' && viewingRecord.frequencyDays?.length > 0
-                       ? `每週 (${viewingRecord.frequencyDays.join('、')})`
-                       : viewingRecord.frequency === '每月' && viewingRecord.frequencyDays?.length > 0
-                         ? `每月 (${viewingRecord.frequencyDays.join('、')}號)`
-                         : viewingRecord.frequency === '區間'
-                           ? (viewingRecord.frequencyInterval === '自訂' ? viewingRecord.frequencyCustomText : viewingRecord.frequencyInterval)
-                           : viewingRecord.frequency}
-                   </span>
-                </div>
-                <div className="flex justify-between items-center border-b border-gray-100 pb-1.5">
-                   <span className="text-gray-400">建立者</span>
-                   <span className="text-gray-800">{viewingRecord.addedByRole}</span>
-                </div>
-                {viewingRecord.note && (
-                  <div className="pt-1.5">
-                     <span className="text-gray-400 block mb-1">備註</span>
-                     <span className="text-gray-800 block bg-gray-50 p-2.5 rounded-xl border border-gray-100">{viewingRecord.note}</span>
-                  </div>
-                )}
-              </div>
-              <div className="flex gap-3 mt-4 pt-4 border-t border-gray-100">
-                 <button onClick={() => { handleCopyRecord(viewingRecord); setViewingRecord(null); }} className="flex-1 bg-green-50 text-green-600 font-bold py-3 rounded-xl flex items-center justify-center gap-2 transition hover:bg-green-100 active:scale-95"><Copy size={16}/> 複製此筆</button>
-                 <button onClick={() => { handleDeleteRecord(viewingRecord.id); setViewingRecord(null); }} className="flex-1 bg-red-50 text-red-500 font-bold py-3 rounded-xl flex items-center justify-center gap-2 transition hover:bg-red-100 active:scale-95"><Trash2 size={16}/> 刪除此筆</button>
               </div>
             </div>
           </div>
@@ -1987,8 +1910,8 @@ export default function App() {
                       <div className={`absolute left-0 top-1/2 -translate-y-1/2 h-1/2 w-1 rounded-r-md ${isIncome ? 'bg-green-400' : isTransfer ? 'bg-blue-400' : 'bg-orange-400'}`}></div>
                       
                       <div className="flex-1 pl-2.5 pr-2 overflow-hidden flex flex-col justify-center py-1.5">
-                        {/* 第一排：建檔日期時間、建立者與頻率 (緊靠排列) */}
-                        <div className="flex flex-wrap items-center gap-1.5 mb-1.5">
+                        {/* 第一排：建檔日期時間與建立者 (緊靠排列) */}
+                        <div className="flex items-center gap-2 mb-1.5">
                           <div className="text-[12px] font-bold text-gray-400">
                             建檔: {toROCYearStr(exp.timestamp)} {new Date(exp.timestamp).toLocaleTimeString('zh-TW', { hour12: false, hour: '2-digit', minute: '2-digit' })}
                           </div>
@@ -1997,13 +1920,15 @@ export default function App() {
                               {exp.addedByRole}
                             </span>
                           )}
-                          <span className="bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded text-[12px] font-bold tracking-wide shrink-0">
-                            {freqDisplay || '一次'}
-                          </span>
                         </div>
 
                         {/* 第二排：所有詳細資訊自動換行排列 (省空間又整齊) */}
                         <div className="flex flex-wrap items-center gap-1.5">
+                          {freqDisplay && freqDisplay !== '一次' && (
+                            <span className="bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded text-[13px] font-bold tracking-wide shrink-0">
+                              {freqDisplay}
+                            </span>
+                          )}
                           {!isTransfer && (
                             <span className={`font-bold text-[14px] px-1.5 py-0.5 rounded whitespace-nowrap border shrink-0 ${isIncome ? 'bg-green-50 text-green-600 border-green-100' : 'bg-orange-50 text-orange-600 border-orange-100'}`}>
                               {exp.category}
@@ -2050,7 +1975,7 @@ export default function App() {
             <div className="bg-white w-full max-w-sm rounded-[1.5rem] p-5 shadow-2xl relative" onClick={e => e.stopPropagation()}>
               <button onClick={() => setViewingRecord(null)} className="absolute top-3 right-3 text-gray-400 hover:text-gray-600 bg-gray-100 p-1.5 rounded-full transition"><X size={22}/></button>
               <h3 className="font-black text-2xl text-gray-800 mb-3 border-b border-gray-100 pb-2">詳細紀錄</h3>
-              <div className="space-y-2.5 text-[16px] text-gray-600 font-bold max-h-[60vh] overflow-y-auto pr-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+              <div className="space-y-2.5 text-[16px] text-gray-600 font-bold max-h-[65vh] overflow-y-auto pr-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
                 <div className="flex justify-between items-center bg-gray-50 p-2.5 rounded-xl border border-gray-100">
                    <span className="text-gray-400">類型</span>
                    <span className={`${viewingRecord.type === 'income' ? 'text-green-500' : viewingRecord.type === 'transfer' ? 'text-blue-500' : 'text-orange-500'} font-black text-[17px]`}>
@@ -2138,20 +2063,20 @@ export default function App() {
         {crossRoomRecord && (
           <div className="fixed inset-0 bg-black/40 z-[100] flex justify-center items-center p-4 backdrop-blur-sm animate-in fade-in duration-200">
             <div className="bg-white w-full max-w-sm rounded-[1.5rem] p-5 shadow-2xl">
-               <h3 className="font-black text-xl text-gray-800 mb-3 flex items-center gap-2"><Send size={20} className="text-blue-500"/> 傳送至其他房間</h3>
-               <p className="text-[15px] font-bold text-gray-500 mb-4 leading-relaxed">將此筆 <span className="text-gray-800">[{crossRoomRecord.title || crossRoomRecord.category}] ${crossRoomRecord.amount}</span> 複製傳送到：</p>
+               <h3 className="font-black text-xl text-gray-800 mb-3 flex items-center gap-2"><Send size={22} className="text-blue-500"/> 傳送至其他房間</h3>
+               <p className="text-[16px] font-bold text-gray-500 mb-4 leading-relaxed">將此筆 <span className="text-gray-800">[{crossRoomRecord.title || crossRoomRecord.category}] ${crossRoomRecord.amount}</span> 複製傳送到：</p>
                <div className="space-y-2.5 mb-5 max-h-56 overflow-y-auto pr-1">
                  {savedRooms.filter(r => r.id !== activeRoomId).length === 0 ? (
-                   <p className="text-red-400 font-bold text-[13px] bg-red-50 p-3 rounded-xl leading-relaxed">您目前沒有儲存其他房間，請先登入過其他房間再使用此功能。</p>
+                   <p className="text-red-400 font-bold text-[15px] bg-red-50 p-3 rounded-xl leading-relaxed">您目前沒有儲存其他房間，請先登入過其他房間再使用此功能。</p>
                  ) : (
                    savedRooms.filter(r => r.id !== activeRoomId).map(r => (
-                     <button key={r.id} onClick={() => handleSendToOtherRoom(r.id)} className="w-full text-left bg-gray-50 hover:bg-blue-50 border border-gray-100 hover:border-blue-200 p-3 rounded-xl font-black text-gray-700 text-[15px] transition flex items-center shadow-sm">
-                       🏠 {r.name} <span className="text-[11px] font-bold text-gray-400 ml-auto">({r.id})</span>
+                     <button key={r.id} onClick={() => handleSendToOtherRoom(r.id)} className="w-full text-left bg-gray-50 hover:bg-blue-50 border border-gray-100 hover:border-blue-200 p-3 rounded-xl font-black text-gray-700 text-[17px] transition flex items-center shadow-sm">
+                       🏠 {r.name} <span className="text-[13px] font-bold text-gray-400 ml-auto">({r.id})</span>
                      </button>
                    ))
                  )}
                </div>
-               <button onClick={() => setCrossRoomRecord(null)} className="w-full bg-gray-100 hover:bg-gray-200 text-gray-600 font-extrabold text-[15px] py-3 rounded-xl transition">取消傳送</button>
+               <button onClick={() => setCrossRoomRecord(null)} className="w-full bg-gray-100 hover:bg-gray-200 text-gray-600 font-extrabold text-[17px] py-3 rounded-xl transition">取消傳送</button>
             </div>
           </div>
         )}
@@ -2234,14 +2159,13 @@ export default function App() {
                     <span className="absolute right-3 text-gray-400 text-[14px] z-0 pointer-events-none">▼</span>
                   </div>
                 </div>
-                {recordType === 'expense' && (
-                  <div className="z-40">
-                    <CustomDropdown label="頻率 🔄" icon={RefreshCw} options={['一次', '每週', '每月', '區間']} value={recordFrequency} onChange={(val) => { setRecordFrequency(val); setRecordFrequencyDays([]); setRecordFrequencyInterval(''); setRecordFrequencyCustomText(''); }} placeholder="選擇頻率" />
-                  </div>
-                )}
+                
+                <div className="z-40">
+                  <CustomDropdown label="頻率 🔄" icon={RefreshCw} options={['一次', '每週', '每月', '區間']} value={recordFrequency} onChange={(val) => { setRecordFrequency(val); setRecordFrequencyDays([]); setRecordFrequencyInterval(''); setRecordFrequencyCustomText(''); }} placeholder="選擇頻率" />
+                </div>
               </div>
 
-              {recordType === 'expense' && recordFrequency === '每週' && (
+              {recordFrequency === '每週' && (
                 <div className="mb-5 bg-gray-50 p-4 rounded-xl border border-gray-100 shadow-sm">
                   <label className="text-[15px] font-bold text-gray-500 mb-3 block">請選擇星期 (可複選)</label>
                   <div className="flex flex-wrap gap-2">
@@ -2251,7 +2175,7 @@ export default function App() {
                   </div>
                 </div>
               )}
-              {recordType === 'expense' && recordFrequency === '每月' && (
+              {recordFrequency === '每月' && (
                 <div className="mb-5 bg-gray-50 p-4 rounded-xl border border-gray-100 shadow-sm">
                   <label className="text-[15px] font-bold text-gray-500 mb-3 block">請選擇日期 (可複選)</label>
                   <div className="grid grid-cols-7 gap-1.5">
@@ -2261,7 +2185,7 @@ export default function App() {
                   </div>
                 </div>
               )}
-              {recordType === 'expense' && recordFrequency === '區間' && (
+              {recordFrequency === '區間' && (
                 <div className="mb-5 bg-gray-50 p-4 rounded-xl border border-gray-100 shadow-sm">
                   <label className="text-[15px] font-bold text-gray-500 mb-3 block">請選擇時間區間</label>
                   <div className="flex flex-wrap gap-2 mb-3">
@@ -2287,33 +2211,7 @@ export default function App() {
                      <PillGroupMulti label="花費對象 (可複選) 👥" icon={User} options={currentRoom?.payers || []} values={recordPayer} onChange={setRecordPayer} isPayer={true} />
                   </div>
 
-                  <div className="mb-2 z-10">
-                    <label className="flex items-center gap-1.5 text-[15px] font-bold text-gray-500 mb-1.5 ml-1"><CreditCard size={16} className="text-gray-400" /> 付款方式 💳</label>
-                    <div className="flex bg-gray-50 rounded-xl p-1 border border-gray-100 mb-3 shadow-inner min-h-[60px]">
-                      {(currentRoom?.paymentMethods || []).map(opt => (
-                        <button key={opt} type="button" onClick={() => handleMethodSelect(opt)} className={`flex-1 py-1.5 px-1 rounded-[1rem] text-[14px] leading-snug font-bold transition-all duration-200 flex flex-col items-center justify-center ${recordMethod === opt ? 'bg-white text-blue-600 shadow-md border border-gray-100 transform scale-100' : 'text-gray-400 hover:text-gray-600 scale-95'}`}>
-                          {opt.includes(' / ') ? (
-                            <>
-                              <span>{opt.split(' / ')[0]}</span>
-                              <span>{opt.split(' / ')[1]}</span>
-                            </>
-                          ) : (
-                            <span>{opt}</span>
-                          )}
-                        </button>
-                      ))}
-                    </div>
-                    {(recordMethod === '信用卡 / 行動支付' || recordMethod === '信用卡') && (
-                      <div className="z-10 relative">
-                        <CustomDropdown options={currentRoom?.creditCards || []} value={recordSubMethod} onChange={setRecordSubMethod} placeholder="選擇信用卡" />
-                      </div>
-                    )}
-                    {(recordMethod === '銀行 / 電子票證' || recordMethod === '銀行 / 儲值卡' || recordMethod === '銀行 / 卡片' || recordMethod === '銀行') && (
-                      <div className="z-10 relative">
-                        <CustomDropdown options={currentRoom?.bankAccounts || []} value={recordSubMethod} onChange={setRecordSubMethod} placeholder="選擇銀行/電子票證" />
-                      </div>
-                    )}
-                  </div>
+                  <MethodSelector label="付款方式 💳" icon={CreditCard} method={recordMethod} subMethod={recordSubMethod} setMethod={setRecordMethod} setSubMethod={setRecordSubMethod} currentRoom={currentRoom} />
                 </>
               )}
 
@@ -2324,9 +2222,7 @@ export default function App() {
                   </div>
                   <PillGroupMulti label="對象 (可複選) 👥" icon={User} options={currentRoom?.payers || []} values={recordPayer} onChange={setRecordPayer} isPayer={true} />
                   
-                  <div className="mb-2 z-20">
-                    <CustomDropdown label="存入帳戶 🏦" icon={Wallet} options={currentRoom?.incomeAccounts || []} value={recordMethod} onChange={setRecordMethod} placeholder="選擇存入帳戶..." />
-                  </div>
+                  <MethodSelector label="存入帳戶 🏦" icon={Wallet} method={recordMethod} subMethod={recordSubMethod} setMethod={setRecordMethod} setSubMethod={setRecordSubMethod} currentRoom={currentRoom} />
                 </>
               )}
 
@@ -2337,13 +2233,9 @@ export default function App() {
                   </div>
                   <PillGroupMulti label="對象 (可複選) 👥" icon={User} options={currentRoom?.payers || []} values={recordPayer} onChange={setRecordPayer} isPayer={true} />
                   
-                  <div className="mb-6 z-30">
-                    <CustomDropdown label="📤 轉出帳戶 (從哪裡扣款)" options={currentRoom?.transferOutAccounts || []} value={recordMethod} onChange={setRecordMethod} placeholder="選擇轉出帳戶..." />
-                  </div>
-
-                  <div className="mb-2 z-20">
-                    <CustomDropdown label="📥 轉入帳戶 (存到哪裡)" options={currentRoom?.transferInAccounts || []} value={transferToMethod} onChange={setTransferToMethod} placeholder="選擇轉入帳戶..." />
-                  </div>
+                  <MethodSelector label="📤 轉出帳戶 (從哪裡扣款)" icon={Wallet} method={recordMethod} subMethod={recordSubMethod} setMethod={setRecordMethod} setSubMethod={setRecordSubMethod} currentRoom={currentRoom} />
+                  
+                  <MethodSelector label="📥 轉入帳戶 (存到哪裡)" icon={Wallet} method={transferToMethod} subMethod={transferToSubMethod} setMethod={setTransferToMethod} setSubMethod={setTransferToSubMethod} currentRoom={currentRoom} />
                 </>
               )}
 
@@ -2526,11 +2418,9 @@ export default function App() {
                   onUpdate={(newList, oldItem, newItem) => updateSettingField('incomeCategories', newList, oldItem, newItem)} 
                   themeClass="border-green-100" spanClass="text-green-600" btnClass="bg-green-400" placeholder="輸入收入分類..." 
                 />
-                <SettingBlock 
-                  title="🏦 存入帳戶" items={currentRoom?.incomeAccounts || []} 
-                  onUpdate={(newList, oldItem, newItem) => updateSettingField('incomeAccounts', newList, oldItem, newItem)} 
-                  themeClass="border-green-100" spanClass="text-green-600" btnClass="bg-green-400" placeholder="輸入存入帳戶..." 
-                />
+                <div className="bg-green-50 p-4 rounded-[1.5rem] border border-green-100 text-green-700 font-bold text-[15px] leading-relaxed text-center shadow-sm">
+                   💡 收入的「存入帳戶」選項，已全面升級與您的「現金 / 銀行 / 信用卡」清單同步連動，請至【支出】設定頁統一管理帳戶清單喔！
+                </div>
               </>
             )}
 
@@ -2541,22 +2431,15 @@ export default function App() {
                   onUpdate={(newList, oldItem, newItem) => updateSettingField('transferCategories', newList, oldItem, newItem)} 
                   themeClass="border-blue-100" spanClass="text-blue-600" btnClass="bg-blue-400" placeholder="輸入轉帳分類..." 
                 />
-                <SettingBlock 
-                  title="📤 轉出帳戶" items={currentRoom?.transferOutAccounts || []} 
-                  onUpdate={(newList, oldItem, newItem) => updateSettingField('transferOutAccounts', newList, oldItem, newItem)} 
-                  themeClass="border-blue-100" spanClass="text-blue-600" btnClass="bg-blue-400" placeholder="輸入轉出帳戶..." 
-                />
-                <SettingBlock 
-                  title="📥 轉入帳戶" items={currentRoom?.transferInAccounts || []} 
-                  onUpdate={(newList, oldItem, newItem) => updateSettingField('transferInAccounts', newList, oldItem, newItem)} 
-                  themeClass="border-blue-100" spanClass="text-blue-600" btnClass="bg-blue-400" placeholder="輸入轉入帳戶..." 
-                />
+                <div className="bg-blue-50 p-4 rounded-[1.5rem] border border-blue-100 text-blue-700 font-bold text-[15px] leading-relaxed text-center shadow-sm">
+                   💡 轉帳的「扣款與存入帳戶」選項，已全面升級與您的「現金 / 銀行 / 信用卡」清單同步連動，請至【支出】設定頁統一管理帳戶清單喔！
+                </div>
               </>
             )}
           </div>
         </main>
 
-        {/* 需求 3: 跨房間同步設定 Modal */}
+        {/* 需求 3: 跨房間同步設定 Modal 移回正確的設定頁區塊內 */}
         {syncSettingsModalOpen && (
           <div className="fixed inset-0 bg-black/40 z-[100] flex justify-center items-end sm:items-center p-0 sm:p-4 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setSyncSettingsModalOpen(false)}>
             <div className="bg-white w-full max-w-md rounded-t-[1.5rem] sm:rounded-[1.5rem] p-5 shadow-2xl relative animate-in slide-in-from-bottom-10" onClick={e => e.stopPropagation()}>
@@ -2802,21 +2685,21 @@ export default function App() {
           <div className="absolute bottom-0 left-0 w-full bg-white/95 backdrop-blur-xl p-2 pb-6 sm:pb-4 rounded-t-[2rem] shadow-[0_-15px_40px_rgba(0,0,0,0.08)] flex justify-between items-center z-20 border-t border-gray-100 px-6">
             
             <button onClick={() => setView('accounts')} className="flex flex-col items-center gap-1 text-gray-400 hover:text-indigo-500 transition px-4 py-2">
-              <Wallet size={24} />
-              <span className="font-extrabold text-[12px]">帳戶</span>
+              <Wallet size={26} />
+              <span className="font-extrabold text-[13px]">帳戶</span>
             </button>
 
             {/* 大大的 + 號 */}
             <button 
               onClick={() => { resetForm(); setRecordType('expense'); setShowAddForm(true); }} 
-              className="absolute left-1/2 -translate-x-1/2 -top-6 bg-gradient-to-tr from-pink-400 to-orange-400 text-white w-[64px] h-[64px] rounded-full flex items-center justify-center shadow-[0_10px_20px_rgba(251,146,60,0.4)] border-[4px] border-[#FFFBF0] transform hover:scale-105 transition active:scale-95"
+              className="absolute left-1/2 -translate-x-1/2 -top-6 bg-gradient-to-tr from-pink-400 to-orange-400 text-white w-[68px] h-[68px] rounded-full flex items-center justify-center shadow-[0_10px_20px_rgba(251,146,60,0.4)] border-[4px] border-[#FFFBF0] transform hover:scale-105 transition active:scale-95"
             >
-              <Plus size={36} strokeWidth={3} />
+              <Plus size={38} strokeWidth={3} />
             </button>
 
             <button onClick={() => setView('analysis')} className="flex flex-col items-center gap-1 text-gray-400 hover:text-teal-500 transition px-4 py-2">
-              <BarChart size={24} />
-              <span className="font-extrabold text-[12px]">統計</span>
+              <BarChart size={26} />
+              <span className="font-extrabold text-[13px]">統計</span>
             </button>
 
           </div>
