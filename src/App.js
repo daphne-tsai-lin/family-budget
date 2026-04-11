@@ -72,12 +72,24 @@ const toROCShortStr = (dateStr) => {
 // ==========================================
 const generateFutureDates = (startDateStr, freq, daysArr, intervalStr, customText, maxYears = 1) => {
   const dates = [];
-  const startD = new Date(startDateStr);
-  if (isNaN(startD)) return dates;
-  const endD = new Date(startD);
+  if (!startDateStr) return dates;
+  
+  // 使用當地時間中午 12 點，徹底避免跨時區造成的日期位移
+  const [y, m, d] = startDateStr.split('-').map(Number);
+  const startD = new Date(y, m - 1, d, 12, 0, 0, 0); 
+  if (isNaN(startD.getTime())) return dates;
+
+  const endD = new Date(startD.getTime());
   endD.setFullYear(endD.getFullYear() + maxYears);
   
-  let curr = new Date(startD);
+  const formatDate = (dateObj) => {
+      const ny = dateObj.getFullYear();
+      const nm = String(dateObj.getMonth() + 1).padStart(2, '0');
+      const nd = String(dateObj.getDate()).padStart(2, '0');
+      return `${ny}-${nm}-${nd}`;
+  };
+  
+  let curr = new Date(startD.getTime());
   curr.setDate(curr.getDate() + 1); 
   
   const mapDayToNum = { '週日':0, '週一':1, '週二':2, '週三':3, '週四':4, '週五':5, '週六':6 };
@@ -87,7 +99,7 @@ const generateFutureDates = (startDateStr, freq, daysArr, intervalStr, customTex
       if(targetDays.length === 0) return dates;
       while(curr <= endD) {
           if (targetDays.includes(curr.getDay())) {
-              dates.push(curr.toISOString().split('T')[0]);
+              dates.push(formatDate(curr));
           }
           curr.setDate(curr.getDate() + 1);
       }
@@ -95,14 +107,13 @@ const generateFutureDates = (startDateStr, freq, daysArr, intervalStr, customTex
       const targetDates = daysArr.map(d => Number(d)).filter(d => !isNaN(d));
       if(targetDates.length === 0) return dates;
       while(curr <= endD) {
-          const testD = new Date(curr.getFullYear(), curr.getMonth(), curr.getDate());
-          if (targetDates.includes(curr.getDate()) && testD.getMonth() === curr.getMonth()) {
-              dates.push(curr.toISOString().split('T')[0]);
+          if (targetDates.includes(curr.getDate())) {
+              dates.push(formatDate(curr));
           }
           curr.setDate(curr.getDate() + 1);
       }
   } else if (freq === '區間') {
-      let nextD = new Date(startD);
+      let nextD = new Date(startD.getTime());
       while(true) {
           let added = false;
           if (intervalStr === '3個月') { nextD.setMonth(nextD.getMonth() + 3); added = true; }
@@ -111,12 +122,14 @@ const generateFutureDates = (startDateStr, freq, daysArr, intervalStr, customTex
           else if (intervalStr === '自訂') {
               const days = parseInt(customText.replace(/\D/g, ''));
               if(!isNaN(days) && days > 0) {
+                  // 悠遊卡 30 天含當天的邏輯：4/20 啟用，到期日為 5/19。下次記帳日為 5/20。
+                  // 因此直接加上 days 即可精準算出下一次的購買日。
                   nextD.setDate(nextD.getDate() + days);
                   added = true;
               }
           }
           if (!added || nextD > endD) break;
-          dates.push(nextD.toISOString().split('T')[0]);
+          dates.push(formatDate(nextD));
       }
   }
   return dates;
@@ -331,8 +344,9 @@ const MyCustomPieChart = ({ data, colors }) => {
   resolveCollisions(slices.filter(s => s.isSmall && s.anchorSide === 1));
   resolveCollisions(slices.filter(s => s.isSmall && s.anchorSide === -1));
 
+  // 修改 viewBox 以達到放大效果 (從原先的 3.2 縮小至 2.5)
   return (
-    <svg viewBox="-1.6 -1.6 3.2 3.2" className="w-full max-w-[320px] h-auto mx-auto drop-shadow-md overflow-visible">
+    <svg viewBox="-1.25 -1.25 2.5 2.5" className="w-full max-w-[230px] h-auto mx-auto drop-shadow-md overflow-visible">
       {slices.map((s) => {
         const color = colors[s.i % colors.length];
 
@@ -357,7 +371,7 @@ const MyCustomPieChart = ({ data, colors }) => {
             const lineStartX = Math.cos(s.midAngle) * 0.9;
             const lineStartY = Math.sin(s.midAngle) * 0.9;
             const bendX = Math.cos(s.midAngle) * 1.05;
-            const elbowX = bendX + (0.15 * s.anchorSide);
+            const elbowX = bendX + (0.12 * s.anchorSide);
             
             return (
               <g key={s.i}>
@@ -469,13 +483,22 @@ export default function App() {
   const amountInputRef = useRef(null);
   const fileInputRef = useRef(null); 
   const photoInputRef = useRef(null); // 照相與選圖片功能
+  const recordDateInputRef = useRef(null); // 解決日期點擊問題
 
   const globalWrapperStyle = "min-h-screen bg-gray-100 sm:py-8 flex justify-center items-center font-sans text-[16px]";
   const phoneContainerStyle = `w-full ${view === 'login' || view === 'create' ? 'max-w-[420px]' : 'max-w-[480px]'} min-h-screen sm:min-h-0 sm:h-[844px] bg-[#FFFBF0] flex flex-col relative sm:rounded-[3rem] sm:border-[8px] sm:border-gray-800 shadow-2xl overflow-hidden transition-all duration-500`;
 
   // ==========================================
-  // 防呆防退跳出視窗
+  // 防呆防退與滾動置頂重置
   // ==========================================
+  useEffect(() => {
+    // 監聽各種畫面切換，強制讓帶有 .scroll-container 的容器回到最頂端
+    const scrollContainers = document.querySelectorAll('.scroll-container');
+    scrollContainers.forEach(container => {
+      container.scrollTop = 0;
+    });
+  }, [view, settingsTab, showAddForm, viewingAccountHistory, viewingAnalysisItem, viewingRecord]);
+
   useEffect(() => {
     window.history.pushState({ trap: true }, '');
 
@@ -1042,14 +1065,70 @@ export default function App() {
   const handleSendToOtherRoom = async (targetRoomId) => {
     if (!crossRoomRecord || !user) return;
     try {
-      const { id, ...dataToCopy } = crossRoomRecord;
+      const targetRoomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', targetRoomId);
+      const targetRoomSnap = await getDoc(targetRoomRef);
+      if (!targetRoomSnap.exists()) {
+        alert('目標房間不存在！');
+        return;
+      }
+      const tRoom = targetRoomSnap.data();
+      const data = crossRoomRecord;
+
+      // 防呆：驗證目標房間是否擁有對應選項
+      const checkInArray = (val, arr) => !val || val === '未指定' || (arr || []).includes(val);
+
+      const payers = Array.isArray(data.payer) ? data.payer : [data.payer];
+      if (!payers.every(p => checkInArray(p, tRoom.payers))) return alert('目標房間沒有相對應的付款人，故無法傳送。');
+
+      if (data.type === 'expense') {
+        if (!checkInArray(data.category, tRoom.categories)) return alert(`目標房間沒有支出主分類 [${data.category}]，故無法傳送。`);
+        if (data.title && !(tRoom.categoryItems?.[data.category] || []).includes(data.title)) return alert(`目標房間沒有項目 [${data.title}]，故無法傳送。`);
+        if (!checkInArray(data.merchant, tRoom.merchants)) return alert(`目標房間沒有商家 [${data.merchant}]，故無法傳送。`);
+      } else if (data.type === 'income') {
+        if (!checkInArray(data.category, tRoom.incomeCategories)) return alert(`目標房間沒有收入分類 [${data.category}]，故無法傳送。`);
+      } else if (data.type === 'transfer') {
+        if (!checkInArray(data.category, tRoom.transferCategories)) return alert(`目標房間沒有轉帳分類 [${data.category}]，故無法傳送。`);
+      }
+
+      const validateMethod = (m, sm) => {
+        if (!m || m === '未指定') return true;
+        if (!(tRoom.paymentMethods || []).includes(m)) return false;
+        if (m === '信用卡 / 行動支付' || m === '信用卡') return !sm || (tRoom.creditCards || []).includes(sm);
+        if (m === '銀行 / 電子票證' || m === '銀行 / 儲值卡' || m === '銀行 / 卡片' || m === '銀行') return !sm || (tRoom.bankAccounts || []).includes(sm);
+        return true;
+      };
+
+      if (!validateMethod(data.method, data.subMethod)) return alert('目標房間沒有相對應的付款方式/帳戶，故無法傳送。');
+      if (data.type === 'transfer' && !validateMethod(data.transferToMethod, data.transferToSubMethod)) return alert('目標房間沒有相對應的轉入帳戶，故無法傳送。');
+
+      // 驗證通過，開始傳送資料並保留週期
+      const { id, ...dataToCopy } = data;
       dataToCopy.roomId = targetRoomId;
       dataToCopy.timestamp = Date.now();
-      dataToCopy.groupId = null;
-      if (dataToCopy.frequency !== '一次') dataToCopy.frequency = '一次';
+      
+      const newGroupId = dataToCopy.frequency !== '一次' ? (Date.now().toString() + Math.random().toString(36).substring(2, 9)) : null;
+      dataToCopy.groupId = newGroupId;
 
-      await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'expenses'), dataToCopy);
-      alert('✅ 成功傳送紀錄至另一個房間！');
+      const batch = writeBatch(db);
+      let opsCount = 0;
+
+      const curRef = doc(collection(db, 'artifacts', appId, 'public', 'data', 'expenses'));
+      batch.set(curRef, dataToCopy);
+      opsCount++;
+
+      if (dataToCopy.frequency !== '一次') {
+        const futureDates = generateFutureDates(dataToCopy.date, dataToCopy.frequency, dataToCopy.frequencyDays, dataToCopy.frequencyInterval, dataToCopy.frequencyCustomText, 1);
+        futureDates.forEach(d => {
+          if (opsCount >= 490) return;
+          const futRef = doc(collection(db, 'artifacts', appId, 'public', 'data', 'expenses'));
+          const ts = new Date(d + 'T07:00:00').getTime();
+          batch.set(futRef, { ...dataToCopy, date: d, timestamp: ts });
+          opsCount++;
+        });
+      }
+
+      await batch.commit();
+      alert('✅ 成功傳送紀錄與週期設定至另一個房間！');
       setCrossRoomRecord(null);
     } catch (err) {
       alert('傳送失敗：請檢查網路連線');
@@ -1747,7 +1826,7 @@ export default function App() {
   // --- 登入畫面 ---
   if (view === 'login') {
     content = (
-      <div className="flex flex-col items-center justify-center flex-1 p-4 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+      <div className="scroll-container flex flex-col items-center justify-center flex-1 p-4 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
         <div className="flex flex-col items-center mb-6 w-full mt-2">
           <div className="bg-gradient-to-tr from-[#FFF4B8] to-[#FFD580] p-5 rounded-[1.5rem] mb-5 shadow-sm"><Sparkles size={48} className="text-white drop-shadow-sm" strokeWidth={2.5} /></div>
           <h1 className="text-3xl sm:text-4xl font-black text-gray-800 mb-2 flex items-center gap-2">❤️ 林北一家 🏠</h1>
@@ -1800,7 +1879,7 @@ export default function App() {
   // --- 建立房間畫面 ---
   else if (view === 'create') {
     content = (
-      <div className="flex flex-col items-center justify-center flex-1 p-4 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+      <div className="scroll-container flex flex-col items-center justify-center flex-1 p-4 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
          <div className="flex flex-col items-center mb-6 w-full mt-2">
           <div className="bg-gradient-to-tr from-[#A7F3D0] to-[#34D399] p-5 rounded-[1.5rem] mb-5 shadow-sm"><Home size={44} className="text-white drop-shadow-sm" strokeWidth={2.5} /></div>
           <h1 className="text-2xl sm:text-3xl font-black text-gray-800 mb-1">建立新家庭 ✨</h1>
@@ -1860,7 +1939,7 @@ export default function App() {
           </div>
         </header>
 
-        <main className="px-4 py-4 space-y-4 flex-1 overflow-y-auto pb-[100px] [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+        <main className="scroll-container px-4 py-4 space-y-4 flex-1 overflow-y-auto pb-[100px] [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
           <div className="bg-white py-3 px-5 rounded-[1.5rem] border-2 border-indigo-100 text-center shadow-sm relative overflow-hidden">
              <div className="absolute -right-6 -top-6 bg-indigo-50 w-24 h-24 rounded-full opacity-50"></div>
              <p className="text-indigo-400 font-extrabold text-[14px] relative z-10">💎 淨資產</p>
@@ -1991,7 +2070,7 @@ export default function App() {
                   </div>
               </div>
 
-              <div className="flex-1 overflow-y-auto space-y-2 pr-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+              <div className="scroll-container flex-1 overflow-y-auto space-y-2 pr-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
                 {(() => {
                   const todayStr = getLocalTodayStr();
                   const accHistory = records.filter(r => {
@@ -2032,9 +2111,24 @@ export default function App() {
                              </span>
                              {exp.payer && <span className="bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded text-[11px] font-bold tracking-wide">{Array.isArray(exp.payer)?exp.payer.join(', '):exp.payer}</span>}
                            </div>
-                           <div className="font-black text-[16px] text-gray-700 truncate flex items-center gap-1.5">
-                              {exp.photoBase64 && <span className="shrink-0 w-5 h-5 rounded overflow-hidden shadow-sm inline-block"><img src={exp.photoBase64} alt="圖" className="w-full h-full object-cover" /></span>}
+                           <div className="font-black text-[16px] text-gray-700 truncate">
                               {isTransfer ? `轉帳: ${exp.method}➜${exp.transferToMethod}` : exp.title}
+                           </div>
+                           <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                             {!isTransfer && exp.method && exp.method !== '未指定' && <span className="text-gray-500 text-[12px] font-bold bg-gray-100 px-1.5 py-0.5 rounded border border-gray-200">💳 {exp.method}{exp.subMethod ? `(${exp.subMethod})` : ''}</span>}
+                             {exp.merchant && exp.merchant !== '未指定' && <span className="text-gray-500 text-[12px] font-bold bg-gray-100 px-1.5 py-0.5 rounded border border-gray-200">🏪 {exp.merchant}</span>}
+                             
+                             {exp.photoBase64 && (
+                               <span className="shrink-0 w-5 h-5 rounded overflow-hidden shadow-sm inline-block border border-gray-200" title="有照片">
+                                 <img src={exp.photoBase64} alt="圖" className="w-full h-full object-cover" />
+                               </span>
+                             )}
+                             
+                             {exp.note && (
+                               <span className="text-gray-500 text-[12px] font-bold bg-white px-1.5 py-0.5 rounded border border-gray-200 max-w-[120px] truncate">
+                                 📝 {exp.note}
+                               </span>
+                             )}
                            </div>
                         </div>
                         <div className={`font-black text-[19px] shrink-0 ${isPositive ? 'text-green-500' : 'text-gray-800'}`}>
@@ -2117,7 +2211,7 @@ export default function App() {
         </header>
 
         <main 
-          className="px-4 py-4 flex-1 overflow-y-auto pb-[120px] [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
+          className="scroll-container px-4 py-4 flex-1 overflow-y-auto pb-[120px] [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
           onTouchStart={handleTouchStart}
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
@@ -2169,14 +2263,21 @@ export default function App() {
                               {exp.category}
                             </span>
                           )}
-                          <span className="font-black text-gray-800 text-[18px] shrink-0 mr-1 flex items-center gap-1.5">
-                            {exp.photoBase64 && <span className="shrink-0 w-6 h-6 rounded-md overflow-hidden shadow-sm inline-block"><img src={exp.photoBase64} alt="圖" className="w-full h-full object-cover" /></span>}
-                            {isTransfer ? `轉帳: ${exp.method}${exp.subMethod ? '('+exp.subMethod+')' : ''} ➜ ${exp.transferToMethod}${exp.transferToSubMethod ? '('+exp.transferToSubMethod+')' : ''}` : exp.title}
+                          <span className="font-black text-gray-800 text-[18px] shrink-0 mr-1">
+                            {isTransfer ? `🔄 轉帳: ${exp.method}${exp.subMethod ? '('+exp.subMethod+')' : ''} ➜ ${exp.transferToMethod}${exp.transferToSubMethod ? '('+exp.transferToSubMethod+')' : ''}` : exp.title}
                           </span>
                           
                           {payerStr && payerStr !== '未指定' && <span className="text-gray-500 text-[13px] font-bold bg-gray-50 px-1.5 py-0.5 rounded border border-gray-200">👤 {payerStr}</span>}
                           {!isTransfer && exp.method && exp.method !== '未指定' && <span className="text-gray-500 text-[13px] font-bold bg-gray-50 px-1.5 py-0.5 rounded border border-gray-200">💳 {exp.method}{exp.subMethod ? `(${exp.subMethod})` : ''}</span>}
                           {exp.merchant && exp.merchant !== '未指定' && <span className="text-gray-500 text-[13px] font-bold bg-gray-50 px-1.5 py-0.5 rounded border border-gray-200">🏪 {exp.merchant}</span>}
+                          
+                          {/* 照片縮圖移到這裡：商家後，備註前 */}
+                          {exp.photoBase64 && (
+                            <span className="shrink-0 w-[22px] h-[22px] rounded overflow-hidden shadow-sm inline-block border border-gray-200 mt-0.5" title="附有照片">
+                               <img src={exp.photoBase64} alt="圖" className="w-full h-full object-cover" />
+                            </span>
+                          )}
+                          
                           {exp.note && (
                              <span className="text-gray-500 text-[13px] font-bold bg-[#FFFDF9] px-1.5 py-0.5 rounded border border-[#F2EFE9] max-w-full truncate mt-0.5">
                                📝 {exp.note}
@@ -2242,7 +2343,7 @@ export default function App() {
           )}
         </header>
 
-        <main className="px-4 py-4 space-y-4 flex-1 overflow-y-auto pb-[90px] [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+        <main className="scroll-container px-4 py-4 space-y-4 flex-1 overflow-y-auto pb-[90px] [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
           <form onSubmit={handleSaveRecord} className="space-y-4">
             
             <div className={`bg-white rounded-[1.5rem] pt-3 pb-2 px-5 shadow-sm border-2 ${themeBorder} text-center relative overflow-hidden`}>
@@ -2269,15 +2370,23 @@ export default function App() {
                     <span className="flex items-center gap-1.5"><Calendar size={18} className="text-gray-400" /> 日期 🗓️</span>
                     <button type="button" onClick={() => setRecordDate(getLocalTodayStr())} className="bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-1 rounded-lg text-[13px] transition shadow-sm">今天</button>
                   </label>
-                  <div className="relative w-full bg-gray-50 border border-gray-100 p-4 rounded-[1.2rem] flex items-center shadow-sm cursor-pointer hover:bg-white transition overflow-hidden">
+                  <div 
+                    className="relative w-full bg-gray-50 border border-gray-100 p-4 rounded-[1.2rem] flex items-center shadow-sm cursor-pointer hover:bg-white transition overflow-hidden"
+                    onClick={() => {
+                      if (recordDateInputRef.current) {
+                        try { recordDateInputRef.current.showPicker(); } catch (e) { recordDateInputRef.current.focus(); }
+                      }
+                    }}
+                  >
                     <input 
+                      ref={recordDateInputRef}
                       type="date" 
                       required 
                       className="absolute inset-0 w-full h-full opacity-0 z-10 cursor-pointer" 
                       value={recordDate} 
                       onChange={(e) => setRecordDate(e.target.value)} 
                     />
-                    <span className="font-bold text-gray-700 text-[17px] z-0">
+                    <span className="font-bold text-gray-700 text-[17px] z-0 pointer-events-none">
                       {recordDate ? toROCYearStr(recordDate) : '選擇日期'}
                     </span>
                     <span className="absolute right-3 text-gray-400 text-[14px] z-0 pointer-events-none">▼</span>
@@ -2407,7 +2516,7 @@ export default function App() {
           </div>
         </header>
 
-        <main className="px-4 py-4 space-y-4 flex-1 overflow-y-auto pb-[100px] [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+        <main className="scroll-container px-4 py-4 space-y-4 flex-1 overflow-y-auto pb-[100px] [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
           <button onClick={() => setSyncSettingsModalOpen(true)} className="w-full bg-gradient-to-r from-indigo-500 to-blue-500 text-white p-3.5 rounded-[1.2rem] font-bold text-[18px] shadow-md hover:shadow-lg transition flex justify-center items-center gap-2 active:scale-95">
              <RefreshCw size={20} /> 🔄 複製設定至其他房間
           </button>
@@ -2669,10 +2778,10 @@ export default function App() {
           </div>
         </header>
 
-        <main key="analysis-main" className="px-4 py-4 flex-1 overflow-y-auto pb-[100px] [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] space-y-4">
-          <div className="bg-white p-5 rounded-[1.5rem] shadow-sm border-2 border-teal-50">
+        <main className="scroll-container px-4 py-3 flex-1 overflow-y-auto pb-[100px] [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] space-y-3">
+          <div className="bg-white p-4 rounded-[1.5rem] shadow-sm border-2 border-teal-50">
             
-            <div className="mb-5">
+            <div className="mb-4">
                <label className="block text-[14px] font-bold text-gray-500 mb-2 ml-1">付款人 (單選)</label>
                <div className="flex flex-wrap gap-2">
                  {uniqueRoles.map(role => {
@@ -2686,7 +2795,7 @@ export default function App() {
                </div>
             </div>
 
-            <div className="mb-5">
+            <div className="mb-4">
                <label className="block text-[14px] font-bold text-gray-500 mb-2 ml-1">分析類型 (單選)</label>
                <div className="flex bg-gray-50 rounded-xl p-1 border border-gray-100 shadow-inner">
                  {['expense', 'income', 'transfer'].map(type => {
@@ -2702,7 +2811,7 @@ export default function App() {
                </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3 mb-5">
+            <div className="grid grid-cols-2 gap-3 mb-4">
               <div>
                 <div className="flex justify-between items-center mb-1.5 ml-1">
                   <label className="block text-[13px] font-bold text-gray-500">開始日期</label>
@@ -2719,7 +2828,7 @@ export default function App() {
               </div>
             </div>
 
-            <div className="mb-4">
+            <div className="mb-2">
               <label className="block text-[14px] font-bold text-gray-500 mb-2 ml-1">分析選單 (可複選)</label>
               <div className="flex flex-wrap gap-2">
                 {analysisOptions.map(opt => {
@@ -2741,7 +2850,7 @@ export default function App() {
             </div>
 
             {analysisMenus.length > 0 && (
-              <div className="pt-5 border-t border-dashed border-gray-100 space-y-5">
+              <div className="pt-4 border-t border-dashed border-gray-100 space-y-4">
                 <label className="block text-[12px] font-bold text-teal-600 bg-teal-50 px-3 py-1.5 rounded-lg inline-block leading-relaxed">💡 依選擇選單篩選細項 (不選代表全部分析)</label>
                 
                 {analysisMenus.includes('category') && (
@@ -2753,7 +2862,7 @@ export default function App() {
                   />
                 )}
                 {analysisType === 'expense' && analysisMenus.includes('title') && (
-                  <div className="mb-5 bg-gray-50 p-4 rounded-xl border border-gray-100 shadow-sm">
+                  <div className="mb-4 bg-gray-50 p-4 rounded-xl border border-gray-100 shadow-sm">
                     <label className="block text-[13px] font-bold text-gray-500 mb-3 leading-relaxed">請先選擇上方的主分類篩選，這裡會列出對應的項目讓您勾選</label>
                     <div className="flex flex-wrap gap-2">
                       {(() => {
@@ -2790,30 +2899,33 @@ export default function App() {
             )}
           </div>
 
-          <div className="bg-white p-5 rounded-[1.5rem] shadow-sm border-2 border-teal-50">
-            <h2 className="font-bold text-teal-700 mb-2 text-[16px] flex items-center gap-2"><LucidePieChart size={18} className="text-teal-400"/> 統計結果</h2>
-            <MyCustomPieChart data={chartData} colors={chartColors} />
+          <div className="bg-white p-3.5 sm:p-4 rounded-[1.5rem] shadow-sm border-2 border-teal-50">
+            <h2 className="font-bold text-teal-700 mb-0 text-[16px] flex items-center gap-2"><LucidePieChart size={18} className="text-teal-400"/> 統計結果</h2>
             
-            <div className="mt-1 space-y-2.5">
+            <div className="-my-2">
+              <MyCustomPieChart data={chartData} colors={chartColors} />
+            </div>
+            
+            <div className="-mt-1 space-y-1.5">
               {chartData.length === 0 ? (
-                <p className="text-center text-gray-400 font-bold text-[14px] bg-gray-50 py-4 rounded-xl">此條件沒有紀錄喔！</p>
+                <p className="text-center text-gray-400 font-bold text-[14px] bg-gray-50 py-3 rounded-xl">此條件沒有紀錄喔！</p>
               ) : (
                 chartData.map((d, idx) => (
-                  <div key={d.label} onClick={() => setViewingAnalysisItem(d.label)} className="flex justify-between items-center bg-gray-50 p-3 rounded-xl border border-gray-100 hover:shadow-sm cursor-pointer hover:bg-teal-50 hover:border-teal-200 transition">
+                  <div key={d.label} onClick={() => setViewingAnalysisItem(d.label)} className="flex justify-between items-center bg-gray-50 py-2 px-3 rounded-xl border border-gray-100 hover:shadow-sm cursor-pointer hover:bg-teal-50 hover:border-teal-200 transition">
                     <div className="flex items-center gap-2.5">
-                      <div className="w-5 h-5 rounded shadow-inner" style={{ backgroundColor: chartColors[idx % chartColors.length] }}></div>
-                      <span className="font-bold text-gray-700 text-[15px] truncate max-w-[150px]">{d.label}</span>
+                      <div className="w-3.5 h-3.5 rounded shadow-inner" style={{ backgroundColor: chartColors[idx % chartColors.length] }}></div>
+                      <span className="font-bold text-gray-700 text-[14px] truncate max-w-[150px]">{d.label}</span>
                     </div>
-                    <span className="font-black text-gray-800 text-[17px]">${d.value.toLocaleString()}</span>
+                    <span className="font-black text-gray-800 text-[15px]">${d.value.toLocaleString()}</span>
                   </div>
                 ))
               )}
             </div>
 
             {chartData.length > 0 && (
-              <div className="bg-teal-50 rounded-xl p-3 mt-3 flex justify-between items-center border border-teal-100 shadow-inner">
-                 <span className="font-bold text-teal-700 text-[15px]">篩選總計</span>
-                 <span className="font-black text-teal-600 text-[22px]">${totalAnalysisAmount.toLocaleString()}</span>
+              <div className="bg-teal-50 rounded-xl py-2.5 px-3 mt-2.5 flex justify-between items-center border border-teal-100 shadow-inner">
+                 <span className="font-bold text-teal-700 text-[14px]">篩選總計</span>
+                 <span className="font-black text-teal-600 text-[18px]">${totalAnalysisAmount.toLocaleString()}</span>
               </div>
             )}
           </div>
@@ -2849,7 +2961,7 @@ export default function App() {
                 <BarChart size={20} className="text-teal-500 shrink-0" /> <span className="truncate">{viewingAnalysisItem} 明細</span>
               </h3>
               
-              <div className="flex-1 overflow-y-auto space-y-2 pr-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+              <div className="scroll-container flex-1 overflow-y-auto space-y-2 pr-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
                 {(() => {
                   const analysisDetailRecords = analysisFilteredRecords.filter(r => getAnalysisKeyForRecord(r) === viewingAnalysisItem).sort((a, b) => {
                       if (a.date !== b.date) return a.date > b.date ? -1 : 1;
@@ -2875,9 +2987,24 @@ export default function App() {
                              </span>
                              {exp.payer && <span className="bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded text-[11px] font-bold tracking-wide">{Array.isArray(exp.payer)?exp.payer.join(', '):exp.payer}</span>}
                            </div>
-                           <div className="font-black text-[16px] text-gray-700 truncate flex items-center gap-1.5">
-                              {exp.photoBase64 && <span className="shrink-0 w-5 h-5 rounded overflow-hidden shadow-sm inline-block"><img src={exp.photoBase64} alt="圖" className="w-full h-full object-cover" /></span>}
+                           <div className="font-black text-[16px] text-gray-700 truncate">
                               {isTransfer ? `轉帳: ${exp.method}➜${exp.transferToMethod}` : exp.title}
+                           </div>
+                           <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                             {!isTransfer && exp.method && exp.method !== '未指定' && <span className="text-gray-500 text-[12px] font-bold bg-gray-100 px-1.5 py-0.5 rounded border border-gray-200">💳 {exp.method}{exp.subMethod ? `(${exp.subMethod})` : ''}</span>}
+                             {exp.merchant && exp.merchant !== '未指定' && <span className="text-gray-500 text-[12px] font-bold bg-gray-100 px-1.5 py-0.5 rounded border border-gray-200">🏪 {exp.merchant}</span>}
+                             
+                             {exp.photoBase64 && (
+                               <span className="shrink-0 w-[22px] h-[22px] rounded-md overflow-hidden shadow-sm inline-block border border-gray-200" title="此紀錄附有照片">
+                                 <img src={exp.photoBase64} alt="圖" className="w-full h-full object-cover" />
+                               </span>
+                             )}
+                             
+                             {exp.note && (
+                               <span className="text-gray-500 text-[12px] font-bold bg-white px-1.5 py-0.5 rounded border border-gray-200 max-w-[120px] truncate">
+                                 📝 {exp.note}
+                               </span>
+                             )}
                            </div>
                         </div>
                         <div className={`font-black text-[19px] shrink-0 ${isIncome ? 'text-green-500' : isTransfer ? 'text-blue-500' : 'text-gray-800'}`}>
@@ -2898,7 +3025,7 @@ export default function App() {
             <div className="bg-white w-full max-w-sm rounded-[1.5rem] p-5 shadow-2xl relative" onClick={e => e.stopPropagation()}>
               <button onClick={() => setViewingRecord(null)} className="absolute top-3 right-3 text-gray-400 hover:text-gray-600 bg-gray-100 p-1.5 rounded-full transition"><X size={22}/></button>
               <h3 className="font-black text-2xl text-gray-800 mb-3 border-b border-gray-100 pb-2">詳細紀錄</h3>
-              <div className="space-y-2.5 text-[16px] text-gray-600 font-bold max-h-[65vh] overflow-y-auto pr-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+              <div className="scroll-container space-y-2.5 text-[16px] text-gray-600 font-bold max-h-[65vh] overflow-y-auto pr-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
                 <div className="flex justify-between items-center bg-gray-50 p-2.5 rounded-xl border border-gray-100">
                    <span className="text-gray-400">類型</span>
                    <span className={`${viewingRecord.type === 'income' ? 'text-green-500' : viewingRecord.type === 'transfer' ? 'text-blue-500' : 'text-orange-500'} font-black text-[17px]`}>
