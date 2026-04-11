@@ -1466,13 +1466,13 @@ export default function App() {
 
     return (
       <div className="mb-4 w-full">
-        {label && <label className="flex items-center gap-1.5 text-[15px] font-bold text-gray-500 mb-2 ml-1">{Icon && <Icon size={16} className="text-gray-400" />} {label}</label>}
-        <div className="flex flex-nowrap gap-2 overflow-x-auto pb-1.5 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+        {label && <label className="flex items-center gap-1.5 text-[14px] font-bold text-gray-500 mb-2 ml-1">{Icon && <Icon size={14} className="text-gray-400" />} {label}</label>}
+        <div className="flex w-full gap-1.5">
           {options.map(opt => {
             const isSelected = values.includes(opt);
             const isDisabled = isPayer && ((opt === '全家' && hasIndividuals) || (opt !== '全家' && hasFamily));
             return (
-              <button key={opt} type="button" onClick={() => handleToggle(opt)} className={`shrink-0 whitespace-nowrap px-5 py-2.5 rounded-2xl text-[16px] font-black transition-all duration-200 border-[3px] shadow-sm flex items-center justify-center leading-tight ${isSelected ? 'bg-[#FFE28A] text-gray-900 border-[#F59E0B] transform -translate-y-0.5 z-10' : isDisabled ? 'bg-gray-100 text-gray-300 border-transparent cursor-not-allowed opacity-60' : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300 hover:bg-gray-50'}`}>{opt}</button>
+              <button key={opt} type="button" onClick={() => handleToggle(opt)} className={`flex-1 py-2 px-0.5 rounded-[1.2rem] text-[13px] sm:text-[14px] font-black transition-all duration-200 border-2 shadow-sm flex items-center justify-center leading-tight ${isSelected ? 'bg-[#FFE28A] text-gray-900 border-[#F59E0B] transform -translate-y-0.5 z-10' : isDisabled ? 'bg-gray-100 text-gray-300 border-transparent cursor-not-allowed opacity-60' : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300 hover:bg-gray-50'}`}>{opt}</button>
             )
           })}
         </div>
@@ -1553,7 +1553,7 @@ export default function App() {
               <button type="button" onClick={() => setCurrentUserRole('老婆')} className={`p-4 rounded-xl font-bold text-[18px] flex justify-center items-center gap-1.5 transition-all duration-200 ${currentUserRole === '老婆' ? 'bg-pink-500 text-white shadow-md transform -translate-y-0.5' : 'bg-gray-50 border border-gray-100 text-gray-500 hover:bg-gray-100'}`}>👩 老婆</button>
             </div>
           </div>
-          <button type="submit" disabled={isLoading} className="w-full bg-gray-800 text-white font-extrabold text-[20px] py-4 rounded-[2rem] hover:bg-gray-700 shadow-md transition active:scale-95 disabled:opacity-50 mt-2">{isLoading ? '處理中...' : '開啟小財庫 🚀'}</button>
+          <button type="submit" disabled={isLoading} className="w-full bg-gray-800 text-white font-extrabold text-[20px] p-4 rounded-full hover:bg-gray-700 shadow-md transition active:scale-95 disabled:opacity-50 mt-2">{isLoading ? '處理中...' : '開啟小財庫 🚀'}</button>
         </form>
         <div className="mt-6 text-center w-full pb-6">
           <button onClick={() => {setView('create'); setErrorMsg('');}} className="text-gray-500 text-[17px] font-bold hover:text-gray-700 transition bg-white px-6 py-3 rounded-full shadow-sm border border-gray-200">💡 建立新的家庭房間</button>
@@ -1566,7 +1566,7 @@ export default function App() {
     content = (
       <div className="flex flex-col items-center justify-center flex-1 p-4 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
          <div className="flex flex-col items-center mb-6 w-full mt-2">
-          <div className="bg-gradient-to-tr from-[#A7F3D0] to-[#34D399] p-5 rounded-[1.5rem] mb-5 shadow-sm"><Home size={48} className="text-white drop-shadow-sm" strokeWidth={2.5} /></div>
+          <div className="bg-gradient-to-tr from-[#A7F3D0] to-[#34D399] p-5 rounded-[1.5rem] mb-5 shadow-sm"><Home size={44} className="text-white drop-shadow-sm" strokeWidth={2.5} /></div>
           <h1 className="text-2xl sm:text-3xl font-black text-gray-800 mb-1">建立新家庭 ✨</h1>
         </div>
         {errorMsg && <div className="w-full bg-red-50 text-red-500 font-bold p-3 rounded-xl mb-4 flex items-center justify-center gap-2 text-[16px] shadow-sm border border-red-100"><AlertCircle size={20} /> {errorMsg}</div>}
@@ -1581,7 +1581,7 @@ export default function App() {
           <input type="text" className="w-full bg-gray-50 text-center border border-gray-100 p-3.5 rounded-xl focus:bg-white focus:border-green-300 outline-none font-bold text-gray-700 text-[18px] transition shadow-sm" placeholder="🏠 房間名稱 (例: 林北小財庫)" value={roomName} onChange={(e) => setRoomName(e.target.value)} />
           <input type="text" className="w-full bg-gray-50 text-center border border-gray-100 p-3.5 rounded-xl focus:bg-white focus:border-green-300 outline-none font-bold text-gray-700 text-[18px] transition shadow-sm" placeholder="🎀 自訂通關代碼 (需唯一)" value={roomCode} onChange={(e) => setRoomCode(e.target.value)} />
           <input type="password" className="w-full bg-gray-50 text-center border border-gray-100 p-3.5 rounded-xl focus:bg-white focus:border-green-300 outline-none font-bold text-gray-700 text-[18px] transition shadow-sm" placeholder="🔑 設定房間密碼" value={roomPin} onChange={(e) => setRoomPin(e.target.value)} />
-          <button type="submit" disabled={isLoading} className="w-full bg-green-500 text-white font-extrabold text-[20px] py-4 rounded-[2rem] hover:bg-green-600 shadow-md transition active:scale-95 mt-2">{isLoading ? '處理中...' : '建立並進入 🚀'}</button>
+          <button type="submit" disabled={isLoading} className="w-full bg-green-500 text-white font-extrabold text-[20px] p-4 rounded-full hover:bg-green-600 shadow-md transition active:scale-95 mt-2">{isLoading ? '處理中...' : '建立並進入 🚀'}</button>
         </form>
         <div className="mt-6 text-center w-full pb-6">
            <button onClick={() => {setView('login'); setErrorMsg('');}} className="text-gray-500 text-[17px] font-bold hover:text-gray-700 transition bg-white px-6 py-3 rounded-full shadow-sm border border-gray-200">返回登入</button>
@@ -1629,7 +1629,7 @@ export default function App() {
             <p className="text-indigo-500 font-bold bg-indigo-50 border border-indigo-100 inline-block px-4 py-2 rounded-full text-[13px] shadow-sm leading-relaxed">👉 點擊各帳戶列即可查看歷史明細</p>
           </div>
 
-          <div className="bg-white py-3.5 px-5 rounded-[1.5rem] border-2 border-indigo-100 text-center shadow-sm relative overflow-hidden">
+          <div className="bg-white py-3 px-5 rounded-[1.5rem] border-2 border-indigo-100 text-center shadow-sm relative overflow-hidden">
              <div className="absolute -right-6 -top-6 bg-indigo-50 w-24 h-24 rounded-full opacity-50"></div>
              <p className="text-indigo-400 font-extrabold text-[14px] relative z-10">💎 淨資產</p>
              <p className={`text-[38px] leading-tight font-black relative z-10 ${netWorth < 0 ? 'text-red-500' : 'text-indigo-700'}`}>${netWorth.toLocaleString()}</p>
@@ -1790,12 +1790,12 @@ export default function App() {
                     return (
                       <div key={exp.id} onClick={() => setViewingRecord(exp)} className="bg-gray-50 p-3 rounded-xl border border-gray-100 flex justify-between items-center cursor-pointer hover:bg-gray-100 transition">
                         <div className="overflow-hidden pr-2">
-                           <div className="flex items-center gap-1.5 mb-1">
+                           <div className="flex flex-wrap items-center gap-1.5 mb-1">
                              <span className="text-[13px] font-bold text-gray-400">{toROCYearStr(exp.date)}</span>
                              <span className="bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded text-[11px] font-bold tracking-wide">
                                {freqDisplay || '一次'}
                              </span>
-                             {exp.payer && <span className="bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded text-[11px] font-bold tracking-wide">{Array.isArray(exp.payer)?exp.payer[0]:exp.payer}</span>}
+                             {exp.payer && <span className="bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded text-[11px] font-bold tracking-wide">{Array.isArray(exp.payer)?exp.payer.join(', '):exp.payer}</span>}
                            </div>
                            <div className="font-black text-[16px] text-gray-700 truncate">
                               {isTransfer ? `轉帳: ${exp.method}➜${exp.transferToMethod}` : exp.title}
@@ -1910,8 +1910,8 @@ export default function App() {
                       <div className={`absolute left-0 top-1/2 -translate-y-1/2 h-1/2 w-1 rounded-r-md ${isIncome ? 'bg-green-400' : isTransfer ? 'bg-blue-400' : 'bg-orange-400'}`}></div>
                       
                       <div className="flex-1 pl-2.5 pr-2 overflow-hidden flex flex-col justify-center py-1.5">
-                        {/* 第一排：建檔日期時間與建立者 (緊靠排列) */}
-                        <div className="flex items-center gap-2 mb-1.5">
+                        {/* 第一排：建檔日期時間、建立者與頻率 (緊靠排列) */}
+                        <div className="flex flex-wrap items-center gap-1.5 mb-1.5">
                           <div className="text-[12px] font-bold text-gray-400">
                             建檔: {toROCYearStr(exp.timestamp)} {new Date(exp.timestamp).toLocaleTimeString('zh-TW', { hour12: false, hour: '2-digit', minute: '2-digit' })}
                           </div>
@@ -1920,15 +1920,13 @@ export default function App() {
                               {exp.addedByRole}
                             </span>
                           )}
+                          <span className="bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded text-[12px] font-bold tracking-wide shrink-0">
+                            {freqDisplay || '一次'}
+                          </span>
                         </div>
 
                         {/* 第二排：所有詳細資訊自動換行排列 (省空間又整齊) */}
                         <div className="flex flex-wrap items-center gap-1.5">
-                          {freqDisplay && freqDisplay !== '一次' && (
-                            <span className="bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded text-[13px] font-bold tracking-wide shrink-0">
-                              {freqDisplay}
-                            </span>
-                          )}
                           {!isTransfer && (
                             <span className={`font-bold text-[14px] px-1.5 py-0.5 rounded whitespace-nowrap border shrink-0 ${isIncome ? 'bg-green-50 text-green-600 border-green-100' : 'bg-orange-50 text-orange-600 border-orange-100'}`}>
                               {exp.category}
@@ -1968,118 +1966,6 @@ export default function App() {
             )}
           </div>
         </main>
-
-        {/* 查看明細詳細內容 Modal (疊加) */}
-        {viewingRecord && (
-          <div className="fixed inset-0 bg-black/40 z-[110] flex justify-center items-center p-4 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setViewingRecord(null)}>
-            <div className="bg-white w-full max-w-sm rounded-[1.5rem] p-5 shadow-2xl relative" onClick={e => e.stopPropagation()}>
-              <button onClick={() => setViewingRecord(null)} className="absolute top-3 right-3 text-gray-400 hover:text-gray-600 bg-gray-100 p-1.5 rounded-full transition"><X size={22}/></button>
-              <h3 className="font-black text-2xl text-gray-800 mb-3 border-b border-gray-100 pb-2">詳細紀錄</h3>
-              <div className="space-y-2.5 text-[16px] text-gray-600 font-bold max-h-[65vh] overflow-y-auto pr-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-                <div className="flex justify-between items-center bg-gray-50 p-2.5 rounded-xl border border-gray-100">
-                   <span className="text-gray-400">類型</span>
-                   <span className={`${viewingRecord.type === 'income' ? 'text-green-500' : viewingRecord.type === 'transfer' ? 'text-blue-500' : 'text-orange-500'} font-black text-[17px]`}>
-                     {viewingRecord.type === 'income' ? '收入' : viewingRecord.type === 'transfer' ? '轉帳' : '支出'}
-                   </span>
-                </div>
-                <div className="flex justify-between items-center bg-gray-50 p-2.5 rounded-xl border border-gray-100">
-                   <span className="text-gray-400">金額</span>
-                   <span className="text-[26px] text-gray-800 font-black">${viewingRecord.amount.toLocaleString()}</span>
-                </div>
-                <div className="flex justify-between items-center border-b border-gray-100 pb-1.5 pt-1">
-                   <span className="text-gray-400">消費日期</span>
-                   <span className="text-gray-800">{toROCYearStr(viewingRecord.date)}</span>
-                </div>
-                <div className="flex justify-between items-center border-b border-gray-100 pb-1.5">
-                   <span className="text-gray-400">建檔時間</span>
-                   <span className="text-gray-800 text-[14px]">{toROCYearStr(viewingRecord.timestamp)} {new Date(viewingRecord.timestamp).toLocaleTimeString('zh-TW', {hour12: false, hour: '2-digit', minute:'2-digit'})}</span>
-                </div>
-                <div className="flex justify-between items-center border-b border-gray-100 pb-1.5">
-                   <span className="text-gray-400">分類</span>
-                   <span className="text-gray-800">{viewingRecord.category}</span>
-                </div>
-                {viewingRecord.type !== 'transfer' && (
-                  <div className="flex justify-between items-center border-b border-gray-100 pb-1.5">
-                     <span className="text-gray-400">項目</span>
-                     <span className="text-gray-800">{viewingRecord.title}</span>
-                  </div>
-                )}
-                {viewingRecord.merchant && viewingRecord.merchant !== '未指定' && (
-                  <div className="flex justify-between items-center border-b border-gray-100 pb-1.5">
-                     <span className="text-gray-400">商家</span>
-                     <span className="text-gray-800">{viewingRecord.merchant}</span>
-                  </div>
-                )}
-                {viewingRecord.payer && viewingRecord.payer.length > 0 && (
-                  <div className="flex justify-between items-center border-b border-gray-100 pb-1.5">
-                     <span className="text-gray-400">對象</span>
-                     <span className="text-gray-800">{Array.isArray(viewingRecord.payer) ? viewingRecord.payer.join(', ') : viewingRecord.payer}</span>
-                  </div>
-                )}
-                {viewingRecord.method && viewingRecord.method !== '未指定' && (
-                  <div className="flex justify-between items-center border-b border-gray-100 pb-1.5">
-                     <span className="text-gray-400">{viewingRecord.type === 'transfer' ? '轉出帳戶' : '付款方式'}</span>
-                     <span className="text-gray-800">{viewingRecord.method} {viewingRecord.subMethod ? `(${viewingRecord.subMethod})` : ''}</span>
-                  </div>
-                )}
-                {viewingRecord.transferToMethod && (
-                  <div className="flex justify-between items-center border-b border-gray-100 pb-1.5">
-                     <span className="text-gray-400">轉入帳戶</span>
-                     <span className="text-gray-800">{viewingRecord.transferToMethod} {viewingRecord.transferToSubMethod ? `(${viewingRecord.transferToSubMethod})` : ''}</span>
-                  </div>
-                )}
-                <div className="flex justify-between items-center border-b border-gray-100 pb-1.5">
-                   <span className="text-gray-400">頻率</span>
-                   <span className="text-gray-800">
-                     {viewingRecord.frequency === '每週' && viewingRecord.frequencyDays?.length > 0
-                       ? `每週 (${viewingRecord.frequencyDays.join('、')})`
-                       : viewingRecord.frequency === '每月' && viewingRecord.frequencyDays?.length > 0
-                         ? `每月 (${viewingRecord.frequencyDays.join('、')}號)`
-                         : viewingRecord.frequency === '區間'
-                           ? (viewingRecord.frequencyInterval === '自訂' ? viewingRecord.frequencyCustomText : viewingRecord.frequencyInterval)
-                           : viewingRecord.frequency}
-                   </span>
-                </div>
-                <div className="flex justify-between items-center border-b border-gray-100 pb-1.5">
-                   <span className="text-gray-400">建立者</span>
-                   <span className="text-gray-800">{viewingRecord.addedByRole}</span>
-                </div>
-                {viewingRecord.note && (
-                  <div className="pt-1.5">
-                     <span className="text-gray-400 block mb-1">備註</span>
-                     <span className="text-gray-800 block bg-gray-50 p-2.5 rounded-xl border border-gray-100">{viewingRecord.note}</span>
-                  </div>
-                )}
-              </div>
-              <div className="flex gap-3 mt-4 pt-4 border-t border-gray-100">
-                 <button onClick={() => { handleCopyRecord(viewingRecord); setViewingRecord(null); }} className="flex-1 bg-green-50 text-green-600 font-bold py-3 rounded-xl flex items-center justify-center gap-2 transition hover:bg-green-100 active:scale-95"><Copy size={16}/> 複製此筆</button>
-                 <button onClick={() => { handleDeleteRecord(viewingRecord.id); setViewingRecord(null); }} className="flex-1 bg-red-50 text-red-500 font-bold py-3 rounded-xl flex items-center justify-center gap-2 transition hover:bg-red-100 active:scale-95"><Trash2 size={16}/> 刪除此筆</button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* 傳送紀錄至其他房間的 Modal */}
-        {crossRoomRecord && (
-          <div className="fixed inset-0 bg-black/40 z-[100] flex justify-center items-center p-4 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className="bg-white w-full max-w-sm rounded-[1.5rem] p-5 shadow-2xl">
-               <h3 className="font-black text-xl text-gray-800 mb-3 flex items-center gap-2"><Send size={22} className="text-blue-500"/> 傳送至其他房間</h3>
-               <p className="text-[16px] font-bold text-gray-500 mb-4 leading-relaxed">將此筆 <span className="text-gray-800">[{crossRoomRecord.title || crossRoomRecord.category}] ${crossRoomRecord.amount}</span> 複製傳送到：</p>
-               <div className="space-y-2.5 mb-5 max-h-56 overflow-y-auto pr-1">
-                 {savedRooms.filter(r => r.id !== activeRoomId).length === 0 ? (
-                   <p className="text-red-400 font-bold text-[15px] bg-red-50 p-3 rounded-xl leading-relaxed">您目前沒有儲存其他房間，請先登入過其他房間再使用此功能。</p>
-                 ) : (
-                   savedRooms.filter(r => r.id !== activeRoomId).map(r => (
-                     <button key={r.id} onClick={() => handleSendToOtherRoom(r.id)} className="w-full text-left bg-gray-50 hover:bg-blue-50 border border-gray-100 hover:border-blue-200 p-3 rounded-xl font-black text-gray-700 text-[17px] transition flex items-center shadow-sm">
-                       🏠 {r.name} <span className="text-[13px] font-bold text-gray-400 ml-auto">({r.id})</span>
-                     </button>
-                   ))
-                 )}
-               </div>
-               <button onClick={() => setCrossRoomRecord(null)} className="w-full bg-gray-100 hover:bg-gray-200 text-gray-600 font-extrabold text-[17px] py-3 rounded-xl transition">取消傳送</button>
-            </div>
-          </div>
-        )}
       </>
     );
   }
@@ -2679,27 +2565,139 @@ export default function App() {
         <input type="file" accept=".json" style={{display: 'none'}} ref={fileInputRef} onChange={handleImport} />
         
         {content}
+
+        {/* 查看明細詳細內容 Modal (全域疊加) */}
+        {viewingRecord && (
+          <div className="fixed inset-0 bg-black/40 z-[110] flex justify-center items-center p-4 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setViewingRecord(null)}>
+            <div className="bg-white w-full max-w-sm rounded-[1.5rem] p-5 shadow-2xl relative" onClick={e => e.stopPropagation()}>
+              <button onClick={() => setViewingRecord(null)} className="absolute top-3 right-3 text-gray-400 hover:text-gray-600 bg-gray-100 p-1.5 rounded-full transition"><X size={22}/></button>
+              <h3 className="font-black text-2xl text-gray-800 mb-3 border-b border-gray-100 pb-2">詳細紀錄</h3>
+              <div className="space-y-2.5 text-[16px] text-gray-600 font-bold max-h-[65vh] overflow-y-auto pr-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+                <div className="flex justify-between items-center bg-gray-50 p-2.5 rounded-xl border border-gray-100">
+                   <span className="text-gray-400">類型</span>
+                   <span className={`${viewingRecord.type === 'income' ? 'text-green-500' : viewingRecord.type === 'transfer' ? 'text-blue-500' : 'text-orange-500'} font-black text-[17px]`}>
+                     {viewingRecord.type === 'income' ? '收入' : viewingRecord.type === 'transfer' ? '轉帳' : '支出'}
+                   </span>
+                </div>
+                <div className="flex justify-between items-center bg-gray-50 p-2.5 rounded-xl border border-gray-100">
+                   <span className="text-gray-400">金額</span>
+                   <span className="text-[26px] text-gray-800 font-black">${viewingRecord.amount.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between items-center border-b border-gray-100 pb-1.5 pt-1">
+                   <span className="text-gray-400">消費日期</span>
+                   <span className="text-gray-800">{toROCYearStr(viewingRecord.date)}</span>
+                </div>
+                <div className="flex justify-between items-center border-b border-gray-100 pb-1.5">
+                   <span className="text-gray-400">建檔時間</span>
+                   <span className="text-gray-800 text-[14px]">{toROCYearStr(viewingRecord.timestamp)} {new Date(viewingRecord.timestamp).toLocaleTimeString('zh-TW', {hour12: false, hour: '2-digit', minute:'2-digit'})}</span>
+                </div>
+                <div className="flex justify-between items-center border-b border-gray-100 pb-1.5">
+                   <span className="text-gray-400">分類</span>
+                   <span className="text-gray-800">{viewingRecord.category}</span>
+                </div>
+                {viewingRecord.type !== 'transfer' && (
+                  <div className="flex justify-between items-center border-b border-gray-100 pb-1.5">
+                     <span className="text-gray-400">項目</span>
+                     <span className="text-gray-800">{viewingRecord.title}</span>
+                  </div>
+                )}
+                {viewingRecord.merchant && viewingRecord.merchant !== '未指定' && (
+                  <div className="flex justify-between items-center border-b border-gray-100 pb-1.5">
+                     <span className="text-gray-400">商家</span>
+                     <span className="text-gray-800">{viewingRecord.merchant}</span>
+                  </div>
+                )}
+                {viewingRecord.payer && viewingRecord.payer.length > 0 && (
+                  <div className="flex justify-between items-center border-b border-gray-100 pb-1.5">
+                     <span className="text-gray-400">對象</span>
+                     <span className="text-gray-800">{Array.isArray(viewingRecord.payer) ? viewingRecord.payer.join(', ') : viewingRecord.payer}</span>
+                  </div>
+                )}
+                {viewingRecord.method && viewingRecord.method !== '未指定' && (
+                  <div className="flex justify-between items-center border-b border-gray-100 pb-1.5">
+                     <span className="text-gray-400">{viewingRecord.type === 'transfer' ? '轉出帳戶' : '付款方式'}</span>
+                     <span className="text-gray-800">{viewingRecord.method} {viewingRecord.subMethod ? `(${viewingRecord.subMethod})` : ''}</span>
+                  </div>
+                )}
+                {viewingRecord.transferToMethod && (
+                  <div className="flex justify-between items-center border-b border-gray-100 pb-1.5">
+                     <span className="text-gray-400">轉入帳戶</span>
+                     <span className="text-gray-800">{viewingRecord.transferToMethod} {viewingRecord.transferToSubMethod ? `(${viewingRecord.transferToSubMethod})` : ''}</span>
+                  </div>
+                )}
+                <div className="flex justify-between items-center border-b border-gray-100 pb-1.5">
+                   <span className="text-gray-400">頻率</span>
+                   <span className="text-gray-800">
+                     {viewingRecord.frequency === '每週' && viewingRecord.frequencyDays?.length > 0
+                       ? `每週 (${viewingRecord.frequencyDays.join('、')})`
+                       : viewingRecord.frequency === '每月' && viewingRecord.frequencyDays?.length > 0
+                         ? `每月 (${viewingRecord.frequencyDays.join('、')}號)`
+                         : viewingRecord.frequency === '區間'
+                           ? (viewingRecord.frequencyInterval === '自訂' ? viewingRecord.frequencyCustomText : viewingRecord.frequencyInterval)
+                           : viewingRecord.frequency}
+                   </span>
+                </div>
+                <div className="flex justify-between items-center border-b border-gray-100 pb-1.5">
+                   <span className="text-gray-400">建立者</span>
+                   <span className="text-gray-800">{viewingRecord.addedByRole}</span>
+                </div>
+                {viewingRecord.note && (
+                  <div className="pt-1.5">
+                     <span className="text-gray-400 block mb-1">備註</span>
+                     <span className="text-gray-800 block bg-gray-50 p-2.5 rounded-xl border border-gray-100">{viewingRecord.note}</span>
+                  </div>
+                )}
+              </div>
+              <div className="flex gap-3 mt-4 pt-4 border-t border-gray-100">
+                 <button onClick={() => { handleCopyRecord(viewingRecord); setViewingRecord(null); }} className="flex-1 bg-green-50 text-green-600 font-bold py-3 rounded-xl flex items-center justify-center gap-2 transition hover:bg-green-100 active:scale-95"><Copy size={16}/> 複製此筆</button>
+                 <button onClick={() => { handleDeleteRecord(viewingRecord.id); setViewingRecord(null); }} className="flex-1 bg-red-50 text-red-500 font-bold py-3 rounded-xl flex items-center justify-center gap-2 transition hover:bg-red-100 active:scale-95"><Trash2 size={16}/> 刪除此筆</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 傳送紀錄至其他房間的 Modal (全域疊加) */}
+        {crossRoomRecord && (
+          <div className="fixed inset-0 bg-black/40 z-[120] flex justify-center items-center p-4 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="bg-white w-full max-w-sm rounded-[1.5rem] p-5 shadow-2xl">
+               <h3 className="font-black text-xl text-gray-800 mb-3 flex items-center gap-2"><Send size={22} className="text-blue-500"/> 傳送至其他房間</h3>
+               <p className="text-[16px] font-bold text-gray-500 mb-4 leading-relaxed">將此筆 <span className="text-gray-800">[{crossRoomRecord.title || crossRoomRecord.category}] ${crossRoomRecord.amount}</span> 複製傳送到：</p>
+               <div className="space-y-2.5 mb-5 max-h-56 overflow-y-auto pr-1">
+                 {savedRooms.filter(r => r.id !== activeRoomId).length === 0 ? (
+                   <p className="text-red-400 font-bold text-[15px] bg-red-50 p-3 rounded-xl leading-relaxed">您目前沒有儲存其他房間，請先登入過其他房間再使用此功能。</p>
+                 ) : (
+                   savedRooms.filter(r => r.id !== activeRoomId).map(r => (
+                     <button key={r.id} onClick={() => handleSendToOtherRoom(r.id)} className="w-full text-left bg-gray-50 hover:bg-blue-50 border border-gray-100 hover:border-blue-200 p-3 rounded-xl font-black text-gray-700 text-[17px] transition flex items-center shadow-sm">
+                       🏠 {r.name} <span className="text-[13px] font-bold text-gray-400 ml-auto">({r.id})</span>
+                     </button>
+                   ))
+                 )}
+               </div>
+               <button onClick={() => setCrossRoomRecord(null)} className="w-full bg-gray-100 hover:bg-gray-200 text-gray-600 font-extrabold text-[17px] py-3 rounded-xl transition">取消傳送</button>
+            </div>
+          </div>
+        )}
         
         {/* 底部導覽列只在首頁顯示，並改為 3 個按鈕 (左:帳戶, 中:大大的+, 右:統計) */}
         {user && view === 'room' && !showAddForm && (
           <div className="absolute bottom-0 left-0 w-full bg-white/95 backdrop-blur-xl p-2 pb-6 sm:pb-4 rounded-t-[2rem] shadow-[0_-15px_40px_rgba(0,0,0,0.08)] flex justify-between items-center z-20 border-t border-gray-100 px-6">
             
             <button onClick={() => setView('accounts')} className="flex flex-col items-center gap-1 text-gray-400 hover:text-indigo-500 transition px-4 py-2">
-              <Wallet size={26} />
-              <span className="font-extrabold text-[13px]">帳戶</span>
+              <Wallet size={24} />
+              <span className="font-extrabold text-[12px]">帳戶</span>
             </button>
 
             {/* 大大的 + 號 */}
             <button 
               onClick={() => { resetForm(); setRecordType('expense'); setShowAddForm(true); }} 
-              className="absolute left-1/2 -translate-x-1/2 -top-6 bg-gradient-to-tr from-pink-400 to-orange-400 text-white w-[68px] h-[68px] rounded-full flex items-center justify-center shadow-[0_10px_20px_rgba(251,146,60,0.4)] border-[4px] border-[#FFFBF0] transform hover:scale-105 transition active:scale-95"
+              className="absolute left-1/2 -translate-x-1/2 -top-6 bg-gradient-to-tr from-pink-400 to-orange-400 text-white w-[64px] h-[64px] rounded-full flex items-center justify-center shadow-[0_10px_20px_rgba(251,146,60,0.4)] border-[4px] border-[#FFFBF0] transform hover:scale-105 transition active:scale-95"
             >
-              <Plus size={38} strokeWidth={3} />
+              <Plus size={36} strokeWidth={3} />
             </button>
 
             <button onClick={() => setView('analysis')} className="flex flex-col items-center gap-1 text-gray-400 hover:text-teal-500 transition px-4 py-2">
-              <BarChart size={26} />
-              <span className="font-extrabold text-[13px]">統計</span>
+              <BarChart size={24} />
+              <span className="font-extrabold text-[12px]">統計</span>
             </button>
 
           </div>
