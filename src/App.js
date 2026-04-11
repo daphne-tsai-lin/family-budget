@@ -122,9 +122,9 @@ const generateFutureDates = (startDateStr, freq, daysArr, intervalStr, customTex
           else if (intervalStr === '自訂') {
               const days = parseInt(customText.replace(/\D/g, ''));
               if(!isNaN(days) && days > 0) {
-                  // 悠遊卡 30 天含當天的邏輯：4/20 啟用，到期日為 5/19。下次記帳日為 5/20。
-                  // 因此直接加上 days 即可精準算出下一次的購買日。
-                  nextD.setDate(nextD.getDate() + days);
+                  // 修正：包含當天邏輯。如輸入 30 天，實際天數需加 29 天。
+                  const addDays = days > 1 ? days - 1 : 1;
+                  nextD.setDate(nextD.getDate() + addDays);
                   added = true;
               }
           }
@@ -879,7 +879,7 @@ export default function App() {
   };
 
   // ==========================================
-  // 紀錄 CRUD
+  // 紀錄 CRUD (儲存與刪除連動防呆機制)
   // ==========================================
   const handleSaveRecord = (e) => {
     e.preventDefault();
@@ -889,9 +889,26 @@ export default function App() {
       const isEditing = !!editRecordId;
       const oldRecord = isEditing ? records.find(r => r.id === editRecordId) : null;
       
+      let updateFuture = false;
+      if (isEditing && oldRecord?.groupId) {
+          updateFuture = window.confirm('這是一筆設定了「週期」的紀錄。\n\n是否要一併變更此系列「未來」的所有紀錄？\n\n(按【確定】一併變更當次與未來，按【取消】則僅修改這單一筆)');
+      } else if (isEditing && !oldRecord?.groupId && recordFrequency !== '一次') {
+          updateFuture = true; // 從單筆改成週期，自動產生未來
+      }
+
       const currentGroupId = oldRecord?.groupId || null;
-      const newGroupId = currentGroupId || (Date.now().toString() + Math.random().toString(36).substring(2, 9));
-      const finalGroupId = recordFrequency === '一次' ? null : newGroupId;
+      let newGroupId = null;
+
+      if (isEditing) {
+          if (updateFuture) {
+              newGroupId = currentGroupId || (Date.now().toString() + Math.random().toString(36).substring(2, 9));
+              if (recordFrequency === '一次') newGroupId = null; 
+          } else {
+              newGroupId = currentGroupId; // 僅更新單筆，保留原群組ID不斷鏈
+          }
+      } else {
+          newGroupId = recordFrequency === '一次' ? null : (Date.now().toString() + Math.random().toString(36).substring(2, 9));
+      }
 
       const parsedAmount = Number(String(recordAmount).replace(/,/g, '').replace(/[^\d]/g, ''));
 
@@ -901,8 +918,7 @@ export default function App() {
         frequencyInterval: recordFrequencyInterval, frequencyCustomText: recordFrequencyCustomText,
         method: recordMethod || '未指定', subMethod: recordSubMethod || '',
         note: recordNote, addedBy: user.uid, addedByRole: currentUserRole,
-        groupId: finalGroupId,
-        // 加入壓縮後的 Base64 照片，若為 null 則代表沒照片
+        groupId: newGroupId,
         photoBase64: recordPhoto || null
       };
 
@@ -918,7 +934,6 @@ export default function App() {
 
       const batch = writeBatch(db);
       let opsCount = 0;
-      const todayStr = getLocalTodayStr(); 
 
       if (!isEditing) {
         const curRef = doc(collection(db, 'artifacts', appId, 'public', 'data', 'expenses'));
@@ -938,44 +953,41 @@ export default function App() {
       } else {
         const curRef = doc(db, 'artifacts', appId, 'public', 'data', 'expenses', editRecordId);
         
-        // 若使用者在編輯時刪除了照片，需要手動補上 deleteField 以清除原本 Firestore 裡的欄位
         if (!recordPhoto && oldRecord?.photoBase64) {
           baseData.photoBase64 = deleteField();
+        }
+        
+        // 若使用者在編輯時選擇了「不變更未來」，將此單一筆強行顯示為"一次"以免混淆，但保留在其群組內
+        if (!updateFuture && oldRecord?.groupId) {
+            baseData.frequency = '一次';
+            baseData.frequencyDays = [];
+            baseData.frequencyInterval = '';
+            baseData.frequencyCustomText = '';
         }
         
         batch.update(curRef, { ...baseData, timestamp: oldRecord.timestamp });
         opsCount++;
 
-        if (currentGroupId) {
-          const futureRecords = records.filter(r => r.groupId === currentGroupId && r.date >= todayStr && r.id !== editRecordId);
+        // 若確定連動未來，清除舊的未來，建立新的未來
+        if (updateFuture && currentGroupId) {
+          const futureRecords = records.filter(r => r.groupId === currentGroupId && r.date > oldRecord.date && r.id !== editRecordId);
           futureRecords.forEach(r => {
             if(opsCount >= 490) return;
             const delRef = doc(db, 'artifacts', appId, 'public', 'data', 'expenses', r.id);
             batch.delete(delRef);
             opsCount++;
           });
+        }
 
-          if (recordFrequency !== '一次') {
-             const futureDates = generateFutureDates(recordDate, recordFrequency, recordFrequencyDays, recordFrequencyInterval, recordFrequencyCustomText, 1);
-             futureDates.filter(d => d > recordDate && d >= todayStr).forEach(d => {
-               if(opsCount >= 490) return;
-               const futRef = doc(collection(db, 'artifacts', appId, 'public', 'data', 'expenses'));
-               const ts = new Date(d + 'T07:00:00').getTime();
-               batch.set(futRef, { ...baseData, date: d, timestamp: ts });
-               opsCount++;
-             });
-          }
-        } else {
-           if (recordFrequency !== '一次') {
-             const futureDates = generateFutureDates(recordDate, recordFrequency, recordFrequencyDays, recordFrequencyInterval, recordFrequencyCustomText, 1);
-             futureDates.filter(d => d > recordDate && d >= todayStr).forEach(d => {
-               if(opsCount >= 490) return;
-               const futRef = doc(collection(db, 'artifacts', appId, 'public', 'data', 'expenses'));
-               const ts = new Date(d + 'T07:00:00').getTime();
-               batch.set(futRef, { ...baseData, date: d, timestamp: ts });
-               opsCount++;
-             });
-           }
+        if (updateFuture && recordFrequency !== '一次') {
+           const futureDates = generateFutureDates(recordDate, recordFrequency, recordFrequencyDays, recordFrequencyInterval, recordFrequencyCustomText, 1);
+           futureDates.filter(d => d > recordDate).forEach(d => {
+             if(opsCount >= 490) return;
+             const futRef = doc(collection(db, 'artifacts', appId, 'public', 'data', 'expenses'));
+             const ts = new Date(d + 'T07:00:00').getTime();
+             batch.set(futRef, { ...baseData, date: d, timestamp: ts });
+             opsCount++;
+           });
         }
       }
       
@@ -1053,10 +1065,29 @@ export default function App() {
     setView('room');
   };
 
-  const handleDeleteRecord = async (id) => {
-    if(!user || !window.confirm('確定要刪除這筆紀錄嗎？')) return;
+  const handleDeleteRecord = async (record) => {
+    if(!user) return;
+    
+    let deleteFuture = false;
+    if (record.groupId) {
+        if(!window.confirm('確定要刪除這筆紀錄嗎？')) return;
+        deleteFuture = window.confirm('這是一筆設定了「週期」的紀錄。\n\n是否要一併刪除此系列「未來」的所有紀錄？\n\n(按【確定】一併刪除當次與未來，按【取消】則僅刪除這單一筆)');
+    } else {
+        if(!window.confirm('確定要刪除這筆紀錄嗎？')) return;
+    }
+
     try { 
-      await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'expenses', id)); 
+      const batch = writeBatch(db);
+      batch.delete(doc(db, 'artifacts', appId, 'public', 'data', 'expenses', record.id));
+      
+      if (deleteFuture && record.groupId) {
+          const futureRecords = records.filter(r => r.groupId === record.groupId && r.date > record.date && r.id !== record.id);
+          futureRecords.forEach(r => {
+              batch.delete(doc(db, 'artifacts', appId, 'public', 'data', 'expenses', r.id));
+          });
+      }
+      
+      await batch.commit();
     } catch (err) { 
       alert('刪除失敗：請檢查網路連線');
     }
@@ -2119,7 +2150,7 @@ export default function App() {
                              {exp.merchant && exp.merchant !== '未指定' && <span className="text-gray-500 text-[12px] font-bold bg-gray-100 px-1.5 py-0.5 rounded border border-gray-200">🏪 {exp.merchant}</span>}
                              
                              {exp.photoBase64 && (
-                               <span className="shrink-0 w-5 h-5 rounded overflow-hidden shadow-sm inline-block border border-gray-200" title="有照片">
+                               <span className="shrink-0 w-[22px] h-[22px] rounded-md overflow-hidden shadow-sm inline-block border border-gray-200" title="有照片">
                                  <img src={exp.photoBase64} alt="圖" className="w-full h-full object-cover" />
                                </span>
                              )}
@@ -2263,20 +2294,14 @@ export default function App() {
                               {exp.category}
                             </span>
                           )}
-                          <span className="font-black text-gray-800 text-[18px] shrink-0 mr-1">
-                            {isTransfer ? `🔄 轉帳: ${exp.method}${exp.subMethod ? '('+exp.subMethod+')' : ''} ➜ ${exp.transferToMethod}${exp.transferToSubMethod ? '('+exp.transferToSubMethod+')' : ''}` : exp.title}
+                          <span className="font-black text-gray-800 text-[18px] shrink-0 mr-1 flex items-center gap-1.5">
+                            {exp.photoBase64 && <span className="shrink-0 w-6 h-6 rounded-md overflow-hidden shadow-sm inline-block"><img src={exp.photoBase64} alt="圖" className="w-full h-full object-cover" /></span>}
+                            {isTransfer ? `轉帳: ${exp.method}${exp.subMethod ? '('+exp.subMethod+')' : ''} ➜ ${exp.transferToMethod}${exp.transferToSubMethod ? '('+exp.transferToSubMethod+')' : ''}` : exp.title}
                           </span>
                           
                           {payerStr && payerStr !== '未指定' && <span className="text-gray-500 text-[13px] font-bold bg-gray-50 px-1.5 py-0.5 rounded border border-gray-200">👤 {payerStr}</span>}
                           {!isTransfer && exp.method && exp.method !== '未指定' && <span className="text-gray-500 text-[13px] font-bold bg-gray-50 px-1.5 py-0.5 rounded border border-gray-200">💳 {exp.method}{exp.subMethod ? `(${exp.subMethod})` : ''}</span>}
                           {exp.merchant && exp.merchant !== '未指定' && <span className="text-gray-500 text-[13px] font-bold bg-gray-50 px-1.5 py-0.5 rounded border border-gray-200">🏪 {exp.merchant}</span>}
-                          
-                          {/* 照片縮圖移到這裡：商家後，備註前 */}
-                          {exp.photoBase64 && (
-                            <span className="shrink-0 w-[22px] h-[22px] rounded overflow-hidden shadow-sm inline-block border border-gray-200 mt-0.5" title="附有照片">
-                               <img src={exp.photoBase64} alt="圖" className="w-full h-full object-cover" />
-                            </span>
-                          )}
                           
                           {exp.note && (
                              <span className="text-gray-500 text-[13px] font-bold bg-[#FFFDF9] px-1.5 py-0.5 rounded border border-[#F2EFE9] max-w-full truncate mt-0.5">
@@ -3115,7 +3140,7 @@ export default function App() {
               </div>
               <div className="flex gap-3 mt-4 pt-4 border-t border-gray-100">
                  <button onClick={() => { handleCopyRecord(viewingRecord); setViewingRecord(null); setViewingAnalysisItem(null); }} className="flex-1 bg-green-50 text-green-600 font-bold py-3 rounded-xl flex items-center justify-center gap-2 transition hover:bg-green-100 active:scale-95"><Copy size={16}/> 複製此筆</button>
-                 <button onClick={() => { handleDeleteRecord(viewingRecord.id); setViewingRecord(null); }} className="flex-1 bg-red-50 text-red-500 font-bold py-3 rounded-xl flex items-center justify-center gap-2 transition hover:bg-red-100 active:scale-95"><Trash2 size={16}/> 刪除此筆</button>
+                 <button onClick={() => { handleDeleteRecord(viewingRecord); setViewingRecord(null); }} className="flex-1 bg-red-50 text-red-500 font-bold py-3 rounded-xl flex items-center justify-center gap-2 transition hover:bg-red-100 active:scale-95"><Trash2 size={16}/> 刪除此筆</button>
               </div>
             </div>
           </div>
