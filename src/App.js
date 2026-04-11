@@ -384,6 +384,7 @@ export default function App() {
   const [crossRoomRecord, setCrossRoomRecord] = useState(null);
   const [viewingRecord, setViewingRecord] = useState(null); 
   const [viewingAccountHistory, setViewingAccountHistory] = useState(null); 
+  const [viewingAnalysisItem, setViewingAnalysisItem] = useState(null); 
   
   const [historyStartDate, setHistoryStartDate] = useState(getLocalMonthStartStr());
   const [historyEndDate, setHistoryEndDate] = useState(getLocalTodayStr());
@@ -1497,8 +1498,7 @@ export default function App() {
     return true;
   });
 
-  const analysisGroupedData = {};
-  analysisFilteredRecords.forEach(r => {
+  const getAnalysisKeyForRecord = (r) => {
     let keyParts = [];
     if (analysisMenus.includes('category')) keyParts.push(r.category || '未分類');
     if (analysisMenus.includes('title')) keyParts.push(r.title || '無項目');
@@ -1507,12 +1507,18 @@ export default function App() {
         keyParts.push(r.method || '無方式');
         if (r.subMethod) keyParts.push(`(${r.subMethod})`);
     }
-    const key = keyParts.length > 0 ? keyParts.join(' - ') : (r.category || '未分類');
+    return keyParts.length > 0 ? keyParts.join(' - ') : (r.category || '未分類');
+  };
+
+  const analysisGroupedData = {};
+  analysisFilteredRecords.forEach(r => {
+    const key = getAnalysisKeyForRecord(r);
     if (!analysisGroupedData[key]) analysisGroupedData[key] = 0;
     analysisGroupedData[key] += r.amount;
   });
 
   const chartData = Object.keys(analysisGroupedData).map(key => ({ label: key, value: analysisGroupedData[key] })).sort((a, b) => b.value - a.value);
+  const totalAnalysisAmount = chartData.reduce((sum, d) => sum + d.value, 0);
   const chartColors = ['#F472B6', '#60A5FA', '#34D399', '#FBBF24', '#A78BFA', '#F87171', '#38BDF8', '#4ADE80', '#FCD34D', '#C084FC'];
 
   // 取得不重複的所有付款人 (addedByRole) 供分析過濾器使用
@@ -1521,7 +1527,8 @@ export default function App() {
   }, [records]);
 
   let isFormValid = false;
-  if (recordAmount && recordDate && recordPayer.length > 0) {
+  const parsedAmt = Number(String(recordAmount).replace(/,/g, '').replace(/[^\d]/g, ''));
+  if (parsedAmt > 0 && recordDate && recordPayer.length > 0) {
     if (recordType === 'expense') {
       isFormValid = recordCategory && selectedItem && recordMethod;
     } else if (recordType === 'income') {
@@ -1721,10 +1728,6 @@ export default function App() {
         </header>
 
         <main className="px-4 py-4 space-y-4 flex-1 overflow-y-auto pb-[100px] [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-          <div className="text-center mb-1">
-            <p className="text-indigo-500 font-bold bg-indigo-50 border border-indigo-100 inline-block px-4 py-2 rounded-full text-[13px] shadow-sm leading-relaxed">👉 點擊各帳戶列即可查看歷史明細</p>
-          </div>
-
           <div className="bg-white py-3 px-5 rounded-[1.5rem] border-2 border-indigo-100 text-center shadow-sm relative overflow-hidden">
              <div className="absolute -right-6 -top-6 bg-indigo-50 w-24 h-24 rounded-full opacity-50"></div>
              <p className="text-indigo-400 font-extrabold text-[14px] relative z-10">💎 淨資產</p>
@@ -2251,10 +2254,6 @@ export default function App() {
         </header>
 
         <main className="px-4 py-4 space-y-4 flex-1 overflow-y-auto pb-[100px] [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-          <div className="text-center mb-2">
-            <p className="text-purple-500 font-bold bg-purple-50 border border-purple-100 inline-block px-4 py-2 rounded-full text-[14px] shadow-sm leading-relaxed">💡 在此編輯的項目，全家人的畫面都會同步更新喔！</p>
-          </div>
-          
           <button onClick={() => setSyncSettingsModalOpen(true)} className="w-full bg-gradient-to-r from-indigo-500 to-blue-500 text-white p-3.5 rounded-[1.2rem] font-bold text-[18px] shadow-md hover:shadow-lg transition flex justify-center items-center gap-2 active:scale-95">
              <RefreshCw size={20} /> 🔄 複製設定至其他房間
           </button>
@@ -2645,15 +2644,15 @@ export default function App() {
           </div>
 
           <div className="bg-white p-5 rounded-[1.5rem] shadow-sm border-2 border-teal-50">
-            <h2 className="font-bold text-teal-700 mb-5 text-[16px] flex items-center gap-2"><LucidePieChart size={18} className="text-teal-400"/> 統計結果</h2>
+            <h2 className="font-bold text-teal-700 mb-3 text-[16px] flex items-center gap-2"><LucidePieChart size={18} className="text-teal-400"/> 統計結果</h2>
             <MyCustomPieChart data={chartData} colors={chartColors} />
             
-            <div className="mt-6 space-y-2.5">
+            <div className="mt-3 space-y-2.5">
               {chartData.length === 0 ? (
                 <p className="text-center text-gray-400 font-bold text-[14px] bg-gray-50 py-4 rounded-xl">此條件沒有紀錄喔！</p>
               ) : (
                 chartData.map((d, idx) => (
-                  <div key={d.label} className="flex justify-between items-center bg-gray-50 p-3 rounded-xl border border-gray-100 hover:shadow-sm transition">
+                  <div key={d.label} onClick={() => setViewingAnalysisItem(d.label)} className="flex justify-between items-center bg-gray-50 p-3 rounded-xl border border-gray-100 hover:shadow-sm cursor-pointer hover:bg-teal-50 hover:border-teal-200 transition">
                     <div className="flex items-center gap-2.5">
                       <div className="w-5 h-5 rounded shadow-inner" style={{ backgroundColor: chartColors[idx % chartColors.length] }}></div>
                       <span className="font-bold text-gray-700 text-[15px] truncate max-w-[150px]">{d.label}</span>
@@ -2663,6 +2662,13 @@ export default function App() {
                 ))
               )}
             </div>
+
+            {chartData.length > 0 && (
+              <div className="bg-teal-50 rounded-xl p-3 mt-3 flex justify-between items-center border border-teal-100 shadow-inner">
+                 <span className="font-bold text-teal-700 text-[15px]">篩選總計</span>
+                 <span className="font-black text-teal-600 text-[22px]">${totalAnalysisAmount.toLocaleString()}</span>
+              </div>
+            )}
           </div>
         </main>
       </>
@@ -2676,6 +2682,57 @@ export default function App() {
         <input type="file" accept=".json" style={{display: 'none'}} ref={fileInputRef} onChange={handleImport} />
         
         {content}
+
+        {/* 統計分析明細清單 Modal (全域疊加) */}
+        {viewingAnalysisItem && (
+          <div className="fixed inset-0 bg-black/40 z-[100] flex justify-center items-center p-4 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setViewingAnalysisItem(null)}>
+            <div className="bg-white w-full max-w-md max-h-[85vh] flex flex-col rounded-[1.5rem] p-5 shadow-2xl relative" onClick={e => e.stopPropagation()}>
+              <button onClick={() => setViewingAnalysisItem(null)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 bg-gray-100 p-1.5 rounded-full transition"><X size={18}/></button>
+              <h3 className="font-black text-[20px] text-gray-800 mb-4 border-b border-gray-100 pb-3 flex items-center gap-1.5 pr-8">
+                <BarChart size={20} className="text-teal-500 shrink-0" /> <span className="truncate">{viewingAnalysisItem} 明細</span>
+              </h3>
+              
+              <div className="flex-1 overflow-y-auto space-y-2 pr-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+                {(() => {
+                  const analysisDetailRecords = analysisFilteredRecords.filter(r => getAnalysisKeyForRecord(r) === viewingAnalysisItem).sort((a, b) => {
+                      if (a.date !== b.date) return a.date > b.date ? -1 : 1;
+                      return b.timestamp - a.timestamp;
+                  }); 
+
+                  if (analysisDetailRecords.length === 0) return <p className="text-center text-gray-400 font-bold py-10 text-[15px]">查無明細</p>;
+
+                  return analysisDetailRecords.map(exp => {
+                    const isIncome = exp.type === 'income';
+                    const isTransfer = exp.type === 'transfer';
+
+                    let freqDisplay = exp.frequency;
+                    if (freqDisplay === '區間') freqDisplay = exp.frequencyInterval === '自訂' ? exp.frequencyCustomText : exp.frequencyInterval;
+
+                    return (
+                      <div key={exp.id} onClick={() => setViewingRecord(exp)} className="bg-gray-50 p-3 rounded-xl border border-gray-100 flex justify-between items-center cursor-pointer hover:bg-gray-100 transition">
+                        <div className="overflow-hidden pr-2">
+                           <div className="flex flex-wrap items-center gap-1.5 mb-1">
+                             <span className="text-[13px] font-bold text-gray-400">{toROCYearStr(exp.date)}</span>
+                             <span className="bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded text-[11px] font-bold tracking-wide">
+                               {freqDisplay || '一次'}
+                             </span>
+                             {exp.payer && <span className="bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded text-[11px] font-bold tracking-wide">{Array.isArray(exp.payer)?exp.payer.join(', '):exp.payer}</span>}
+                           </div>
+                           <div className="font-black text-[16px] text-gray-700 truncate">
+                              {isTransfer ? `轉帳: ${exp.method}➜${exp.transferToMethod}` : exp.title}
+                           </div>
+                        </div>
+                        <div className={`font-black text-[19px] shrink-0 ${isIncome ? 'text-green-500' : isTransfer ? 'text-blue-500' : 'text-gray-800'}`}>
+                           {isIncome ? '+' : isTransfer ? '⇆' : '-'}${exp.amount.toLocaleString()}
+                        </div>
+                      </div>
+                    )
+                  });
+                })()}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* 查看明細詳細內容 Modal (全域疊加) */}
         {viewingRecord && (
@@ -2760,7 +2817,7 @@ export default function App() {
                 )}
               </div>
               <div className="flex gap-3 mt-4 pt-4 border-t border-gray-100">
-                 <button onClick={() => { handleCopyRecord(viewingRecord); setViewingRecord(null); }} className="flex-1 bg-green-50 text-green-600 font-bold py-3 rounded-xl flex items-center justify-center gap-2 transition hover:bg-green-100 active:scale-95"><Copy size={16}/> 複製此筆</button>
+                 <button onClick={() => { handleCopyRecord(viewingRecord); setViewingRecord(null); setViewingAnalysisItem(null); }} className="flex-1 bg-green-50 text-green-600 font-bold py-3 rounded-xl flex items-center justify-center gap-2 transition hover:bg-green-100 active:scale-95"><Copy size={16}/> 複製此筆</button>
                  <button onClick={() => { handleDeleteRecord(viewingRecord.id); setViewingRecord(null); }} className="flex-1 bg-red-50 text-red-500 font-bold py-3 rounded-xl flex items-center justify-center gap-2 transition hover:bg-red-100 active:scale-95"><Trash2 size={16}/> 刪除此筆</button>
               </div>
             </div>
