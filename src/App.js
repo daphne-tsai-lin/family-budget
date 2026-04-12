@@ -104,13 +104,12 @@ const generateFutureDates = (startDateStr, freq, daysArr, intervalStr, customTex
           curr.setDate(curr.getDate() + 1);
       }
   } else if (freq === '每月') {
-      const targetDates = daysArr.map(d => Number(d)).filter(d => !isNaN(d));
-      if(targetDates.length === 0) return dates;
-      while(curr <= endD) {
-          if (targetDates.includes(curr.getDate())) {
-              dates.push(formatDate(curr));
-          }
-          curr.setDate(curr.getDate() + 1);
+      // 智慧推算：直接以消費日為基準，每次加一個月
+      let nextD = new Date(startD.getTime());
+      while (true) {
+          nextD.setMonth(nextD.getMonth() + 1);
+          if (nextD > endD) break;
+          dates.push(formatDate(nextD));
       }
   } else if (freq === '區間') {
       let nextD = new Date(startD.getTime());
@@ -418,6 +417,7 @@ export default function App() {
   const [showAddForm, setShowAddForm] = useState(false);
   const [editRecordId, setEditRecordId] = useState(null);
   const [crossRoomRecord, setCrossRoomRecord] = useState(null);
+  const [selectedTransferRoom, setSelectedTransferRoom] = useState(null); // 用於跨房間傳送時的選項面板
   const [viewingRecord, setViewingRecord] = useState(null); 
   const [viewingAccountHistory, setViewingAccountHistory] = useState(null); 
   const [viewingAnalysisItem, setViewingAnalysisItem] = useState(null); 
@@ -1096,7 +1096,7 @@ export default function App() {
     }
   };
 
-  const handleSendToOtherRoom = async (targetRoomId) => {
+  const handleSendToOtherRoom = async (targetRoomId, keepFrequency) => {
     if (!crossRoomRecord || !user) return;
     try {
       const targetRoomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', targetRoomId);
@@ -1135,13 +1135,21 @@ export default function App() {
       if (!validateMethod(data.method, data.subMethod)) return alert('目標房間沒有相對應的付款方式/帳戶，故無法傳送。');
       if (data.type === 'transfer' && !validateMethod(data.transferToMethod, data.transferToSubMethod)) return alert('目標房間沒有相對應的轉入帳戶，故無法傳送。');
 
-      // 驗證通過，開始傳送資料並保留週期
+      // 驗證通過，開始傳送資料
       const { id, ...dataToCopy } = data;
       dataToCopy.roomId = targetRoomId;
       dataToCopy.timestamp = Date.now();
       
-      const newGroupId = dataToCopy.frequency !== '一次' ? (Date.now().toString() + Math.random().toString(36).substring(2, 9)) : null;
-      dataToCopy.groupId = newGroupId;
+      if (!keepFrequency) {
+          dataToCopy.frequency = '一次';
+          dataToCopy.frequencyDays = [];
+          dataToCopy.frequencyInterval = '';
+          dataToCopy.frequencyCustomText = '';
+          dataToCopy.groupId = null;
+      } else {
+          const newGroupId = dataToCopy.frequency !== '一次' ? (Date.now().toString() + Math.random().toString(36).substring(2, 9)) : null;
+          dataToCopy.groupId = newGroupId;
+      }
 
       const batch = writeBatch(db);
       let opsCount = 0;
@@ -1162,8 +1170,9 @@ export default function App() {
       }
 
       await batch.commit();
-      alert('✅ 成功傳送紀錄與週期設定至另一個房間！');
+      alert(`✅ 成功傳送${keepFrequency && crossRoomRecord.frequency !== '一次' ? '週期' : '單次'}紀錄至另一個房間！`);
       setCrossRoomRecord(null);
+      setSelectedTransferRoom(null);
     } catch (err) {
       alert('傳送失敗：請檢查網路連線');
     }
@@ -1807,7 +1816,6 @@ export default function App() {
         if (needsSubMethod(transferToMethod) && !transferToSubMethod) isFormValid = false;
       }
       if (recordFrequency === '每週' && recordFrequencyDays.length === 0) isFormValid = false;
-      if (recordFrequency === '每月' && recordFrequencyDays.length === 0) isFormValid = false;
       if (recordFrequency === '區間' && !recordFrequencyInterval) isFormValid = false;
       if (recordFrequency === '區間' && recordFrequencyInterval === '自訂' && !recordFrequencyCustomText) isFormValid = false;
     }
@@ -2170,7 +2178,7 @@ export default function App() {
                              {exp.merchant && exp.merchant !== '未指定' && <span className="text-gray-500 text-[12px] font-bold bg-gray-100 px-1.5 py-0.5 rounded border border-gray-200">🏪 {exp.merchant}</span>}
                              
                              {exp.photoBase64 && (
-                               <span className="shrink-0 w-[22px] h-[22px] rounded-md overflow-hidden shadow-sm inline-block border border-gray-200" title="此紀錄附有照片">
+                               <span className="shrink-0 w-[22px] h-[22px] rounded-md overflow-hidden shadow-sm inline-block border border-gray-200" title="有照片">
                                  <img src={exp.photoBase64} alt="圖" className="w-full h-full object-cover" />
                                </span>
                              )}
@@ -2209,25 +2217,25 @@ export default function App() {
               </p>
             </div>
             <div className="flex items-center gap-1.5">
-              <button onClick={() => fileInputRef.current?.click()} className="p-2 bg-white/20 hover:bg-white/30 text-white rounded-xl transition" title="匯入資料"><Upload size={20} /></button>
-              <button onClick={handleBackup} className="p-2 bg-white/20 hover:bg-white/30 text-white rounded-xl transition" title="備份雲端資料"><Download size={20} /></button>
-              <button onClick={() => { setSettingsTab('expense'); setView('settings'); }} className="p-2 bg-white/20 hover:bg-white/30 text-white rounded-xl transition" title="設定"><Settings size={20} /></button>
-              <button onClick={() => { setActiveRoomId(null); setView('login'); setRoomPin(''); setHomeFilterDate(getLocalTodayStr()); }} className="p-2 bg-white/20 hover:bg-white/30 text-white rounded-xl transition" title="登出"><LogOut size={20} /></button>
+              <button onClick={() => fileInputRef.current?.click()} className="p-2 bg-white/20 hover:bg-white/30 text-white rounded-xl transition backdrop-blur-sm" title="匯入資料"><Upload size={20} /></button>
+              <button onClick={handleBackup} className="p-2 bg-white/20 hover:bg-white/30 text-white rounded-xl transition backdrop-blur-sm" title="備份雲端資料"><Download size={20} /></button>
+              <button onClick={() => { setSettingsTab('expense'); setView('settings'); }} className="p-2 bg-white/20 hover:bg-white/30 text-white rounded-xl transition backdrop-blur-sm" title="設定"><Settings size={20} /></button>
+              <button onClick={() => { setActiveRoomId(null); setView('login'); setRoomPin(''); setHomeFilterDate(getLocalTodayStr()); }} className="p-2 bg-white/20 hover:bg-white/30 text-white rounded-xl transition backdrop-blur-sm" title="登出"><LogOut size={20} /></button>
             </div>
           </div>
           
           <div className="mb-2">
             <div className="flex items-center gap-1.5 w-full">
-              <div className="relative bg-white/20 rounded-xl shadow-sm border border-white/30 px-2 py-1.5 flex items-center overflow-hidden hover:bg-white/30 transition shrink-0">
+              <div className="relative bg-white/20 backdrop-blur-md rounded-xl shadow-sm border border-white/30 px-2 py-1.5 flex items-center overflow-hidden hover:bg-white/30 transition shrink-0">
                 <input type="date" value={homeFilterDate} onChange={(e) => setHomeFilterDate(e.target.value)} className="absolute inset-0 w-full h-full opacity-0 z-10 cursor-pointer" />
                 <Calendar size={14} className="text-white mr-1 shrink-0 z-0"/>
                 <span className="text-white text-[13px] font-black drop-shadow-sm z-0 whitespace-nowrap">
                   {homeFilterDate ? toROCShortStr(homeFilterDate) : '全部日期'}
                 </span>
               </div>
-              <button onClick={() => setHomeFilterDate(getLocalTodayStr())} className="shrink-0 bg-white/20 hover:bg-white/30 text-white px-2 py-1.5 rounded-xl transition font-bold text-[13px] shadow-sm whitespace-nowrap">今天</button>
+              <button onClick={() => setHomeFilterDate(getLocalTodayStr())} className="shrink-0 bg-white/20 hover:bg-white/30 text-white px-2 py-1.5 rounded-xl transition font-bold text-[13px] shadow-sm backdrop-blur-sm whitespace-nowrap">今天</button>
               
-              <div className="relative bg-white/20 rounded-xl shadow-sm border border-white/30 px-2 py-1.5 flex items-center overflow-hidden transition flex-1 min-w-0">
+              <div className="relative bg-white/20 backdrop-blur-md rounded-xl shadow-sm border border-white/30 px-2 py-1.5 flex items-center overflow-hidden transition flex-1 min-w-0">
                  <Search size={14} className="text-white mr-1.5 shrink-0 z-0" />
                  <input 
                    type="text" 
@@ -2245,7 +2253,7 @@ export default function App() {
             </div>
           </div>
 
-          <div className="flex justify-between items-end bg-white/95 p-3 rounded-[1rem] shadow-sm">
+          <div className="flex justify-between items-end bg-white/95 backdrop-blur-xl p-3 rounded-[1rem] shadow-sm">
              <div className="flex flex-col">
                 <span className="text-gray-400 text-[14px] font-bold mb-0.5">總支出</span>
                 <span className="text-pink-500 font-black text-[20px]"> ${totalExpense.toLocaleString()}</span>
@@ -2314,20 +2322,14 @@ export default function App() {
                               {exp.category}
                             </span>
                           )}
-                          <span className="font-black text-gray-800 text-[18px] shrink-0 mr-1">
-                            {isTransfer ? `🔄 轉帳: ${exp.method}${exp.subMethod ? '('+exp.subMethod+')' : ''} ➜ ${exp.transferToMethod}${exp.transferToSubMethod ? '('+exp.transferToSubMethod+')' : ''}` : exp.title}
+                          <span className="font-black text-gray-800 text-[18px] shrink-0 mr-1 flex items-center gap-1.5">
+                            {exp.photoBase64 && <span className="shrink-0 w-6 h-6 rounded-md overflow-hidden shadow-sm inline-block"><img src={exp.photoBase64} alt="圖" className="w-full h-full object-cover" /></span>}
+                            {isTransfer ? `轉帳: ${exp.method}${exp.subMethod ? '('+exp.subMethod+')' : ''} ➜ ${exp.transferToMethod}${exp.transferToSubMethod ? '('+exp.transferToSubMethod+')' : ''}` : exp.title}
                           </span>
                           
                           {payerStr && payerStr !== '未指定' && <span className="text-gray-500 text-[13px] font-bold bg-gray-50 px-1.5 py-0.5 rounded border border-gray-200">👤 {payerStr}</span>}
                           {!isTransfer && exp.method && exp.method !== '未指定' && <span className="text-gray-500 text-[13px] font-bold bg-gray-50 px-1.5 py-0.5 rounded border border-gray-200">💳 {exp.method}{exp.subMethod ? `(${exp.subMethod})` : ''}</span>}
                           {exp.merchant && exp.merchant !== '未指定' && <span className="text-gray-500 text-[13px] font-bold bg-gray-50 px-1.5 py-0.5 rounded border border-gray-200">🏪 {exp.merchant}</span>}
-                          
-                          {/* 照片縮圖移到這裡：商家後，備註前 */}
-                          {exp.photoBase64 && (
-                            <span className="shrink-0 w-[22px] h-[22px] rounded overflow-hidden shadow-sm inline-block border border-gray-200 mt-0.5" title="附有照片">
-                               <img src={exp.photoBase64} alt="圖" className="w-full h-full object-cover" />
-                            </span>
-                          )}
                           
                           {exp.note && (
                              <span className="text-gray-500 text-[13px] font-bold bg-[#FFFDF9] px-1.5 py-0.5 rounded border border-[#F2EFE9] max-w-full truncate mt-0.5">
@@ -2370,7 +2372,6 @@ export default function App() {
     const themeBorder = isIncome ? 'border-green-100' : isTransfer ? 'border-blue-100' : 'border-orange-100';
     
     const daysOfWeek = ['週一', '週二', '週三', '週四', '週五', '週六', '週日'];
-    const daysOfMonth = Array.from({length: 31}, (_, i) => (i + 1).toString());
     const intervalOptions = ['3個月', '半年', '一年', '自訂'];
     
     content = (
@@ -2380,7 +2381,7 @@ export default function App() {
             <h1 className="text-2xl font-black flex items-center gap-2 drop-shadow-md">
               {editRecordId ? '✏️ 編輯紀錄' : '✨ 新增紀錄'} {titleEmoji}
             </h1>
-            <button onClick={() => { setShowAddForm(false); resetForm(); }} className="bg-white/20 hover:bg-white/30 text-white rounded-full p-1.5 transition shadow-inner">
+            <button onClick={() => { setShowAddForm(false); resetForm(); }} className="bg-white/20 hover:bg-white/30 text-white rounded-full p-1.5 transition backdrop-blur-sm shadow-inner">
               <X size={22} strokeWidth={3} />
             </button>
           </div>
@@ -2460,13 +2461,11 @@ export default function App() {
                 </div>
               )}
               {recordFrequency === '每月' && (
-                <div className="mb-5 bg-gray-50 p-4 rounded-xl border border-gray-100 shadow-sm">
-                  <label className="text-[15px] font-bold text-gray-500 mb-3 block">請選擇日期 (可複選)</label>
-                  <div className="grid grid-cols-7 gap-1.5">
-                    {daysOfMonth.map(d => (
-                      <button key={d} type="button" onClick={() => toggleFrequencyDay(d)} className={`aspect-square rounded-lg text-[15px] font-bold transition-all ${recordFrequencyDays.includes(d) ? 'bg-[#FFE28A] text-gray-800 shadow-sm border-2 border-[#FCD34D] transform -translate-y-0.5' : 'bg-white text-gray-500 border border-gray-100'}`}>{d}</button>
-                    ))}
-                  </div>
+                <div className="mb-5 bg-blue-50 p-4 rounded-xl border border-blue-100 shadow-sm">
+                  <label className="text-[15px] font-bold text-blue-700 mb-1 flex items-center gap-1.5">💡 每月定期產生</label>
+                  <p className="text-[13.5px] text-blue-600 font-medium leading-relaxed">
+                    系統將依據您上方的「消費日期」，自動於未來的每個月同一天產生此紀錄。
+                  </p>
                 </div>
               )}
               {recordFrequency === '區間' && (
@@ -2478,7 +2477,10 @@ export default function App() {
                       ))}
                   </div>
                   {recordFrequencyInterval === '自訂' && (
-                      <input type="text" placeholder="自行填寫區間 (例如: 100天)" value={recordFrequencyCustomText} onChange={e => setRecordFrequencyCustomText(e.target.value)} className="w-full bg-white border border-gray-100 p-3 rounded-lg font-bold text-[16px] outline-none focus:border-[#FCD34D] transition shadow-sm" />
+                      <input type="text" placeholder="自行填寫區間 (例如: 30天)" value={recordFrequencyCustomText} onChange={e => setRecordFrequencyCustomText(e.target.value)} className="w-full bg-white border border-gray-100 p-3 rounded-lg font-bold text-[16px] outline-none focus:border-[#FCD34D] transition shadow-sm" />
+                  )}
+                  {recordFrequencyInterval !== '自訂' && recordFrequencyInterval !== '' && (
+                      <p className="text-[13px] text-gray-500 font-bold mt-2">💡 系統將依據消費日期自動推算下次紀錄日</p>
                   )}
                 </div>
               )}
@@ -3172,24 +3174,55 @@ export default function App() {
           </div>
         )}
 
-        {/* 傳送紀錄至其他房間的 Modal (全域疊加) */}
+        {/* 傳送紀錄至其他房間的 Modal (全域疊加，加入彈性問答選項) */}
         {crossRoomRecord && (
           <div className="fixed inset-0 bg-black/40 z-[120] flex justify-center items-center p-4 backdrop-blur-sm animate-in fade-in duration-200">
             <div className="bg-white w-full max-w-sm rounded-[1.5rem] p-5 shadow-2xl">
                <h3 className="font-black text-xl text-gray-800 mb-3 flex items-center gap-2"><Send size={22} className="text-blue-500"/> 傳送至其他房間</h3>
-               <p className="text-[16px] font-bold text-gray-500 mb-4 leading-relaxed">將此筆 <span className="text-gray-800">[{crossRoomRecord.title || crossRoomRecord.category}] ${crossRoomRecord.amount}</span> 複製傳送到：</p>
-               <div className="space-y-2.5 mb-5 max-h-56 overflow-y-auto pr-1">
-                 {savedRooms.filter(r => r.id !== activeRoomId).length === 0 ? (
-                   <p className="text-red-400 font-bold text-[15px] bg-red-50 p-3 rounded-xl leading-relaxed">您目前沒有儲存其他房間，請先登入過其他房間再使用此功能。</p>
-                 ) : (
-                   savedRooms.filter(r => r.id !== activeRoomId).map(r => (
-                     <button key={r.id} onClick={() => handleSendToOtherRoom(r.id)} className="w-full text-left bg-gray-50 hover:bg-blue-50 border border-gray-100 hover:border-blue-200 p-3 rounded-xl font-black text-gray-700 text-[17px] transition flex items-center shadow-sm">
-                       🏠 {r.name} <span className="text-[13px] font-bold text-gray-400 ml-auto">({r.id})</span>
-                     </button>
-                   ))
-                 )}
-               </div>
-               <button onClick={() => setCrossRoomRecord(null)} className="w-full bg-gray-100 hover:bg-gray-200 text-gray-600 font-extrabold text-[17px] py-3 rounded-xl transition">取消傳送</button>
+               
+               {!selectedTransferRoom ? (
+                 <>
+                     <p className="text-[16px] font-bold text-gray-500 mb-4 leading-relaxed">將此筆 <span className="text-gray-800">[{crossRoomRecord.title || crossRoomRecord.category}] ${crossRoomRecord.amount}</span> 複製傳送到：</p>
+                     <div className="space-y-2.5 mb-5 max-h-56 overflow-y-auto pr-1">
+                       {savedRooms.filter(r => r.id !== activeRoomId).length === 0 ? (
+                         <p className="text-red-400 font-bold text-[15px] bg-red-50 p-3 rounded-xl leading-relaxed">您目前沒有儲存其他房間，請先登入過其他房間再使用此功能。</p>
+                       ) : (
+                         savedRooms.filter(r => r.id !== activeRoomId).map(r => (
+                           <button 
+                             key={r.id} 
+                             onClick={() => {
+                               if (crossRoomRecord.frequency !== '一次') {
+                                 setSelectedTransferRoom(r);
+                               } else {
+                                 handleSendToOtherRoom(r.id, false);
+                               }
+                             }} 
+                             className="w-full text-left bg-gray-50 hover:bg-blue-50 border border-gray-100 hover:border-blue-200 p-3 rounded-xl font-black text-gray-700 text-[17px] transition flex items-center shadow-sm"
+                           >
+                             🏠 {r.name} <span className="text-[13px] font-bold text-gray-400 ml-auto">({r.id})</span>
+                           </button>
+                         ))
+                       )}
+                     </div>
+                     <button onClick={() => { setCrossRoomRecord(null); setSelectedTransferRoom(null); }} className="w-full bg-gray-100 hover:bg-gray-200 text-gray-600 font-extrabold text-[17px] py-3 rounded-xl transition">取消</button>
+                 </>
+               ) : (
+                 <div className="animate-in slide-in-from-right-8 duration-200">
+                     <p className="text-[16px] font-bold text-gray-600 mb-4 leading-relaxed">
+                       目標房間：<span className="text-blue-600 font-black">{selectedTransferRoom.name}</span><br/><br/>
+                       這是一筆<span className="text-orange-500">週期性紀錄</span>，請問您要如何傳送？
+                     </p>
+                     <div className="space-y-3 mb-5">
+                       <button onClick={() => handleSendToOtherRoom(selectedTransferRoom.id, true)} className="w-full bg-blue-500 hover:bg-blue-600 text-white font-black text-[17px] py-3.5 rounded-xl transition shadow-md active:scale-95 flex items-center justify-center gap-2">
+                         🔄 完整傳送 (包含未來排程)
+                       </button>
+                       <button onClick={() => handleSendToOtherRoom(selectedTransferRoom.id, false)} className="w-full bg-orange-100 hover:bg-orange-200 text-orange-700 font-black text-[17px] py-3.5 rounded-xl transition shadow-sm active:scale-95 flex items-center justify-center gap-2">
+                         📌 僅傳送單次 (不含排程)
+                       </button>
+                     </div>
+                     <button onClick={() => setSelectedTransferRoom(null)} className="w-full bg-gray-100 hover:bg-gray-200 text-gray-600 font-extrabold text-[17px] py-3 rounded-xl transition active:scale-95">返回重選</button>
+                 </div>
+               )}
             </div>
           </div>
         )}
