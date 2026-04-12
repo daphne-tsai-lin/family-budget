@@ -1,4 +1,4 @@
-/* eslint-disable */
+2/* eslint-disable */
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { LogOut, AlertCircle, Settings, Trash2, X, Sparkles, Home, Plus, Pencil, BarChart, Calendar, Store, Tag, User, CreditCard, RefreshCw, Wallet, PiggyBank, PieChart as LucidePieChart, Download, Upload, Copy, Send, Landmark, ArrowRightLeft, Check, ArrowUp, ArrowDown, Search, Camera } from 'lucide-react';
 import { initializeApp } from 'firebase/app';
@@ -2233,7 +2233,16 @@ export default function App() {
                   {homeFilterDate ? toROCShortStr(homeFilterDate) : '全部日期'}
                 </span>
               </div>
-              <button onClick={() => setHomeFilterDate(getLocalTodayStr())} className="shrink-0 bg-white/20 hover:bg-white/30 text-white px-2 py-1.5 rounded-xl transition font-bold text-[13px] shadow-sm backdrop-blur-sm whitespace-nowrap">今天</button>
+              <button 
+                onClick={() => setHomeFilterDate(getLocalTodayStr())} 
+                className={`shrink-0 px-2.5 py-1.5 rounded-xl transition-all duration-300 font-black text-[13px] shadow-sm backdrop-blur-sm whitespace-nowrap ${
+                  homeFilterDate === getLocalTodayStr() 
+                    ? 'bg-white text-orange-500 scale-105 shadow-md' 
+                    : 'bg-white/20 hover:bg-white/30 text-white'
+                }`}
+              >
+                今天
+              </button>
               
               <div className="relative bg-white/20 backdrop-blur-md rounded-xl shadow-sm border border-white/30 px-2 py-1.5 flex items-center overflow-hidden transition flex-1 min-w-0">
                  <Search size={14} className="text-white mr-1.5 shrink-0 z-0" />
