@@ -477,7 +477,7 @@ export default function App() {
   const [syncTargetRoom, setSyncTargetRoom] = useState('');
   const [syncSelection, setSyncSelection] = useState({}); 
   
-  const [availableLoginUsers, setAvailableLoginUsers] = useState(['老公', '老婆', '小孩']); // 動態登入者清單
+  const [availableLoginUsers, setAvailableLoginUsers] = useState(['老公', '老婆']); // 動態登入者清單
 
   const [touchStart, setTouchStart] = useState(null);
   const [touchEnd, setTouchEnd] = useState(null);
@@ -571,13 +571,13 @@ export default function App() {
           if (snap.exists() && snap.data().loginUsers) {
             setAvailableLoginUsers(snap.data().loginUsers);
           } else {
-            setAvailableLoginUsers(['老公', '老婆', '小孩']);
+            setAvailableLoginUsers(['老公', '老婆']);
           }
         } catch (e) {}
       }, 400);
       return () => clearTimeout(timer);
     } else if ((view === 'login' || view === 'create') && !roomCode) {
-       setAvailableLoginUsers(['老公', '老婆', '小孩']);
+       setAvailableLoginUsers(['老公', '老婆']);
     }
   }, [roomCode, user, view]);
 
@@ -604,17 +604,17 @@ export default function App() {
   }, [user, activeRoomId]);
 
   // ==========================================
-  // 圖片自動清理機制 (保留 2 個月，約 60 天)
+  // 圖片自動清理機制 (保留 90 天)
   // ==========================================
   useEffect(() => {
     if (!records || records.length === 0 || !activeRoomId) return;
 
-    // 60天的毫秒數： 60天 * 24小時 * 60分 * 60秒 * 1000
-    const TWO_MONTHS_MS = 60 * 24 * 60 * 60 * 1000;
+    // 90天的毫秒數： 90天 * 24小時 * 60分 * 60秒 * 1000
+    const NINETY_DAYS_MS = 90 * 24 * 60 * 60 * 1000;
     const now = Date.now();
 
-    // 找出有帶圖片，且建檔時間超過2個月的紀錄
-    const recordsToPrune = records.filter(r => r.photoBase64 && (now - r.timestamp > TWO_MONTHS_MS));
+    // 找出有帶圖片，且建檔時間超過90天的紀錄
+    const recordsToPrune = records.filter(r => r.photoBase64 && (now - r.timestamp > NINETY_DAYS_MS));
 
     if (recordsToPrune.length > 0) {
       const pruneOldPhotos = async () => {
@@ -819,7 +819,7 @@ export default function App() {
 
       const newRoomData = {
         name: roomName, pin: roomPin, createdBy: user.uid, createdAt: Date.now(),
-        loginUsers: availableLoginUsers, // 預設登入者清單
+        loginUsers: availableLoginUsers.length > 0 ? availableLoginUsers : ['老公', '老婆'], // 預設登入者清單
         categories: ['🍔 飲食', '🚗 交通', '🏠 居住', '💡 水電瓦斯', '🎉 娛樂', '👶 育兒'],
         categoryItems: {
           '🍔 飲食': ['早餐', '午餐', '晚餐', '飲料', '宵夜', '買菜'],
@@ -895,7 +895,7 @@ export default function App() {
         
         let roleToUse = savedRoom.role || '其他家人';
         const roomData = roomSnap.data();
-        const rLoginUsers = roomData.loginUsers || ['老公', '老婆', '小孩'];
+        const rLoginUsers = roomData.loginUsers || ['老公', '老婆'];
         
         // 若該使用者的稱呼已經被修改/刪除，請他重新選
         if (!rLoginUsers.includes(roleToUse)) {
@@ -1974,6 +1974,10 @@ export default function App() {
             <input type="text" className="w-full bg-gray-50 text-center border border-gray-100 p-4 rounded-xl focus:bg-white focus:border-blue-300 outline-none font-bold text-gray-700 text-[18px] transition shadow-sm" placeholder="例如：linbei" value={roomCode} onChange={(e) => setRoomCode(e.target.value)} />
           </div>
           <div>
+            <label className="block text-[16px] font-bold text-gray-500 mb-1.5 ml-1">房間密碼</label>
+            <input type="password" className="w-full bg-gray-50 text-center border border-gray-100 p-4 rounded-xl focus:bg-white focus:border-blue-300 outline-none font-bold text-gray-700 text-[18px] transition shadow-sm" placeholder="輸入密碼" value={roomPin} onChange={(e) => setRoomPin(e.target.value)} />
+          </div>
+          <div>
             <label className="block text-[16px] font-bold text-gray-500 mb-1.5 ml-1">我是誰？ (請點選下方人員)</label>
             <div className="flex flex-wrap gap-2 mb-2">
               {availableLoginUsers.map(roleName => (
@@ -1988,10 +1992,6 @@ export default function App() {
               ))}
             </div>
             {roomCode && availableLoginUsers.length === 0 && <p className="text-sm text-gray-400 text-center mt-2">載入名單中...</p>}
-          </div>
-          <div>
-            <label className="block text-[16px] font-bold text-gray-500 mb-1.5 ml-1">房間密碼</label>
-            <input type="password" className="w-full bg-gray-50 text-center border border-gray-100 p-4 rounded-xl focus:bg-white focus:border-blue-300 outline-none font-bold text-gray-700 text-[18px] transition shadow-sm" placeholder="輸入密碼" value={roomPin} onChange={(e) => setRoomPin(e.target.value)} />
           </div>
           
           <button type="submit" disabled={isLoading} className="w-full bg-gray-800 text-white font-extrabold text-[20px] p-4 rounded-[1.5rem] hover:bg-gray-700 shadow-md transition active:scale-95 disabled:opacity-50 mt-2">{isLoading ? '處理中...' : '開啟小財庫 🚀'}</button>
@@ -2012,10 +2012,13 @@ export default function App() {
         </div>
         {errorMsg && <div className="w-full bg-red-50 text-red-500 font-bold p-3 rounded-xl mb-4 flex items-center justify-center gap-2 text-[16px] shadow-sm border border-red-100"><AlertCircle size={20} /> {errorMsg}</div>}
         <form onSubmit={handleCreateRoom} className="space-y-4 w-full bg-white p-5 rounded-[1.5rem] shadow-sm border border-gray-100">
+          <input type="text" className="w-full bg-gray-50 text-center border border-gray-100 p-3.5 rounded-xl focus:bg-white focus:border-green-300 outline-none font-bold text-gray-700 text-[18px] transition shadow-sm" placeholder="🏠 房間名稱 (例: 林北小財庫)" value={roomName} onChange={(e) => setRoomName(e.target.value)} />
+          <input type="text" className="w-full bg-gray-50 text-center border border-gray-100 p-3.5 rounded-xl focus:bg-white focus:border-green-300 outline-none font-bold text-gray-700 text-[18px] transition shadow-sm" placeholder="🎀 自訂通關代碼 (需唯一)" value={roomCode} onChange={(e) => setRoomCode(e.target.value)} />
+          <input type="password" className="w-full bg-gray-50 text-center border border-gray-100 p-3.5 rounded-xl focus:bg-white focus:border-green-300 outline-none font-bold text-gray-700 text-[18px] transition shadow-sm" placeholder="🔑 設定房間密碼" value={roomPin} onChange={(e) => setRoomPin(e.target.value)} />
           <div>
             <label className="block text-[16px] font-bold text-gray-500 mb-1.5 ml-1">我是誰？ (請點選)</label>
             <div className="flex flex-wrap gap-2 mb-2">
-              {['老公', '老婆', '小孩'].map(r => (
+              {['老公', '老婆'].map(r => (
                 <button 
                   key={r} 
                   type="button" 
@@ -2028,9 +2031,6 @@ export default function App() {
             </div>
             <p className="text-sm text-gray-400 mt-2 text-center">💡 進入房間後，可在「其他」設定中修改/新增登入人員</p>
           </div>
-          <input type="text" className="w-full bg-gray-50 text-center border border-gray-100 p-3.5 rounded-xl focus:bg-white focus:border-green-300 outline-none font-bold text-gray-700 text-[18px] transition shadow-sm" placeholder="🏠 房間名稱 (例: 林北小財庫)" value={roomName} onChange={(e) => setRoomName(e.target.value)} />
-          <input type="text" className="w-full bg-gray-50 text-center border border-gray-100 p-3.5 rounded-xl focus:bg-white focus:border-green-300 outline-none font-bold text-gray-700 text-[18px] transition shadow-sm" placeholder="🎀 自訂通關代碼 (需唯一)" value={roomCode} onChange={(e) => setRoomCode(e.target.value)} />
-          <input type="password" className="w-full bg-gray-50 text-center border border-gray-100 p-3.5 rounded-xl focus:bg-white focus:border-green-300 outline-none font-bold text-gray-700 text-[18px] transition shadow-sm" placeholder="🔑 設定房間密碼" value={roomPin} onChange={(e) => setRoomPin(e.target.value)} />
           <button type="submit" disabled={isLoading} className="w-full bg-green-500 text-white font-extrabold text-[20px] py-4 rounded-[1.5rem] hover:bg-green-600 shadow-md transition active:scale-95 mt-2">{isLoading ? '處理中...' : '建立並進入 🚀'}</button>
         </form>
         <div className="mt-6 text-center w-full pb-6">
@@ -2254,7 +2254,7 @@ export default function App() {
                              {exp.merchant && exp.merchant !== '未指定' && <span className="text-gray-500 text-[12px] font-bold bg-gray-100 px-1.5 py-0.5 rounded border border-gray-200">🏪 {exp.merchant}</span>}
                              
                              {exp.photoBase64 && (
-                               <span className="shrink-0 w-[22px] h-[22px] rounded-md overflow-hidden shadow-sm inline-block border border-gray-200" title="此紀錄附有照片">
+                               <span className="shrink-0 w-[22px] h-[22px] rounded-md overflow-hidden shadow-sm inline-block border border-gray-200" title="有照片">
                                  <img src={exp.photoBase64} alt="圖" className="w-full h-full object-cover" />
                                </span>
                              )}
@@ -2736,7 +2736,7 @@ export default function App() {
             {settingsTab === 'other' && (
               <>
                 <SettingBlock 
-                  title="🙋 登入人員 (付款人)" items={currentRoom?.loginUsers || ['老公', '老婆', '小孩']} 
+                  title="🙋 登入人員 (付款人)" items={currentRoom?.loginUsers || ['老公', '老婆']} 
                   onUpdate={(newList, oldItem, newItem) => updateSettingField('loginUsers', newList, oldItem, newItem)} 
                   themeClass="border-purple-100" spanClass="text-purple-600" btnClass="bg-purple-400" placeholder="輸入登入者名稱..." 
                 />
