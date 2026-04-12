@@ -1628,15 +1628,32 @@ export default function App() {
          if (opt === 'merchants') {
             const existingAutoFill = targetData.autoFillRules || {};
             const newAutoFill = { ...existingAutoFill };
+            const existingAutoFillOrder = targetData.autoFillRuleOrder || [];
+            let newAutoFillOrder = [...existingAutoFillOrder];
+
             const existingMethodRules = targetData.methodRules || {};
             const newMethodRules = { ...existingMethodRules };
+            const existingMethodOrder = targetData.methodRuleOrder || [];
+            let newMethodOrder = [...existingMethodOrder];
 
             selectedItems.forEach(m => {
-               if (currentRoom.autoFillRules?.[m]) newAutoFill[m] = currentRoom.autoFillRules[m];
-               if (currentRoom.methodRules?.[m]) newMethodRules[m] = currentRoom.methodRules[m];
+               // 1. 複製商家對應的付款方式預設規則 (key 是商家)
+               if (currentRoom.methodRules?.[m]) {
+                   newMethodRules[m] = currentRoom.methodRules[m];
+                   if (!newMethodOrder.includes(m)) newMethodOrder.push(m);
+               }
+               // 2. 複製觸發該商家的自動帶入規則 (value 是商家)
+               Object.entries(currentRoom.autoFillRules || {}).forEach(([itemKey, merchantValue]) => {
+                   if (merchantValue === m) {
+                       newAutoFill[itemKey] = merchantValue;
+                       if (!newAutoFillOrder.includes(itemKey)) newAutoFillOrder.push(itemKey);
+                   }
+               });
             });
             updates.autoFillRules = newAutoFill;
+            updates.autoFillRuleOrder = newAutoFillOrder;
             updates.methodRules = newMethodRules;
+            updates.methodRuleOrder = newMethodOrder;
          }
       });
 
