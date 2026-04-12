@@ -1,4 +1,4 @@
-2/* eslint-disable */
+/* eslint-disable */
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { LogOut, AlertCircle, Settings, Trash2, X, Sparkles, Home, Plus, Pencil, BarChart, Calendar, Store, Tag, User, CreditCard, RefreshCw, Wallet, PiggyBank, PieChart as LucidePieChart, Download, Upload, Copy, Send, Landmark, ArrowRightLeft, Check, ArrowUp, ArrowDown, Search, Camera } from 'lucide-react';
 import { initializeApp } from 'firebase/app';
@@ -476,6 +476,8 @@ export default function App() {
   const [syncSettingsModalOpen, setSyncSettingsModalOpen] = useState(false);
   const [syncTargetRoom, setSyncTargetRoom] = useState('');
   const [syncSelection, setSyncSelection] = useState({}); 
+  
+  const [availableLoginUsers, setAvailableLoginUsers] = useState(['老公', '老婆', '小孩']); // 動態登入者清單
 
   const [touchStart, setTouchStart] = useState(null);
   const [touchEnd, setTouchEnd] = useState(null);
@@ -500,21 +502,28 @@ export default function App() {
   }, [view, settingsTab, showAddForm, viewingAccountHistory, viewingAnalysisItem, viewingRecord]);
 
   useEffect(() => {
+    // 建立防退陷阱 (推入一個假的歷史紀錄)
     window.history.pushState({ trap: true }, '');
 
     const handleBeforeUnload = (e) => {
+      // 處理直接關閉網頁或重整時的瀏覽器原生提示
       e.preventDefault();
-      e.returnValue = '確定要關閉記帳本嗎？';
-      return '確定要關閉記帳本嗎？';
+      e.returnValue = '';
     };
     
     const handlePopState = (e) => {
-      const confirmExit = window.confirm("確定要關閉記帳本嗎？\n(按確定則離開，按取消則繼續使用)");
+      // 當使用者按下手機的實體返回鍵 / 側邊滑動返回時觸發
+      const confirmExit = window.confirm("確定要關閉記帳本嗎？\n\n(免煩惱！您的資料都已經即時安全儲存至雲端囉 ✨)");
+      
       if (!confirmExit) {
+        // 使用者選擇「取消」：重新把陷阱推回去，阻擋退出
         window.history.pushState({ trap: true }, '');
       } else {
-        window.close(); 
-        window.history.back(); 
+        // 使用者選擇「確定」：使用非同步執行真正的退出，繞過手機瀏覽器的安全阻擋
+        setTimeout(() => {
+          try { window.close(); } catch(err) {} // 針對部分支援直接關閉的 PWA
+          window.history.back(); // 執行第二次返回，真正退出 App 或回到主畫面
+        }, 100);
       }
     };
 
@@ -552,6 +561,25 @@ export default function App() {
     const unsubscribe = onAuthStateChanged(auth, setUser);
     return () => unsubscribe();
   }, []);
+  
+  // 動態抓取房間的登入者名單 (當輸入房間代碼時自動偵測)
+  useEffect(() => {
+    if ((view === 'login' || view === 'create') && roomCode && user) {
+      const timer = setTimeout(async () => {
+        try {
+          const snap = await getDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', roomCode));
+          if (snap.exists() && snap.data().loginUsers) {
+            setAvailableLoginUsers(snap.data().loginUsers);
+          } else {
+            setAvailableLoginUsers(['老公', '老婆', '小孩']);
+          }
+        } catch (e) {}
+      }, 400);
+      return () => clearTimeout(timer);
+    } else if ((view === 'login' || view === 'create') && !roomCode) {
+       setAvailableLoginUsers(['老公', '老婆', '小孩']);
+    }
+  }, [roomCode, user, view]);
 
   useEffect(() => {
     if (!user || !activeRoomId) return;
@@ -791,6 +819,7 @@ export default function App() {
 
       const newRoomData = {
         name: roomName, pin: roomPin, createdBy: user.uid, createdAt: Date.now(),
+        loginUsers: availableLoginUsers, // 預設登入者清單
         categories: ['🍔 飲食', '🚗 交通', '🏠 居住', '💡 水電瓦斯', '🎉 娛樂', '👶 育兒'],
         categoryItems: {
           '🍔 飲食': ['早餐', '午餐', '晚餐', '飲料', '宵夜', '買菜'],
@@ -829,7 +858,7 @@ export default function App() {
   const handleJoinRoom = async (e) => {
     e.preventDefault();
     setErrorMsg('');
-    if (!currentUserRole) { setErrorMsg('請先點選「我是誰」喔！'); return; }
+    if (!currentUserRole) { setErrorMsg('請點選或輸入「您是誰」喔！'); return; }
     if (!roomCode || !roomPin) { setErrorMsg('請輸入房間代碼和密碼'); return; }
     if (!user) { setErrorMsg('資料庫尚未連線，請確認 Firebase 設定。'); return; }
 
@@ -863,11 +892,29 @@ export default function App() {
       const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', savedRoom.id);
       const roomSnap = await getDoc(roomRef);
       if (roomSnap.exists() && roomSnap.data().pin === savedRoom.pin) {
-        setRoomCode(savedRoom.id); setRoomPin(savedRoom.pin); setCurrentUserRole(savedRoom.role || '其他家人');
+        
+        let roleToUse = savedRoom.role || '其他家人';
+        const roomData = roomSnap.data();
+        const rLoginUsers = roomData.loginUsers || ['老公', '老婆', '小孩'];
+        
+        // 若該使用者的稱呼已經被修改/刪除，請他重新選
+        if (!rLoginUsers.includes(roleToUse)) {
+          setRoomCode(savedRoom.id);
+          setRoomPin(savedRoom.pin);
+          setAvailableLoginUsers(rLoginUsers);
+          setCurrentUserRole('');
+          setErrorMsg(`您的登入身份 [${roleToUse}] 已被更改，請重新點選`);
+          setIsLoading(false);
+          return;
+        }
+
+        setRoomCode(savedRoom.id); 
+        setRoomPin(savedRoom.pin); 
+        setCurrentUserRole(roleToUse);
         setActiveRoomId(savedRoom.id); 
         setHomeFilterDate(getLocalTodayStr());
         setView('room');
-        saveRoomToLocal(savedRoom.id, roomSnap.data().name, savedRoom.pin, savedRoom.role || '其他家人');
+        saveRoomToLocal(savedRoom.id, roomData.name, savedRoom.pin, roleToUse);
       } else {
         setErrorMsg(`進入「${savedRoom.name}」失敗，密碼可能已被更改`);
       }
@@ -1111,8 +1158,11 @@ export default function App() {
       // 防呆：驗證目標房間是否擁有對應選項
       const checkInArray = (val, arr) => !val || val === '未指定' || (arr || []).includes(val);
 
+      // 新增驗證目標房間是否擁有對應的「登入者(付款人)」
+      if (!checkInArray(data.addedByRole, tRoom.loginUsers)) return alert(`目標房間沒有名為 [${data.addedByRole}] 的登入人員，故無法傳送。`);
+
       const payers = Array.isArray(data.payer) ? data.payer : [data.payer];
-      if (!payers.every(p => checkInArray(p, tRoom.payers))) return alert('目標房間沒有相對應的付款人，故無法傳送。');
+      if (!payers.every(p => checkInArray(p, tRoom.payers))) return alert('目標房間沒有相對應的花費對象，故無法傳送。');
 
       if (data.type === 'expense') {
         if (!checkInArray(data.category, tRoom.categories)) return alert(`目標房間沒有支出主分類 [${data.category}]，故無法傳送。`);
@@ -1372,6 +1422,11 @@ export default function App() {
             needsUpdate = true; updatedData.method = newItem;
         } else if (settingField === 'transferInAccounts' && r.type === 'transfer' && r.transferToMethod === oldItem) {
             needsUpdate = true; updatedData.transferToMethod = newItem;
+        } else if (settingField === 'loginUsers') {
+            // 連動更新登入人員(付款人)
+            if (r.addedByRole === oldItem) {
+                needsUpdate = true; updatedData.addedByRole = newItem;
+            }
         }
 
         if (needsUpdate) {
@@ -1569,8 +1624,9 @@ export default function App() {
   // ==========================================
   const SYNC_FIELDS = [
     { key: 'categories', label: '🌸 支出分類 (含子項目)' },
-    { key: 'merchants', label: '🏪 常見商家 (含預設規則)' },
-    { key: 'payers', label: '👥 對象名單' },
+    { key: 'merchants', label: '🏪 常見商家' },
+    { key: 'loginUsers', label: '🙋 登入人員' },
+    { key: 'payers', label: '👥 花費對象' },
     { key: 'paymentMethods', label: '💳 付款方式類別' },
     { key: 'creditCards', label: '💳 信用卡清單' },
     { key: 'bankAccounts', label: '🏦 銀行/電子票證清單' },
@@ -1816,6 +1872,7 @@ export default function App() {
         if (needsSubMethod(transferToMethod) && !transferToSubMethod) isFormValid = false;
       }
       if (recordFrequency === '每週' && recordFrequencyDays.length === 0) isFormValid = false;
+      if (recordFrequency === '每月' && recordFrequencyDays.length === 0) isFormValid = false;
       if (recordFrequency === '區間' && !recordFrequencyInterval) isFormValid = false;
       if (recordFrequency === '區間' && recordFrequencyInterval === '自訂' && !recordFrequencyCustomText) isFormValid = false;
     }
@@ -1841,12 +1898,12 @@ export default function App() {
     return (
       <div className="mb-4 w-full">
         {label && <label className="flex items-center gap-1.5 text-[14px] font-bold text-gray-500 mb-2 ml-1">{Icon && <Icon size={14} className="text-gray-400" />} {label}</label>}
-        <div className="flex w-full gap-1.5">
+        <div className="flex w-full gap-1.5 flex-wrap">
           {options.map(opt => {
             const isSelected = values.includes(opt);
             const isDisabled = isPayer && ((opt === '全家' && hasIndividuals) || (opt !== '全家' && hasFamily));
             return (
-              <button key={opt} type="button" onClick={() => handleToggle(opt)} className={`flex-1 py-2 px-0.5 rounded-[1.2rem] text-[13px] sm:text-[14px] font-black transition-all duration-200 border-2 shadow-sm flex items-center justify-center leading-tight ${isSelected ? 'bg-[#FFE28A] text-gray-900 border-[#F59E0B] transform -translate-y-0.5 z-10' : isDisabled ? 'bg-gray-100 text-gray-300 border-transparent cursor-not-allowed opacity-60' : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300 hover:bg-gray-50'}`}>{opt}</button>
+              <button key={opt} type="button" onClick={() => handleToggle(opt)} className={`flex-1 min-w-[70px] py-2 px-1 rounded-[1.2rem] text-[13px] sm:text-[14px] font-black transition-all duration-200 border-2 shadow-sm flex items-center justify-center leading-tight ${isSelected ? 'bg-[#FFE28A] text-gray-900 border-[#F59E0B] transform -translate-y-0.5 z-10' : isDisabled ? 'bg-gray-100 text-gray-300 border-transparent cursor-not-allowed opacity-60' : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300 hover:bg-gray-50'}`}>{opt}</button>
             )
           })}
         </div>
@@ -1917,16 +1974,26 @@ export default function App() {
             <input type="text" className="w-full bg-gray-50 text-center border border-gray-100 p-4 rounded-xl focus:bg-white focus:border-blue-300 outline-none font-bold text-gray-700 text-[18px] transition shadow-sm" placeholder="例如：linbei" value={roomCode} onChange={(e) => setRoomCode(e.target.value)} />
           </div>
           <div>
-            <label className="block text-[16px] font-bold text-gray-500 mb-1.5 ml-1">房間密碼 (初次建立請自訂)</label>
-            <input type="password" className="w-full bg-gray-50 text-center border border-gray-100 p-4 rounded-xl focus:bg-white focus:border-blue-300 outline-none font-bold text-gray-700 text-[18px] transition shadow-sm" placeholder="輸入密碼" value={roomPin} onChange={(e) => setRoomPin(e.target.value)} />
+            <label className="block text-[16px] font-bold text-gray-500 mb-1.5 ml-1">我是誰？ (請點選下方人員)</label>
+            <div className="flex flex-wrap gap-2 mb-2">
+              {availableLoginUsers.map(roleName => (
+                <button 
+                  key={roleName} 
+                  type="button" 
+                  onClick={() => setCurrentUserRole(roleName)} 
+                  className={`flex-1 min-w-[30%] py-3 px-2 rounded-xl font-bold text-[16px] flex justify-center items-center gap-1.5 transition-all duration-200 truncate ${currentUserRole === roleName ? 'bg-blue-500 text-white shadow-md transform -translate-y-0.5' : 'bg-gray-50 border border-gray-100 text-gray-500 hover:bg-gray-100'}`}
+                >
+                  {roleName}
+                </button>
+              ))}
+            </div>
+            {roomCode && availableLoginUsers.length === 0 && <p className="text-sm text-gray-400 text-center mt-2">載入名單中...</p>}
           </div>
           <div>
-            <label className="block text-[16px] font-bold text-gray-500 mb-1.5 ml-1">我是誰？</label>
-            <div className="grid grid-cols-2 gap-3">
-              <button type="button" onClick={() => setCurrentUserRole('老公')} className={`p-4 rounded-xl font-bold text-[18px] flex justify-center items-center gap-1.5 transition-all duration-200 ${currentUserRole === '老公' ? 'bg-blue-500 text-white shadow-md transform -translate-y-0.5' : 'bg-gray-50 border border-gray-100 text-gray-500 hover:bg-gray-100'}`}>👨 老公</button>
-              <button type="button" onClick={() => setCurrentUserRole('老婆')} className={`p-4 rounded-xl font-bold text-[18px] flex justify-center items-center gap-1.5 transition-all duration-200 ${currentUserRole === '老婆' ? 'bg-pink-500 text-white shadow-md transform -translate-y-0.5' : 'bg-gray-50 border border-gray-100 text-gray-500 hover:bg-gray-100'}`}>👩 老婆</button>
-            </div>
+            <label className="block text-[16px] font-bold text-gray-500 mb-1.5 ml-1">房間密碼</label>
+            <input type="password" className="w-full bg-gray-50 text-center border border-gray-100 p-4 rounded-xl focus:bg-white focus:border-blue-300 outline-none font-bold text-gray-700 text-[18px] transition shadow-sm" placeholder="輸入密碼" value={roomPin} onChange={(e) => setRoomPin(e.target.value)} />
           </div>
+          
           <button type="submit" disabled={isLoading} className="w-full bg-gray-800 text-white font-extrabold text-[20px] p-4 rounded-[1.5rem] hover:bg-gray-700 shadow-md transition active:scale-95 disabled:opacity-50 mt-2">{isLoading ? '處理中...' : '開啟小財庫 🚀'}</button>
         </form>
         <div className="mt-6 text-center w-full pb-6">
@@ -1946,11 +2013,20 @@ export default function App() {
         {errorMsg && <div className="w-full bg-red-50 text-red-500 font-bold p-3 rounded-xl mb-4 flex items-center justify-center gap-2 text-[16px] shadow-sm border border-red-100"><AlertCircle size={20} /> {errorMsg}</div>}
         <form onSubmit={handleCreateRoom} className="space-y-4 w-full bg-white p-5 rounded-[1.5rem] shadow-sm border border-gray-100">
           <div>
-            <label className="block text-[16px] font-bold text-gray-500 mb-1.5 ml-1">我是...</label>
-            <div className="grid grid-cols-2 gap-3">
-              <button type="button" onClick={() => setCurrentUserRole('老公')} className={`p-3 rounded-xl font-bold text-[18px] flex justify-center items-center gap-1.5 transition-all duration-200 ${currentUserRole === '老公' ? 'bg-blue-500 text-white shadow-md transform -translate-y-0.5' : 'bg-gray-50 border border-gray-100 text-gray-500 hover:bg-gray-100'}`}>👨 老公</button>
-              <button type="button" onClick={() => setCurrentUserRole('老婆')} className={`p-3 rounded-xl font-bold text-[18px] flex justify-center items-center gap-1.5 transition-all duration-200 ${currentUserRole === '老婆' ? 'bg-pink-500 text-white shadow-md transform -translate-y-0.5' : 'bg-gray-50 border border-gray-100 text-gray-500 hover:bg-gray-100'}`}>👩 老婆</button>
+            <label className="block text-[16px] font-bold text-gray-500 mb-1.5 ml-1">我是誰？ (請點選)</label>
+            <div className="flex flex-wrap gap-2 mb-2">
+              {['老公', '老婆', '小孩'].map(r => (
+                <button 
+                  key={r} 
+                  type="button" 
+                  onClick={() => setCurrentUserRole(r)} 
+                  className={`flex-1 min-w-[30%] py-3 px-2 rounded-xl font-bold text-[16px] flex justify-center items-center gap-1.5 transition-all duration-200 truncate ${currentUserRole === r ? (r === '老婆' ? 'bg-pink-500 text-white shadow-md transform -translate-y-0.5' : 'bg-blue-500 text-white shadow-md transform -translate-y-0.5') : 'bg-gray-50 border border-gray-100 text-gray-500 hover:bg-gray-100'}`}
+                >
+                  {r}
+                </button>
+              ))}
             </div>
+            <p className="text-sm text-gray-400 mt-2 text-center">💡 進入房間後，可在「其他」設定中修改/新增登入人員</p>
           </div>
           <input type="text" className="w-full bg-gray-50 text-center border border-gray-100 p-3.5 rounded-xl focus:bg-white focus:border-green-300 outline-none font-bold text-gray-700 text-[18px] transition shadow-sm" placeholder="🏠 房間名稱 (例: 林北小財庫)" value={roomName} onChange={(e) => setRoomName(e.target.value)} />
           <input type="text" className="w-full bg-gray-50 text-center border border-gray-100 p-3.5 rounded-xl focus:bg-white focus:border-green-300 outline-none font-bold text-gray-700 text-[18px] transition shadow-sm" placeholder="🎀 自訂通關代碼 (需唯一)" value={roomCode} onChange={(e) => setRoomCode(e.target.value)} />
@@ -2178,7 +2254,7 @@ export default function App() {
                              {exp.merchant && exp.merchant !== '未指定' && <span className="text-gray-500 text-[12px] font-bold bg-gray-100 px-1.5 py-0.5 rounded border border-gray-200">🏪 {exp.merchant}</span>}
                              
                              {exp.photoBase64 && (
-                               <span className="shrink-0 w-[22px] h-[22px] rounded-md overflow-hidden shadow-sm inline-block border border-gray-200" title="有照片">
+                               <span className="shrink-0 w-[22px] h-[22px] rounded-md overflow-hidden shadow-sm inline-block border border-gray-200" title="此紀錄附有照片">
                                  <img src={exp.photoBase64} alt="圖" className="w-full h-full object-cover" />
                                </span>
                              )}
@@ -2390,7 +2466,7 @@ export default function App() {
             <h1 className="text-2xl font-black flex items-center gap-2 drop-shadow-md">
               {editRecordId ? '✏️ 編輯紀錄' : '✨ 新增紀錄'} {titleEmoji}
             </h1>
-            <button onClick={() => { setShowAddForm(false); resetForm(); }} className="bg-white/20 hover:bg-white/30 text-white rounded-full p-1.5 transition backdrop-blur-sm shadow-inner">
+            <button onClick={() => { setShowAddForm(false); resetForm(); }} className="bg-white/20 hover:bg-white/30 text-white rounded-full p-1.5 transition shadow-inner">
               <X size={22} strokeWidth={3} />
             </button>
           </div>
@@ -2584,9 +2660,10 @@ export default function App() {
           </button>
 
           <div className="flex bg-white rounded-xl p-1.5 border border-gray-100 shadow-sm">
-             <button onClick={() => setSettingsTab('expense')} className={`flex-1 py-2 px-1 rounded-lg text-[18px] font-extrabold transition-all duration-200 truncate ${settingsTab === 'expense' ? 'bg-orange-400 text-white shadow-sm transform scale-100' : 'text-gray-400 hover:text-gray-600 bg-gray-50 scale-95'}`}>支出</button>
-             <button onClick={() => setSettingsTab('income')} className={`flex-1 py-2 px-1 rounded-lg text-[18px] font-extrabold transition-all duration-200 truncate ${settingsTab === 'income' ? 'bg-green-500 text-white shadow-sm transform scale-100' : 'text-gray-400 hover:text-gray-600 bg-gray-50 scale-95'}`}>收入</button>
-             <button onClick={() => setSettingsTab('transfer')} className={`flex-1 py-2 px-1 rounded-lg text-[18px] font-extrabold transition-all duration-200 truncate ${settingsTab === 'transfer' ? 'bg-blue-500 text-white shadow-sm transform scale-100' : 'text-gray-400 hover:text-gray-600 bg-gray-50 scale-95'}`}>轉帳</button>
+             <button onClick={() => setSettingsTab('expense')} className={`flex-1 py-2 px-1 rounded-lg text-[16px] font-extrabold transition-all duration-200 truncate ${settingsTab === 'expense' ? 'bg-orange-400 text-white shadow-sm' : 'text-gray-400 hover:text-gray-600 bg-gray-50'}`}>支出</button>
+             <button onClick={() => setSettingsTab('income')} className={`flex-1 py-2 px-1 rounded-lg text-[16px] font-extrabold transition-all duration-200 truncate ${settingsTab === 'income' ? 'bg-green-500 text-white shadow-sm' : 'text-gray-400 hover:text-gray-600 bg-gray-50'}`}>收入</button>
+             <button onClick={() => setSettingsTab('transfer')} className={`flex-1 py-2 px-1 rounded-lg text-[16px] font-extrabold transition-all duration-200 truncate ${settingsTab === 'transfer' ? 'bg-blue-500 text-white shadow-sm' : 'text-gray-400 hover:text-gray-600 bg-gray-50'}`}>轉帳</button>
+             <button onClick={() => setSettingsTab('other')} className={`flex-1 py-2 px-1 rounded-lg text-[16px] font-extrabold transition-all duration-200 truncate ${settingsTab === 'other' ? 'bg-purple-500 text-white shadow-sm' : 'text-gray-400 hover:text-gray-600 bg-gray-50'}`}>其他</button>
           </div>
 
           <div className="space-y-4">
@@ -2622,7 +2699,57 @@ export default function App() {
                   onUpdate={(newList, oldItem, newItem) => updateSettingField('merchants', newList, oldItem, newItem)} 
                   themeClass="border-orange-100" spanClass="text-orange-600" btnClass="bg-orange-400" placeholder="輸入新商家..." 
                 />
-                
+
+                <SettingBlock 
+                  title="💳 信用卡清單" items={currentRoom?.creditCards || []} 
+                  onUpdate={(newList, oldItem, newItem) => updateSettingField('creditCards', newList, oldItem, newItem)} 
+                  themeClass="border-blue-100" spanClass="text-blue-600" btnClass="bg-blue-400" placeholder="輸入信用卡銀行..." 
+                />
+                <SettingBlock 
+                  title="🏦 銀行/電子票證清單" items={currentRoom?.bankAccounts || []} 
+                  onUpdate={(newList, oldItem, newItem) => updateSettingField('bankAccounts', newList, oldItem, newItem)} 
+                  themeClass="border-indigo-100" spanClass="text-indigo-600" btnClass="bg-indigo-400" placeholder="輸入名稱..." 
+                />
+              </>
+            )}
+
+            {settingsTab === 'income' && (
+              <>
+                <SettingBlock 
+                  title="💰 收入主分類" items={currentRoom?.incomeCategories || []} 
+                  onUpdate={(newList, oldItem, newItem) => updateSettingField('incomeCategories', newList, oldItem, newItem)} 
+                  themeClass="border-green-100" spanClass="text-green-600" btnClass="bg-green-400" placeholder="輸入收入分類..." 
+                />
+              </>
+            )}
+
+            {settingsTab === 'transfer' && (
+              <>
+                <SettingBlock 
+                  title="🔄 轉帳主分類" items={currentRoom?.transferCategories || []} 
+                  onUpdate={(newList, oldItem, newItem) => updateSettingField('transferCategories', newList, oldItem, newItem)} 
+                  themeClass="border-blue-100" spanClass="text-blue-600" btnClass="bg-blue-400" placeholder="輸入轉帳分類..." 
+                />
+              </>
+            )}
+
+            {settingsTab === 'other' && (
+              <>
+                <SettingBlock 
+                  title="🙋 登入人員 (付款人)" items={currentRoom?.loginUsers || ['老公', '老婆', '小孩']} 
+                  onUpdate={(newList, oldItem, newItem) => updateSettingField('loginUsers', newList, oldItem, newItem)} 
+                  themeClass="border-purple-100" spanClass="text-purple-600" btnClass="bg-purple-400" placeholder="輸入登入者名稱..." 
+                />
+                <p className="text-[13px] font-bold text-purple-400 mt-1 mb-4 bg-purple-50 p-3 rounded-xl leading-relaxed">
+                  💡 在這裡新增的名稱，會自動變成登入畫面的按鈕喔！修改名稱也會連動更新歷史紀錄。
+                </p>
+
+                <SettingBlock 
+                  title="👥 花費對象" items={currentRoom?.payers || []} 
+                  onUpdate={(newList, oldItem, newItem) => updateSettingField('payers', newList, oldItem, newItem)} 
+                  themeClass="border-gray-200" spanClass="text-gray-700" btnClass="bg-gray-800" placeholder="輸入花費對象名稱..." 
+                />
+
                 <div className={`p-4 sm:p-5 rounded-[1.5rem] border-2 border-orange-100 bg-white shadow-sm mb-4`}>
                   <h3 className="font-bold text-gray-700 mb-4 text-[18px] flex items-center gap-2">🤖 商家預設規則</h3>
                   <div className="flex flex-col gap-2 mb-5">
@@ -2652,22 +2779,6 @@ export default function App() {
                   </div>
                 </div>
 
-                <SettingBlock 
-                  title="👥 對象" items={currentRoom?.payers || []} 
-                  onUpdate={(newList, oldItem, newItem) => updateSettingField('payers', newList, oldItem, newItem)} 
-                  themeClass="border-gray-200" spanClass="text-gray-700" btnClass="bg-gray-800" placeholder="輸入新人名..." 
-                />
-                <SettingBlock 
-                  title="💳 信用卡清單" items={currentRoom?.creditCards || []} 
-                  onUpdate={(newList, oldItem, newItem) => updateSettingField('creditCards', newList, oldItem, newItem)} 
-                  themeClass="border-blue-100" spanClass="text-blue-600" btnClass="bg-blue-400" placeholder="輸入信用卡銀行..." 
-                />
-                <SettingBlock 
-                  title="🏦 銀行/電子票證清單" items={currentRoom?.bankAccounts || []} 
-                  onUpdate={(newList, oldItem, newItem) => updateSettingField('bankAccounts', newList, oldItem, newItem)} 
-                  themeClass="border-indigo-100" spanClass="text-indigo-600" btnClass="bg-indigo-400" placeholder="輸入名稱..." 
-                />
-                
                 <div className={`p-4 sm:p-5 rounded-[1.5rem] border-2 border-blue-100 bg-white shadow-sm mb-4`}>
                   <h3 className="font-bold text-gray-700 mb-4 text-[18px] flex items-center gap-2">🤖 付款方式預設規則</h3>
                   <div className="flex flex-col gap-2 mb-5">
@@ -2718,26 +2829,6 @@ export default function App() {
                      </div>
                   </div>
                 </div>
-              </>
-            )}
-
-            {settingsTab === 'income' && (
-              <>
-                <SettingBlock 
-                  title="💰 收入主分類" items={currentRoom?.incomeCategories || []} 
-                  onUpdate={(newList, oldItem, newItem) => updateSettingField('incomeCategories', newList, oldItem, newItem)} 
-                  themeClass="border-green-100" spanClass="text-green-600" btnClass="bg-green-400" placeholder="輸入收入分類..." 
-                />
-              </>
-            )}
-
-            {settingsTab === 'transfer' && (
-              <>
-                <SettingBlock 
-                  title="🔄 轉帳主分類" items={currentRoom?.transferCategories || []} 
-                  onUpdate={(newList, oldItem, newItem) => updateSettingField('transferCategories', newList, oldItem, newItem)} 
-                  themeClass="border-blue-100" spanClass="text-blue-600" btnClass="bg-blue-400" placeholder="輸入轉帳分類..." 
-                />
               </>
             )}
           </div>
