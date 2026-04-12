@@ -919,6 +919,7 @@ export default function App() {
         method: recordMethod || '未指定', subMethod: recordSubMethod || '',
         note: recordNote, addedBy: user.uid, addedByRole: currentUserRole,
         groupId: newGroupId,
+        // 加入壓縮後的 Base64 照片，若為 null 則代表沒照片
         photoBase64: recordPhoto || null
       };
 
@@ -934,6 +935,7 @@ export default function App() {
 
       const batch = writeBatch(db);
       let opsCount = 0;
+      const todayStr = getLocalTodayStr(); 
 
       if (!isEditing) {
         const curRef = doc(collection(db, 'artifacts', appId, 'public', 'data', 'expenses'));
@@ -953,6 +955,7 @@ export default function App() {
       } else {
         const curRef = doc(db, 'artifacts', appId, 'public', 'data', 'expenses', editRecordId);
         
+        // 若使用者在編輯時刪除了照片，需要手動補上 deleteField 以清除原本 Firestore 裡的欄位
         if (!recordPhoto && oldRecord?.photoBase64) {
           baseData.photoBase64 = deleteField();
         }
@@ -1953,9 +1956,9 @@ export default function App() {
           <div className="flex justify-between items-center">
             <h1 className="text-xl font-black text-white flex items-center gap-2 drop-shadow-md"><Landmark size={24} className="text-white/80"/> 帳戶總覽</h1>
             <div className="flex gap-2">
-              <button onClick={() => setView('room')} className="px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-xl transition text-[15px] font-bold backdrop-blur-sm">返回</button>
+              <button onClick={() => setView('room')} className="px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-xl transition text-[15px] font-bold">返回</button>
               {isEditingBalances ? (
-                <button onClick={handleSaveBalances} className="px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-xl transition text-[15px] font-bold backdrop-blur-sm">儲存</button>
+                <button onClick={handleSaveBalances} className="px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-xl transition text-[15px] font-bold">儲存</button>
               ) : (
                 <button onClick={() => { 
                    const initBal = currentRoom?.initialBalances || {};
@@ -1964,7 +1967,7 @@ export default function App() {
                    (currentRoom?.creditCards || []).forEach(c => temp[`cc_${c}`] = initBal[`cc_${c}`] !== undefined ? initBal[`cc_${c}`] : (initBal[c] !== undefined ? initBal[c] : 0));
                    setTempBalances(temp);
                    setIsEditingBalances(true); 
-                }} className="px-3 py-2 bg-white/20 hover:bg-white/30 text-white rounded-xl transition text-[14px] font-bold backdrop-blur-sm">初始餘額</button>
+                }} className="px-3 py-2 bg-white/20 hover:bg-white/30 text-white rounded-xl transition text-[14px] font-bold">初始餘額</button>
               )}
             </div>
           </div>
@@ -2150,7 +2153,7 @@ export default function App() {
                              {exp.merchant && exp.merchant !== '未指定' && <span className="text-gray-500 text-[12px] font-bold bg-gray-100 px-1.5 py-0.5 rounded border border-gray-200">🏪 {exp.merchant}</span>}
                              
                              {exp.photoBase64 && (
-                               <span className="shrink-0 w-[22px] h-[22px] rounded-md overflow-hidden shadow-sm inline-block border border-gray-200" title="有照片">
+                               <span className="shrink-0 w-[22px] h-[22px] rounded-md overflow-hidden shadow-sm inline-block border border-gray-200" title="此紀錄附有照片">
                                  <img src={exp.photoBase64} alt="圖" className="w-full h-full object-cover" />
                                </span>
                              )}
@@ -2189,25 +2192,25 @@ export default function App() {
               </p>
             </div>
             <div className="flex items-center gap-1.5">
-              <button onClick={() => fileInputRef.current?.click()} className="p-2 bg-white/20 hover:bg-white/30 text-white rounded-xl transition backdrop-blur-sm" title="匯入資料"><Upload size={20} /></button>
-              <button onClick={handleBackup} className="p-2 bg-white/20 hover:bg-white/30 text-white rounded-xl transition backdrop-blur-sm" title="備份雲端資料"><Download size={20} /></button>
-              <button onClick={() => { setSettingsTab('expense'); setView('settings'); }} className="p-2 bg-white/20 hover:bg-white/30 text-white rounded-xl transition backdrop-blur-sm" title="設定"><Settings size={20} /></button>
-              <button onClick={() => { setActiveRoomId(null); setView('login'); setRoomPin(''); setHomeFilterDate(getLocalTodayStr()); }} className="p-2 bg-white/20 hover:bg-white/30 text-white rounded-xl transition backdrop-blur-sm" title="登出"><LogOut size={20} /></button>
+              <button onClick={() => fileInputRef.current?.click()} className="p-2 bg-white/20 hover:bg-white/30 text-white rounded-xl transition" title="匯入資料"><Upload size={20} /></button>
+              <button onClick={handleBackup} className="p-2 bg-white/20 hover:bg-white/30 text-white rounded-xl transition" title="備份雲端資料"><Download size={20} /></button>
+              <button onClick={() => { setSettingsTab('expense'); setView('settings'); }} className="p-2 bg-white/20 hover:bg-white/30 text-white rounded-xl transition" title="設定"><Settings size={20} /></button>
+              <button onClick={() => { setActiveRoomId(null); setView('login'); setRoomPin(''); setHomeFilterDate(getLocalTodayStr()); }} className="p-2 bg-white/20 hover:bg-white/30 text-white rounded-xl transition" title="登出"><LogOut size={20} /></button>
             </div>
           </div>
           
           <div className="mb-2">
             <div className="flex items-center gap-1.5 w-full">
-              <div className="relative bg-white/20 backdrop-blur-md rounded-xl shadow-sm border border-white/30 px-2 py-1.5 flex items-center overflow-hidden hover:bg-white/30 transition shrink-0">
+              <div className="relative bg-white/20 rounded-xl shadow-sm border border-white/30 px-2 py-1.5 flex items-center overflow-hidden hover:bg-white/30 transition shrink-0">
                 <input type="date" value={homeFilterDate} onChange={(e) => setHomeFilterDate(e.target.value)} className="absolute inset-0 w-full h-full opacity-0 z-10 cursor-pointer" />
                 <Calendar size={14} className="text-white mr-1 shrink-0 z-0"/>
                 <span className="text-white text-[13px] font-black drop-shadow-sm z-0 whitespace-nowrap">
                   {homeFilterDate ? toROCShortStr(homeFilterDate) : '全部日期'}
                 </span>
               </div>
-              <button onClick={() => setHomeFilterDate(getLocalTodayStr())} className="shrink-0 bg-white/20 hover:bg-white/30 text-white px-2 py-1.5 rounded-xl transition font-bold text-[13px] shadow-sm backdrop-blur-sm whitespace-nowrap">今天</button>
+              <button onClick={() => setHomeFilterDate(getLocalTodayStr())} className="shrink-0 bg-white/20 hover:bg-white/30 text-white px-2 py-1.5 rounded-xl transition font-bold text-[13px] shadow-sm whitespace-nowrap">今天</button>
               
-              <div className="relative bg-white/20 backdrop-blur-md rounded-xl shadow-sm border border-white/30 px-2 py-1.5 flex items-center overflow-hidden transition flex-1 min-w-0">
+              <div className="relative bg-white/20 rounded-xl shadow-sm border border-white/30 px-2 py-1.5 flex items-center overflow-hidden transition flex-1 min-w-0">
                  <Search size={14} className="text-white mr-1.5 shrink-0 z-0" />
                  <input 
                    type="text" 
@@ -2225,7 +2228,7 @@ export default function App() {
             </div>
           </div>
 
-          <div className="flex justify-between items-end bg-white/95 backdrop-blur-xl p-3 rounded-[1rem] shadow-sm">
+          <div className="flex justify-between items-end bg-white/95 p-3 rounded-[1rem] shadow-sm">
              <div className="flex flex-col">
                 <span className="text-gray-400 text-[14px] font-bold mb-0.5">總支出</span>
                 <span className="text-pink-500 font-black text-[20px]"> ${totalExpense.toLocaleString()}</span>
@@ -2294,14 +2297,20 @@ export default function App() {
                               {exp.category}
                             </span>
                           )}
-                          <span className="font-black text-gray-800 text-[18px] shrink-0 mr-1 flex items-center gap-1.5">
-                            {exp.photoBase64 && <span className="shrink-0 w-6 h-6 rounded-md overflow-hidden shadow-sm inline-block"><img src={exp.photoBase64} alt="圖" className="w-full h-full object-cover" /></span>}
-                            {isTransfer ? `轉帳: ${exp.method}${exp.subMethod ? '('+exp.subMethod+')' : ''} ➜ ${exp.transferToMethod}${exp.transferToSubMethod ? '('+exp.transferToSubMethod+')' : ''}` : exp.title}
+                          <span className="font-black text-gray-800 text-[18px] shrink-0 mr-1">
+                            {isTransfer ? `🔄 轉帳: ${exp.method}${exp.subMethod ? '('+exp.subMethod+')' : ''} ➜ ${exp.transferToMethod}${exp.transferToSubMethod ? '('+exp.transferToSubMethod+')' : ''}` : exp.title}
                           </span>
                           
                           {payerStr && payerStr !== '未指定' && <span className="text-gray-500 text-[13px] font-bold bg-gray-50 px-1.5 py-0.5 rounded border border-gray-200">👤 {payerStr}</span>}
                           {!isTransfer && exp.method && exp.method !== '未指定' && <span className="text-gray-500 text-[13px] font-bold bg-gray-50 px-1.5 py-0.5 rounded border border-gray-200">💳 {exp.method}{exp.subMethod ? `(${exp.subMethod})` : ''}</span>}
                           {exp.merchant && exp.merchant !== '未指定' && <span className="text-gray-500 text-[13px] font-bold bg-gray-50 px-1.5 py-0.5 rounded border border-gray-200">🏪 {exp.merchant}</span>}
+                          
+                          {/* 照片縮圖移到這裡：商家後，備註前 */}
+                          {exp.photoBase64 && (
+                            <span className="shrink-0 w-[22px] h-[22px] rounded overflow-hidden shadow-sm inline-block border border-gray-200 mt-0.5" title="附有照片">
+                               <img src={exp.photoBase64} alt="圖" className="w-full h-full object-cover" />
+                            </span>
+                          )}
                           
                           {exp.note && (
                              <span className="text-gray-500 text-[13px] font-bold bg-[#FFFDF9] px-1.5 py-0.5 rounded border border-[#F2EFE9] max-w-full truncate mt-0.5">
@@ -2354,7 +2363,7 @@ export default function App() {
             <h1 className="text-2xl font-black flex items-center gap-2 drop-shadow-md">
               {editRecordId ? '✏️ 編輯紀錄' : '✨ 新增紀錄'} {titleEmoji}
             </h1>
-            <button onClick={() => { setShowAddForm(false); resetForm(); }} className="bg-white/20 hover:bg-white/30 text-white rounded-full p-1.5 transition backdrop-blur-sm shadow-inner">
+            <button onClick={() => { setShowAddForm(false); resetForm(); }} className="bg-white/20 hover:bg-white/30 text-white rounded-full p-1.5 transition shadow-inner">
               <X size={22} strokeWidth={3} />
             </button>
           </div>
@@ -2537,7 +2546,7 @@ export default function App() {
         <header className="bg-gradient-to-r from-purple-400 to-pink-400 px-5 py-5 shadow-md shrink-0 z-10 rounded-b-[1.5rem] border-b-4 border-white/20">
           <div className="flex justify-between items-center">
             <h1 className="text-2xl font-black text-white flex items-center gap-2 drop-shadow-md"><Settings size={26} className="text-white/80"/> 選項設定</h1>
-            <button onClick={() => setView('room')} className="px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-xl transition text-[16px] font-bold backdrop-blur-sm">返回</button>
+            <button onClick={() => setView('room')} className="px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-xl transition text-[16px] font-bold">返回</button>
           </div>
         </header>
 
