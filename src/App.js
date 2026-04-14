@@ -2302,7 +2302,7 @@ export default function App() {
   return (
     <div className={globalWrapperStyle}>
       <div className={phoneContainerStyle}>
-        <input type="file" accept="image/*" capture="environment" style={{display: 'none'}} ref={fileInputRef} onChange={handleImport} />
+        <input type="file" accept=".json" style={{display: 'none'}} ref={fileInputRef} onChange={handleImport} />
         {content}
 
         {/* 彈跳視窗群組 */}
@@ -2415,6 +2415,80 @@ export default function App() {
                      <button onClick={() => setSelectedTransferRoom(null)} className="w-full bg-gray-100 hover:bg-gray-200 text-gray-600 font-extrabold text-[17px] py-3 rounded-xl transition active:scale-95">返回重選</button>
                  </div>
                )}
+            </div>
+          </div>
+        )}
+
+        {/* 跨房間同步設定 Modal (全域疊加) */}
+        {syncSettingsModalOpen && (
+          <div className="fixed inset-0 bg-black/40 z-[140] flex justify-center items-end sm:items-center p-0 sm:p-4 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setSyncSettingsModalOpen(false)}>
+            <div className="bg-white w-full max-w-md rounded-t-[1.5rem] sm:rounded-[1.5rem] p-5 shadow-2xl relative animate-in slide-in-from-bottom-10" onClick={e => e.stopPropagation()}>
+              <button onClick={() => setSyncSettingsModalOpen(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 bg-gray-100 p-1.5 rounded-full transition"><X size={20}/></button>
+              <h3 className="font-black text-[22px] text-gray-800 mb-2 flex items-center gap-1.5">🔄 複製設定至其他房間</h3>
+              <p className="text-[15px] text-gray-500 font-bold mb-4 leading-relaxed">選擇目標房間，並勾選想同步的具體設定項目。系統會將目前的設定與目標房間合併（不會刪除目標房間原有的設定）。</p>
+              
+              <div className="space-y-4">
+                <div>
+                   <label className="block text-[16px] font-bold text-gray-500 mb-1.5 ml-1">選擇目標房間</label>
+                   <select value={syncTargetRoom} onChange={e => setSyncTargetRoom(e.target.value)} className="w-full border border-indigo-100 bg-indigo-50 text-indigo-700 p-3 rounded-xl font-bold text-[17px] outline-none shadow-sm cursor-pointer appearance-none">
+                     <option value="">請選擇要同步過去的房間...</option>
+                     {savedRooms.filter(r => r.id !== activeRoomId).map(r => (
+                        <option key={r.id} value={r.id}>{r.name} ({r.id})</option>
+                     ))}
+                   </select>
+                   {savedRooms.filter(r => r.id !== activeRoomId).length === 0 && <p className="text-red-400 text-sm mt-1.5 font-bold ml-1">無其他已儲存房間可選</p>}
+                </div>
+
+                <div className="max-h-[35vh] overflow-y-auto pr-2 space-y-3">
+                  {SYNC_FIELDS.map(fieldObj => {
+                     const fKey = fieldObj.key;
+                     let contentList = [];
+                     if (fKey === 'categories') contentList = currentRoom?.categories || [];
+                     else if (fKey === 'merchants') contentList = currentRoom?.merchants || [];
+                     else contentList = currentRoom?.[fKey] || [];
+                     
+                     if (contentList.length === 0) return null;
+
+                     const isAllSelected = (syncSelection[fKey] || []).length === contentList.length;
+
+                     return (
+                       <div key={fKey} className="bg-gray-50 border border-gray-200 rounded-xl overflow-hidden">
+                         <div className="bg-gray-100 p-2.5 flex justify-between items-center border-b border-gray-200">
+                           <span className="font-bold text-[14px] text-gray-700">{fieldObj.label}</span>
+                           <button 
+                             onClick={() => handleSelectAllSyncField(fKey, contentList)}
+                             className="text-[12px] font-bold bg-white border border-gray-200 px-2 py-1 rounded shadow-sm text-gray-600 active:scale-95 transition"
+                           >
+                             {isAllSelected ? '全不選' : '全選'}
+                           </button>
+                         </div>
+                         <div className="p-2 flex flex-wrap gap-1.5 max-h-[120px] overflow-y-auto">
+                            {contentList.map(item => {
+                               const isChecked = (syncSelection[fKey] || []).includes(item);
+                               return (
+                                 <button 
+                                   key={item}
+                                   onClick={() => handleToggleSyncItem(fKey, item)}
+                                   className={`px-2.5 py-1 rounded-md text-[13px] font-bold border transition-colors ${isChecked ? 'bg-blue-100 border-blue-400 text-blue-800' : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'}`}
+                                 >
+                                   {item}
+                                 </button>
+                               )
+                            })}
+                         </div>
+                       </div>
+                     )
+                  })}
+                </div>
+                
+                <button 
+                  onClick={handleSyncSettings}
+                  disabled={!syncTargetRoom || Object.values(syncSelection).every(arr => arr.length === 0)}
+                  className="w-full bg-blue-500 text-white font-black text-[18px] py-3.5 rounded-xl transition-all hover:bg-blue-600 disabled:opacity-50 disabled:active:scale-100 active:scale-95 shadow-md mt-1"
+                >
+                  確認同步所選項
+                </button>
+              </div>
             </div>
           </div>
         )}
