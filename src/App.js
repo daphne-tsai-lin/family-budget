@@ -1664,6 +1664,98 @@ export default function App() {
              <p className="text-[12px] font-bold text-orange-400 mt-4 bg-orange-50 p-3 rounded-xl text-center leading-relaxed">* 行動支付與信用卡金額代表「累積應繳卡費（負債）」。刷卡會增加金額，透過轉帳繳費後金額會減少。</p>
           </div>
         </main>
+        
+        {/* 帳戶明細歷史 Modal (加入日期區間) */}
+        {viewingAccountHistory && (
+          <div className="fixed inset-0 bg-black/40 z-[100] flex justify-center items-center p-4 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setViewingAccountHistory(null)}>
+            <div className="bg-white w-full max-w-md max-h-[85vh] flex flex-col rounded-[1.5rem] p-5 shadow-2xl relative" onClick={e => e.stopPropagation()}>
+              <button onClick={() => setViewingAccountHistory(null)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 bg-gray-100 p-1.5 rounded-full transition"><X size={18}/></button>
+              <h3 className="font-black text-[20px] text-gray-800 mb-4 border-b border-gray-100 pb-3 flex items-center gap-1.5">
+                <Wallet size={20} className="text-indigo-500" /> {viewingAccountHistory} 明細
+              </h3>
+              
+              <div className="grid grid-cols-2 gap-2 mb-4">
+                  <div>
+                    <label className="block text-[12px] font-bold text-gray-500 mb-1">開始日期</label>
+                    <input type="date" value={historyStartDate} onChange={e=>setHistoryStartDate(e.target.value)} className="w-full bg-gray-50 border border-gray-200 p-1.5 rounded-lg text-[14px] font-bold text-gray-700 outline-none focus:border-indigo-300 transition" />
+                  </div>
+                  <div>
+                    <label className="block text-[12px] font-bold text-gray-500 mb-1">結束日期</label>
+                    <input type="date" value={historyEndDate} onChange={e=>setHistoryEndDate(e.target.value)} className="w-full bg-gray-50 border border-gray-200 p-1.5 rounded-lg text-[14px] font-bold text-gray-700 outline-none focus:border-indigo-300 transition" />
+                  </div>
+              </div>
+
+              <div className="scroll-container flex-1 overflow-y-auto space-y-2 pr-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+                {(() => {
+                  const todayStr = getLocalTodayStr();
+                  const accHistory = records.filter(r => {
+                     if (r.date > historyEndDate || r.date < historyStartDate) return false;
+                     if (r.date > todayStr) return false;
+                     
+                     const getAccName = (method, subMethod) => method === '現金' ? '現金' : subMethod;
+                     const fromAcc = getAccName(r.method, r.subMethod);
+                     const toAcc = getAccName(r.transferToMethod, r.transferToSubMethod);
+                     return fromAcc === viewingAccountHistory || toAcc === viewingAccountHistory;
+                  }).sort((a, b) => {
+                      if (a.date !== b.date) return a.date > b.date ? -1 : 1;
+                      return b.timestamp - a.timestamp;
+                  }); 
+
+                  if (accHistory.length === 0) return <p className="text-center text-gray-400 font-bold py-10 text-[15px]">此區間尚無明細</p>;
+
+                  return accHistory.map(exp => {
+                    const isIncome = exp.type === 'income';
+                    const isTransfer = exp.type === 'transfer';
+                    const getAccName = (method, subMethod) => method === '現金' ? '現金' : subMethod;
+                    
+                    let isPositive = false;
+                    if (isIncome && getAccName(exp.method, exp.subMethod) === viewingAccountHistory) isPositive = true;
+                    if (isTransfer && getAccName(exp.transferToMethod, exp.transferToSubMethod) === viewingAccountHistory) isPositive = true;
+
+                    let freqDisplay = exp.frequency;
+                    if (freqDisplay === '區間') freqDisplay = exp.frequencyInterval === '自訂' ? exp.frequencyCustomText : exp.frequencyInterval;
+
+                    return (
+                      <div key={exp.id} onClick={() => setViewingRecord(exp)} className="bg-gray-50 p-3 rounded-xl border border-gray-100 flex justify-between items-center cursor-pointer hover:bg-gray-100 transition">
+                        <div className="overflow-hidden pr-2">
+                           <div className="flex flex-wrap items-center gap-1.5 mb-1">
+                             <span className="text-[13px] font-bold text-gray-400">{toROCYearStr(exp.date)}</span>
+                             <span className="bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded text-[11px] font-bold tracking-wide">
+                               {freqDisplay || '一次'}
+                             </span>
+                             {exp.payer && <span className="bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded text-[11px] font-bold tracking-wide">{Array.isArray(exp.payer)?exp.payer.join(', '):exp.payer}</span>}
+                           </div>
+                           <div className="font-black text-[16px] text-gray-700 truncate">
+                              {isTransfer ? `轉帳: ${exp.method}➜${exp.transferToMethod}` : exp.title}
+                           </div>
+                           <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                             {!isTransfer && exp.method && exp.method !== '未指定' && <span className="text-gray-500 text-[12px] font-bold bg-gray-100 px-1.5 py-0.5 rounded border border-gray-200">💳 {exp.method}{exp.subMethod ? `(${exp.subMethod})` : ''}</span>}
+                             {exp.merchant && exp.merchant !== '未指定' && <span className="text-gray-500 text-[12px] font-bold bg-gray-100 px-1.5 py-0.5 rounded border border-gray-200">🏪 {exp.merchant}</span>}
+                             
+                             {exp.photoBase64 && (
+                               <span className="shrink-0 w-[22px] h-[22px] rounded-md overflow-hidden shadow-sm inline-block border border-gray-200" title="有照片">
+                                 <img src={exp.photoBase64} alt="圖" className="w-full h-full object-cover" />
+                               </span>
+                             )}
+                             
+                             {exp.note && (
+                               <span className="text-gray-500 text-[12px] font-bold bg-white px-1.5 py-0.5 rounded border border-gray-200 max-w-[120px] truncate">
+                                 📝 {exp.note}
+                               </span>
+                             )}
+                           </div>
+                        </div>
+                        <div className={`font-black text-[19px] shrink-0 ${isPositive ? 'text-green-500' : 'text-gray-800'}`}>
+                           {isPositive ? '+' : '-'}${exp.amount.toLocaleString()}
+                        </div>
+                      </div>
+                    )
+                  });
+                })()}
+              </div>
+            </div>
+          </div>
+        )}
       </>
     );
   }
