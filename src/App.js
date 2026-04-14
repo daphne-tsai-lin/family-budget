@@ -55,33 +55,22 @@ const evaluateCalc = (str) => {
 };
 
 // ==========================================
-// 本地時間取得工具 (修正 UTC 時差問題)
+// 日期工具函數
 // ==========================================
 const getLocalTodayStr = () => {
   const d = new Date();
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 };
 
 const getLocalMonthStartStr = () => {
   const d = new Date();
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  return `${y}-${m}-01`;
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
 };
 
-// ==========================================
-// 民國年轉換工具函數
-// ==========================================
 const toROCYearStr = (dateStr) => { if (!dateStr) return ''; const d = new Date(dateStr); if (isNaN(d.getTime())) return dateStr; return `${d.getFullYear() - 1911}/${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}`; };
 const toROCFullStr = (dateStr) => { if (!dateStr) return ''; const d = new Date(dateStr); if (isNaN(d.getTime())) return dateStr; const days = ['日', '一', '二', '三', '四', '五', '六']; return `${d.getFullYear() - 1911}年${String(d.getMonth() + 1).padStart(2, '0')}月${String(d.getDate()).padStart(2, '0')}日(週${days[d.getDay()]})`; };
 const toROCShortStr = (dateStr) => { if (!dateStr) return ''; const d = new Date(dateStr); if (isNaN(d.getTime())) return dateStr; const days = ['日', '一', '二', '三', '四', '五', '六']; return `${d.getFullYear() - 1911}/${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}(${days[d.getDay()]})`; };
 
-// ==========================================
-// 產生未來定期日期的演算法 (最多預排1年)
-// ==========================================
 const generateFutureDates = (startDateStr, freq, daysArr, intervalStr, customText, maxYears = 1) => {
   const dates = [];
   if (!startDateStr) return dates;
@@ -91,13 +80,7 @@ const generateFutureDates = (startDateStr, freq, daysArr, intervalStr, customTex
   const endD = new Date(startD.getTime());
   endD.setFullYear(endD.getFullYear() + maxYears);
   
-  const formatDate = (dateObj) => {
-      const ny = dateObj.getFullYear();
-      const nm = String(dateObj.getMonth() + 1).padStart(2, '0');
-      const nd = String(dateObj.getDate()).padStart(2, '0');
-      return `${ny}-${nm}-${nd}`;
-  };
-  
+  const formatDate = (dateObj) => `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}`;
   let curr = new Date(startD.getTime());
   curr.setDate(curr.getDate() + 1); 
   const mapDayToNum = { '週日':0, '週一':1, '週二':2, '週三':3, '週四':4, '週五':5, '週六':6 };
@@ -139,7 +122,7 @@ const generateFutureDates = (startDateStr, freq, daysArr, intervalStr, customTex
 };
 
 // ==========================================
-// 1. Firebase 初始化
+// Firebase 初始化
 // ==========================================
 const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
   apiKey: "AIzaSyBiFI05fIDz35Zk3n4nodHy9ZoYWqHOnZk",
@@ -154,7 +137,7 @@ const db = getFirestore(app);
 const appId = typeof __app_id !== 'undefined' ? __app_id : 'linbei-family-app';
 
 // ==========================================
-// 共用組件：選項管理區塊
+// 共用組件
 // ==========================================
 const SettingBlock = ({ title, items, onUpdate, themeClass, spanClass, btnClass, placeholder }) => {
   const [newItem, setNewItem] = useState('');
@@ -226,9 +209,6 @@ const SettingBlock = ({ title, items, onUpdate, themeClass, spanClass, btnClass,
   );
 };
 
-// ==========================================
-// 共用組件：超美客製化下拉選單
-// ==========================================
 const CustomDropdown = ({ label, icon: Icon, options, value, onChange, placeholder }) => {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef(null);
@@ -252,7 +232,6 @@ const CustomDropdown = ({ label, icon: Icon, options, value, onChange, placehold
         <span className={`font-bold text-[16px] truncate pr-2 ${value ? 'text-gray-800' : 'text-gray-300'}`}>{value || placeholder}</span>
         <span className={`text-gray-400 text-[14px] transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}>▼</span>
       </button>
-
       {isOpen && (
         <ul className="absolute z-50 w-full mt-1.5 bg-white border-2 border-gray-100 rounded-xl shadow-[0_10px_40px_rgba(0,0,0,0.12)] max-h-60 overflow-y-auto py-1.5 top-full left-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
           {options.length === 0 && <li className="px-4 py-2.5 text-[15px] text-gray-400 font-bold">無選項可用</li>}
@@ -265,9 +244,6 @@ const CustomDropdown = ({ label, icon: Icon, options, value, onChange, placehold
   );
 };
 
-// ==========================================
-// 共用組件：圓餅圖 SVG (支援全顯示與折線指示)
-// ==========================================
 const MyCustomPieChart = ({ data, colors }) => {
   const total = data.reduce((sum, d) => sum + d.value, 0);
   if (total === 0) return <div className="text-gray-400 text-center py-10 font-bold bg-white rounded-[1.5rem] border-2 border-dashed border-gray-200 text-base">無分析數據 📊</div>;
@@ -282,7 +258,6 @@ const MyCustomPieChart = ({ data, colors }) => {
     const endAngle = (endPercent - 0.25) * 2 * Math.PI;
     const midAngle = (startPercent + slicePercent / 2 - 0.25) * 2 * Math.PI;
     const isSmall = slicePercent < 0.08;
-
     return { ...slice, i, startPercent, endPercent, slicePercent, startAngle, endAngle, midAngle, isSmall, anchorSide: Math.cos(midAngle) >= 0 ? 1 : -1, targetY: Math.sin(midAngle) * 1.15 };
   });
 
@@ -405,7 +380,7 @@ export default function App() {
   const [analysisStartDate, setAnalysisStartDate] = useState(getLocalMonthStartStr());
   const [analysisEndDate, setAnalysisEndDate] = useState(getLocalTodayStr());
   const [analysisMenus, setAnalysisMenus] = useState([]); 
-  const [analysisSubSelections, setAnalysisSubSelections] = useState({ category: [], title: [], merchant: [], method: [], subMethod: [] });
+  const [analysisSubSelections, setAnalysisSubSelections] = useState({ category: [], title: [], merchant: [], method: [], subMethod: [], payer: [] });
   const [analysisRoleFilter, setAnalysisRoleFilter] = useState('全部');
 
   const [isEditingBalances, setIsEditingBalances] = useState(false);
@@ -558,20 +533,6 @@ export default function App() {
       if (needsUpdate) updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', activeRoomId), updates).catch(console.error);
     }
   }, [currentRoom, activeRoomId]);
-
-  useEffect(() => {
-    if (recordType === 'expense' && selectedItem && currentRoom?.autoFillRules) {
-      const defaultMerchant = currentRoom.autoFillRules[selectedItem];
-      if (defaultMerchant) setRecordMerchant(defaultMerchant);
-    }
-  }, [selectedItem, recordType, currentRoom?.autoFillRules]);
-
-  useEffect(() => {
-    if (recordType === 'expense' && recordMerchant && currentRoom?.methodRules) {
-      const rule = currentRoom.methodRules[recordMerchant];
-      if (rule) { setRecordMethod(rule.method); setRecordSubMethod(rule.subMethod || ''); }
-    }
-  }, [recordMerchant, recordType, currentRoom?.methodRules]);
 
   const handleTouchStart = (e) => { setTouchEnd(null); setTouchStart({ x: e.targetTouches[0].clientX, y: e.targetTouches[0].clientY }); };
   const handleTouchMove = (e) => { setTouchEnd({ x: e.targetTouches[0].clientX, y: e.targetTouches[0].clientY }); };
@@ -1091,7 +1052,8 @@ export default function App() {
     { key: 'loginUsers', label: '🙋 登入人員' }, { key: 'payers', label: '👥 花費對象' },
     { key: 'paymentMethods', label: '💳 付款方式類別' }, { key: 'creditCards', label: '💳 信用卡清單' },
     { key: 'bankAccounts', label: '🏦 銀行清單' }, { key: 'electronicTickets', label: '🎟️ 電子票證清單' },
-    { key: 'incomeCategories', label: '💰 收入分類' }, { key: 'transferCategories', label: '🔄 轉帳分類' }
+    { key: 'incomeCategories', label: '💰 收入分類' }, { key: 'transferCategories', label: '🔄 轉帳分類' },
+    { key: 'autoFillRules', label: '🤖 商家預設規則' }, { key: 'methodRules', label: '🤖 付款方式預設規則' }
   ];
 
   const handleToggleSyncItem = (field, item) => {
@@ -1129,36 +1091,43 @@ export default function App() {
       keysToSync.forEach(opt => {
          const selectedItems = syncSelection[opt];
          if (!selectedItems || selectedItems.length === 0) return;
-         const existing = targetData[opt] || [];
-         updates[opt] = [...new Set([...existing, ...selectedItems])];
 
          if (opt === 'categories') {
+            const existing = targetData[opt] || [];
+            updates[opt] = [...new Set([...existing, ...selectedItems])];
             const existingItems = targetData.categoryItems || {};
             const newItems = { ...existingItems };
             selectedItems.forEach(cat => {
                if (currentRoom.categoryItems?.[cat]) newItems[cat] = [...new Set([...(existingItems[cat] || []), ...currentRoom.categoryItems[cat]])];
             });
             updates.categoryItems = newItems;
-         }
-         if (opt === 'merchants') {
+         } else if (opt === 'autoFillRules') {
             const existingAutoFill = targetData.autoFillRules || {};
-            const newAutoFill = { ...existingAutoFill };
             const existingAutoFillOrder = targetData.autoFillRuleOrder || [];
             let newAutoFillOrder = [...existingAutoFillOrder];
+            let newAutoFill = { ...existingAutoFill };
 
+            selectedItems.forEach(itemKey => {
+               newAutoFill[itemKey] = currentRoom.autoFillRules[itemKey];
+               if (!newAutoFillOrder.includes(itemKey)) newAutoFillOrder.push(itemKey);
+            });
+            updates.autoFillRules = newAutoFill; 
+            updates.autoFillRuleOrder = newAutoFillOrder;
+         } else if (opt === 'methodRules') {
             const existingMethodRules = targetData.methodRules || {};
-            const newMethodRules = { ...existingMethodRules };
             const existingMethodOrder = targetData.methodRuleOrder || [];
             let newMethodOrder = [...existingMethodOrder];
+            let newMethodRules = { ...existingMethodRules };
 
             selectedItems.forEach(m => {
-               if (currentRoom.methodRules?.[m]) { newMethodRules[m] = currentRoom.methodRules[m]; if (!newMethodOrder.includes(m)) newMethodOrder.push(m); }
-               Object.entries(currentRoom.autoFillRules || {}).forEach(([itemKey, merchantValue]) => {
-                   if (merchantValue === m) { newAutoFill[itemKey] = merchantValue; if (!newAutoFillOrder.includes(itemKey)) newAutoFillOrder.push(itemKey); }
-               });
+               newMethodRules[m] = currentRoom.methodRules[m];
+               if (!newMethodOrder.includes(m)) newMethodOrder.push(m);
             });
-            updates.autoFillRules = newAutoFill; updates.autoFillRuleOrder = newAutoFillOrder;
-            updates.methodRules = newMethodRules; updates.methodRuleOrder = newMethodOrder;
+            updates.methodRules = newMethodRules; 
+            updates.methodRuleOrder = newMethodOrder;
+         } else {
+             const existing = targetData[opt] || [];
+             updates[opt] = [...new Set([...existing, ...selectedItems])];
          }
       });
 
@@ -1169,7 +1138,7 @@ export default function App() {
   };
 
   const handleAnalysisTypeChange = (type) => {
-    setAnalysisType(type); setAnalysisMenus([]); setAnalysisSubSelections({ category: [], title: [], merchant: [], method: [], subMethod: [] });
+    setAnalysisType(type); setAnalysisMenus([]); setAnalysisSubSelections({ category: [], title: [], merchant: [], method: [], subMethod: [], payer: [] });
   };
 
   const MethodSelector = ({ label, icon: IconComponent, method, subMethod, setMethod, setSubMethod, currentRoom }) => {
@@ -1278,11 +1247,18 @@ export default function App() {
        if (['銀行', '銀行 / 電子票證'].includes(r.method)) { if (analysisSubSelections.subMethod.length > 0 && !analysisSubSelections.subMethod.includes(r.subMethod)) return false; }
        if (r.method === '電子票證') { if (analysisSubSelections.subMethod.length > 0 && !analysisSubSelections.subMethod.includes(r.subMethod)) return false; }
     }
+    
+    if (analysisMenus.includes('payer') && analysisSubSelections.payer.length > 0) {
+       const recordPayers = Array.isArray(r.payer) ? r.payer : [r.payer];
+       if (!recordPayers.some(p => analysisSubSelections.payer.includes(p))) return false;
+    }
+    
     return true;
   });
 
   const getAnalysisKeyForRecord = (r) => {
     let keyParts = [];
+    if (analysisMenus.includes('payer')) keyParts.push(Array.isArray(r.payer) ? r.payer.join(', ') : (r.payer || '無對象'));
     if (analysisMenus.includes('category')) keyParts.push(r.category || '未分類');
     if (analysisMenus.includes('title')) keyParts.push(r.title || '無項目');
     if (analysisMenus.includes('merchant')) keyParts.push(r.merchant || '無商家');
@@ -1337,7 +1313,9 @@ export default function App() {
     const specificPayerColors = {
       '全家': { bg: 'bg-amber-500', text: 'text-amber-600', borderSel: 'border-amber-600', lightBg: 'bg-amber-50' },
       '老公': { bg: 'bg-lime-500', text: 'text-lime-600', borderSel: 'border-lime-600', lightBg: 'bg-lime-50' },
-      '老婆': { bg: 'bg-pink-500', text: 'text-pink-600', borderSel: 'border-pink-600', lightBg: 'bg-pink-50' },
+      '老婆': { bg: 'bg-[#FF8C94]', text: 'text-[#E65A65]', borderSel: 'border-[#FF8C94]', lightBg: 'bg-[#FFF0F2]' },
+      '蔚蔚': { bg: 'bg-[#48D1CC]', text: 'text-[#289C97]', borderSel: 'border-[#48D1CC]', lightBg: 'bg-[#E6FAFA]' },
+      '恩恩': { bg: 'bg-[#92A8D1]', text: 'text-[#6A85B6]', borderSel: 'border-[#92A8D1]', lightBg: 'bg-[#F0F4F8]' },
     };
 
     const hasFamily = values.includes('全家');
@@ -1356,37 +1334,52 @@ export default function App() {
       onChange(newVals);
     };
 
+    const renderButtonRow = (rowOptions, startIndex = 0) => (
+      <div className="flex w-full gap-1 sm:gap-1.5">
+        {rowOptions.map((opt, idxOffset) => {
+          const actualIdx = startIndex + idxOffset;
+          const isSelected = values.includes(opt);
+          const isDisabled = isPayer && ((opt === '全家' && hasIndividuals) || (opt !== '全家' && hasFamily));
+          
+          const defaultStyle = isPayer ? payerColors[actualIdx % payerColors.length] : { bg: 'bg-[#F59E0B]', text: 'text-gray-700', borderSel: 'border-[#F59E0B]', lightBg: 'bg-[#FFE28A]' };
+          const style = isPayer ? (specificPayerColors[opt] || defaultStyle) : defaultStyle;
+          
+          let btnClass = '';
+          if (isDisabled) {
+             btnClass = 'bg-gray-100 text-gray-300 border-transparent cursor-not-allowed opacity-60';
+          } else if (isSelected) {
+             btnClass = isPayer 
+               ? `${style.bg} text-white ${style.borderSel} transform -translate-y-0.5 z-10` 
+               : `${style.lightBg} text-gray-900 border-[#F59E0B] transform -translate-y-0.5 z-10`;
+          } else {
+             btnClass = isPayer
+               ? `bg-white ${style.text} border-gray-200 hover:border-gray-300 hover:${style.lightBg}`
+               : `bg-white text-gray-500 border-gray-200 hover:border-gray-300 hover:bg-gray-50`;
+          }
+
+          return (
+            <button key={opt} type="button" onClick={() => handleToggle(opt)} className={`flex-1 min-w-0 py-2 px-0.5 rounded-[1.2rem] text-[12px] sm:text-[14px] font-black transition-all duration-200 border-2 shadow-sm flex items-center justify-center leading-tight truncate ${btnClass}`}>
+              {opt}
+            </button>
+          )
+        })}
+      </div>
+    );
+
+    const needsTwoRows = options.length >= 6;
+    const splitIndex = Math.ceil(options.length / 2);
+
     return (
       <div className="mb-4 w-full">
         {label && <label className="flex items-center gap-1.5 text-[14px] font-bold text-gray-500 mb-2 ml-1">{Icon && <Icon size={14} className="text-gray-400" />} {label}</label>}
-        <div className="flex w-full gap-1 sm:gap-1.5">
-          {options.map((opt, idx) => {
-            const isSelected = values.includes(opt);
-            const isDisabled = isPayer && ((opt === '全家' && hasIndividuals) || (opt !== '全家' && hasFamily));
-            
-            const defaultStyle = isPayer ? payerColors[idx % payerColors.length] : { bg: 'bg-[#F59E0B]', text: 'text-gray-700', borderSel: 'border-[#F59E0B]', lightBg: 'bg-[#FFE28A]' };
-            const style = isPayer ? (specificPayerColors[opt] || defaultStyle) : defaultStyle;
-            
-            let btnClass = '';
-            if (isDisabled) {
-               btnClass = 'bg-gray-100 text-gray-300 border-transparent cursor-not-allowed opacity-60';
-            } else if (isSelected) {
-               btnClass = isPayer 
-                 ? `${style.bg} text-white ${style.borderSel} transform -translate-y-0.5 z-10` 
-                 : `${style.lightBg} text-gray-900 border-[#F59E0B] transform -translate-y-0.5 z-10`;
-            } else {
-               btnClass = isPayer
-                 ? `bg-white ${style.text} border-gray-200 hover:border-gray-300 hover:${style.lightBg}`
-                 : `bg-white text-gray-500 border-gray-200 hover:border-gray-300 hover:bg-gray-50`;
-            }
-
-            return (
-              <button key={opt} type="button" onClick={() => handleToggle(opt)} className={`flex-1 min-w-0 py-2 px-0.5 rounded-[1.2rem] text-[12px] sm:text-[14px] font-black transition-all duration-200 border-2 shadow-sm flex items-center justify-center leading-tight truncate ${btnClass}`}>
-                {opt}
-              </button>
-            )
-          })}
-        </div>
+        {needsTwoRows ? (
+          <div className="flex flex-col gap-1.5">
+            {renderButtonRow(options.slice(0, splitIndex), 0)}
+            {renderButtonRow(options.slice(splitIndex), splitIndex)}
+          </div>
+        ) : (
+          renderButtonRow(options, 0)
+        )}
       </div>
     );
   };
@@ -1976,11 +1969,29 @@ export default function App() {
               {recordType === 'expense' && (
                 <>
                   <div className="grid grid-cols-2 gap-3 z-30 mb-5">
-                    <CustomDropdown label="主分類 📂" options={currentRoom?.categories || []} value={recordCategory} onChange={(val) => { setRecordCategory(val); setSelectedItem(''); }} placeholder="選擇分類..." />
-                    <CustomDropdown label="項目清單 🛒" options={currentRoom?.categoryItems?.[recordCategory] || []} value={selectedItem} onChange={setSelectedItem} placeholder="選擇項目..." />
+                    <CustomDropdown label="主分類 📂" options={currentRoom?.categories || []} value={recordCategory} onChange={(val) => { 
+                        setRecordCategory(val); setSelectedItem(''); 
+                    }} placeholder="選擇分類..." />
+                    <CustomDropdown label="項目清單 🛒" options={currentRoom?.categoryItems?.[recordCategory] || []} value={selectedItem} onChange={(val) => {
+                        setSelectedItem(val);
+                        if (!editRecordId && currentRoom?.autoFillRules?.[val]) {
+                            const defaultMerchant = currentRoom.autoFillRules[val];
+                            setRecordMerchant(defaultMerchant);
+                            if (currentRoom?.methodRules?.[defaultMerchant]) {
+                                setRecordMethod(currentRoom.methodRules[defaultMerchant].method);
+                                setRecordSubMethod(currentRoom.methodRules[defaultMerchant].subMethod || '');
+                            }
+                        }
+                    }} placeholder="選擇項目..." />
                   </div>
                   <div className="flex flex-col gap-3 mb-5 z-20">
-                     <CustomDropdown label="商家 🏪" icon={Store} options={currentRoom?.merchants || []} value={recordMerchant} onChange={setRecordMerchant} placeholder="選擇商家..." />
+                     <CustomDropdown label="商家 🏪" icon={Store} options={currentRoom?.merchants || []} value={recordMerchant} onChange={(val) => {
+                         setRecordMerchant(val);
+                         if (!editRecordId && currentRoom?.methodRules?.[val]) {
+                             setRecordMethod(currentRoom.methodRules[val].method);
+                             setRecordSubMethod(currentRoom.methodRules[val].subMethod || '');
+                         }
+                     }} placeholder="選擇商家..." />
                      <PillGroupMulti label="花費對象 (可複選) 👥" icon={User} options={currentRoom?.payers || []} values={recordPayer} onChange={setRecordPayer} isPayer={true} />
                   </div>
                   <MethodSelector label="付款方式 💳" icon={CreditCard} method={recordMethod} subMethod={recordSubMethod} setMethod={setRecordMethod} setSubMethod={setRecordSubMethod} currentRoom={currentRoom} />
@@ -2184,7 +2195,7 @@ export default function App() {
   else if (view === 'analysis') {
     const analysisOptions = [
       { id: 'category', label: analysisType === 'income' ? '💰 收入主分類' : analysisType === 'transfer' ? '🔄 轉帳主分類' : '🌸 支出主分類' },
-      ...(analysisType === 'expense' ? [{ id: 'title', label: '📝 項目' }, { id: 'merchant', label: '🏪 商家' }, { id: 'method', label: '💳 付款方式/帳戶' }] : [])
+      ...(analysisType === 'expense' ? [{ id: 'title', label: '📝 項目' }, { id: 'merchant', label: '🏪 商家' }, { id: 'method', label: '💳 付款方式' }, { id: 'payer', label: '👥 花費對象' }] : [{ id: 'payer', label: '👥 對象' }])
     ];
 
     content = (
@@ -2270,6 +2281,9 @@ export default function App() {
                     {(analysisSubSelections.method.includes('銀行') || analysisSubSelections.method.includes('銀行 / 電子票證')) && <PillGroupMulti label="🏦 選擇銀行" options={currentRoom?.bankAccounts || []} values={analysisSubSelections.subMethod} onChange={(vals) => setAnalysisSubSelections({...analysisSubSelections, subMethod: vals})} />}
                     {analysisSubSelections.method.includes('電子票證') && <PillGroupMulti label="🎟️ 選擇電子票證" options={currentRoom?.electronicTickets || []} values={analysisSubSelections.subMethod} onChange={(vals) => setAnalysisSubSelections({...analysisSubSelections, subMethod: vals})} />}
                   </>
+                )}
+                {analysisMenus.includes('payer') && (
+                  <PillGroupMulti label="👥 花費對象" options={currentRoom?.payers || []} values={analysisSubSelections.payer || []} onChange={(vals) => setAnalysisSubSelections({...analysisSubSelections, payer: vals})} isPayer={true} />
                 )}
               </div>
             )}
@@ -2419,7 +2433,7 @@ export default function App() {
           </div>
         )}
 
-        {/* 跨房間同步設定 Modal (全域疊加) */}
+        {/* 跨房間同步設定 Modal */}
         {syncSettingsModalOpen && (
           <div className="fixed inset-0 bg-black/40 z-[140] flex justify-center items-end sm:items-center p-0 sm:p-4 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setSyncSettingsModalOpen(false)}>
             <div className="bg-white w-full max-w-md rounded-t-[1.5rem] sm:rounded-[1.5rem] p-5 shadow-2xl relative animate-in slide-in-from-bottom-10" onClick={e => e.stopPropagation()}>
@@ -2445,6 +2459,8 @@ export default function App() {
                      let contentList = [];
                      if (fKey === 'categories') contentList = currentRoom?.categories || [];
                      else if (fKey === 'merchants') contentList = currentRoom?.merchants || [];
+                     else if (fKey === 'autoFillRules') contentList = currentRoom?.autoFillRuleOrder || Object.keys(currentRoom?.autoFillRules || {});
+                     else if (fKey === 'methodRules') contentList = currentRoom?.methodRuleOrder || Object.keys(currentRoom?.methodRules || {});
                      else contentList = currentRoom?.[fKey] || [];
                      
                      if (contentList.length === 0) return null;
@@ -2465,13 +2481,19 @@ export default function App() {
                          <div className="p-2 flex flex-wrap gap-1.5 max-h-[120px] overflow-y-auto">
                             {contentList.map(item => {
                                const isChecked = (syncSelection[fKey] || []).includes(item);
+                               let displayLabel = item;
+                               if (fKey === 'autoFillRules') displayLabel = `[${item}] ➜ ${currentRoom?.autoFillRules?.[item]}`;
+                               if (fKey === 'methodRules') {
+                                   const rule = currentRoom?.methodRules?.[item];
+                                   displayLabel = `[${item}] ➜ ${rule?.method}${rule?.subMethod ? `(${rule?.subMethod})` : ''}`;
+                               }
                                return (
                                  <button 
                                    key={item}
                                    onClick={() => handleToggleSyncItem(fKey, item)}
                                    className={`px-2.5 py-1 rounded-md text-[13px] font-bold border transition-colors ${isChecked ? 'bg-blue-100 border-blue-400 text-blue-800' : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'}`}
                                  >
-                                   {item}
+                                   {displayLabel}
                                  </button>
                                )
                             })}
@@ -2497,7 +2519,7 @@ export default function App() {
           <div className="absolute bottom-0 left-0 w-full bg-white/95 backdrop-blur-xl p-2 pb-6 sm:pb-4 rounded-t-[2rem] shadow-[0_-15px_40px_rgba(0,0,0,0.08)] flex justify-between items-center z-20 border-t border-gray-100 px-6">
             <button onClick={() => setView('accounts')} className="flex flex-col items-center gap-1 text-gray-400 hover:text-indigo-500 transition px-4 py-2"><Wallet size={24} /><span className="font-extrabold text-[12px]">帳戶</span></button>
             <button onClick={() => { resetForm(); setRecordType('expense'); setShowAddForm(true); }} className="absolute left-1/2 -translate-x-1/2 -top-6 bg-gradient-to-tr from-pink-400 to-orange-400 text-white w-[68px] h-[68px] rounded-full flex items-center justify-center shadow-[0_10px_20px_rgba(251,146,60,0.4)] border-[4px] border-[#FFFBF0] transform hover:scale-105 transition active:scale-95"><Plus size={38} strokeWidth={3} /></button>
-            <button onClick={() => { setAnalysisType('expense'); setAnalysisStartDate(getLocalMonthStartStr()); setAnalysisEndDate(getLocalTodayStr()); setAnalysisMenus([]); setAnalysisSubSelections({ category: [], title: [], merchant: [], method: [], subMethod: [] }); setAnalysisRoleFilter('全部'); setView('analysis'); }} className="flex flex-col items-center gap-1 text-gray-400 hover:text-teal-500 transition px-4 py-2"><BarChart size={26} /><span className="font-extrabold text-[13px]">統計</span></button>
+            <button onClick={() => { setAnalysisType('expense'); setAnalysisStartDate(getLocalMonthStartStr()); setAnalysisEndDate(getLocalTodayStr()); setAnalysisMenus([]); setAnalysisSubSelections({ category: [], title: [], merchant: [], method: [], subMethod: [], payer: [] }); setAnalysisRoleFilter('全部'); setView('analysis'); }} className="flex flex-col items-center gap-1 text-gray-400 hover:text-teal-500 transition px-4 py-2"><BarChart size={26} /><span className="font-extrabold text-[13px]">統計</span></button>
           </div>
         )}
       </div>
