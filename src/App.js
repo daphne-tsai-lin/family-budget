@@ -73,35 +73,55 @@ const evaluateCalc = (str) => {
       if (!isFinite(result) || isNaN(result)) return '0';
       result = Math.round(result * 100) / 100;
       return String(result);
-  } catch(e) { return str; }
+  } catch(e) {
+      return str; 
+  }
 };
 
 // ==========================================
 // 日期工具函數
 // ==========================================
-const getLocalTodayStr = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
-const getLocalMonthStartStr = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`; };
+const getLocalTodayStr = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+
+const getLocalMonthStartStr = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
+};
+
 const toROCYearStr = (dateStr) => { if (!dateStr) return ''; const d = new Date(dateStr); if (isNaN(d.getTime())) return dateStr; return `${d.getFullYear() - 1911}/${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}`; };
 const toROCShortStr = (dateStr) => { if (!dateStr) return ''; const d = new Date(dateStr); if (isNaN(d.getTime())) return dateStr; const days = ['日', '一', '二', '三', '四', '五', '六']; return `${d.getFullYear() - 1911}/${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}(${days[d.getDay()]})`; };
 
 const generateFutureDates = (startDateStr, freq, daysArr, intervalStr, customText, maxYears = 1) => {
-  const dates = []; if (!startDateStr) return dates;
+  const dates = [];
+  if (!startDateStr) return dates;
   const [y, m, d] = startDateStr.split('-').map(Number);
   const startD = new Date(y, m - 1, d, 12, 0, 0, 0); 
   if (isNaN(startD.getTime())) return dates;
-  const endD = new Date(startD.getTime()); endD.setFullYear(endD.getFullYear() + maxYears);
+  const endD = new Date(startD.getTime());
+  endD.setFullYear(endD.getFullYear() + maxYears);
   
   const formatDate = (dateObj) => `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}`;
-  let curr = new Date(startD.getTime()); curr.setDate(curr.getDate() + 1); 
+  let curr = new Date(startD.getTime());
+  curr.setDate(curr.getDate() + 1); 
   const mapDayToNum = { '週日':0, '週一':1, '週二':2, '週三':3, '週四':4, '週五':5, '週六':6 };
   
   if (freq === '每週') {
       const targetDays = daysArr.map(d => mapDayToNum[d]).filter(d => d !== undefined);
       if(targetDays.length === 0) return dates;
-      while(curr <= endD) { if (targetDays.includes(curr.getDay())) dates.push(formatDate(curr)); curr.setDate(curr.getDate() + 1); }
+      while(curr <= endD) {
+          if (targetDays.includes(curr.getDay())) dates.push(formatDate(curr));
+          curr.setDate(curr.getDate() + 1);
+      }
   } else if (freq === '每月') {
       let nextD = new Date(startD.getTime());
-      while (true) { nextD.setMonth(nextD.getMonth() + 1); if (nextD > endD) break; dates.push(formatDate(nextD)); }
+      while (true) {
+          nextD.setMonth(nextD.getMonth() + 1);
+          if (nextD > endD) break;
+          dates.push(formatDate(nextD));
+      }
   } else if (freq === '區間') {
       let nextD = new Date(startD.getTime());
       while(true) {
@@ -111,7 +131,11 @@ const generateFutureDates = (startDateStr, freq, daysArr, intervalStr, customTex
           else if (intervalStr === '一年') { nextD.setFullYear(nextD.getFullYear() + 1); added = true; }
           else if (intervalStr === '自訂') {
               const days = parseInt(customText.replace(/\D/g, ''));
-              if(!isNaN(days) && days > 0) { const addDays = days > 1 ? days - 1 : 1; nextD.setDate(nextD.getDate() + addDays); added = true; }
+              if(!isNaN(days) && days > 0) {
+                  const addDays = days > 1 ? days - 1 : 1;
+                  nextD.setDate(nextD.getDate() + addDays);
+                  added = true;
+              }
           }
           if (!added || nextD > endD) break;
           dates.push(formatDate(nextD));
@@ -143,15 +167,34 @@ const SettingBlock = ({ title, items, onUpdate, themeClass, spanClass, btnClass,
   const [editIdx, setEditIndex] = useState(null);
   const [editValue, setEditValue] = useState('');
 
-  const handleAdd = () => { const trimmed = newItem.trim(); if (!trimmed || items.includes(trimmed)) return; onUpdate([...items, trimmed]); setNewItem(''); };
-  const handleDelete = (idx) => { const newList = [...items]; newList.splice(idx, 1); onUpdate(newList); };
-  const handleMove = (idx, dir) => { if (idx + dir < 0 || idx + dir >= items.length) return; const newList = [...items]; const temp = newList[idx]; newList[idx] = newList[idx + dir]; newList[idx + dir] = temp; onUpdate(newList); };
+  const handleAdd = () => {
+    const trimmed = newItem.trim();
+    if (!trimmed || items.includes(trimmed)) return;
+    onUpdate([...items, trimmed]);
+    setNewItem('');
+  };
+  const handleDelete = (idx) => {
+    const newList = [...items];
+    newList.splice(idx, 1);
+    onUpdate(newList);
+  };
+  const handleMove = (idx, dir) => {
+    if (idx + dir < 0 || idx + dir >= items.length) return;
+    const newList = [...items];
+    const temp = newList[idx];
+    newList[idx] = newList[idx + dir];
+    newList[idx + dir] = temp;
+    onUpdate(newList);
+  };
   const handleSaveEdit = (idx) => {
     const trimmed = editValue.trim();
     if (!trimmed || trimmed === items[idx]) return setEditIndex(null);
     if (items.includes(trimmed)) return alert('此選項已存在！');
-    const oldItem = items[idx]; const newList = [...items]; newList[idx] = trimmed;
-    onUpdate(newList, oldItem, trimmed); setEditIndex(null);
+    const oldItem = items[idx];
+    const newList = [...items];
+    newList[idx] = trimmed;
+    onUpdate(newList, oldItem, trimmed);
+    setEditIndex(null);
   };
 
   return (
@@ -194,14 +237,20 @@ const CustomDropdown = ({ label, icon: Icon, options, value, onChange, placehold
   const dropdownRef = useRef(null);
 
   useEffect(() => {
-    const handleClickOutside = (event) => { if (dropdownRef.current && !dropdownRef.current.contains(event.target)) setIsOpen(false); };
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) setIsOpen(false);
+    };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
   return (
     <div className="relative w-full" ref={dropdownRef}>
-      {label && <label className="flex items-center gap-1.5 text-[15px] font-bold text-gray-500 mb-1.5 ml-1">{Icon && <Icon size={16} className="text-gray-400" />} {label}</label>}
+      {label && (
+        <label className="flex items-center gap-1.5 text-[15px] font-bold text-gray-500 mb-1.5 ml-1">
+          {Icon && <Icon size={16} className="text-gray-400" />} {label}
+        </label>
+      )}
       <button type="button" onClick={() => setIsOpen(!isOpen)} className={`w-full bg-white border-2 ${isOpen ? 'border-blue-400 shadow-md' : 'border-gray-200 hover:border-gray-300'} p-3.5 rounded-xl flex justify-between items-center outline-none transition-all shadow-sm text-left`}>
         <span className={`font-bold text-[16px] truncate pr-2 ${value ? 'text-gray-800' : 'text-gray-300'}`}>{value || placeholder}</span>
         <span className={`text-gray-400 text-[14px] transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}>▼</span>
@@ -209,7 +258,9 @@ const CustomDropdown = ({ label, icon: Icon, options, value, onChange, placehold
       {isOpen && (
         <ul className="absolute z-50 w-full mt-1.5 bg-white border-2 border-gray-100 rounded-xl shadow-[0_10px_40px_rgba(0,0,0,0.12)] max-h-60 overflow-y-auto py-1.5 top-full left-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
           {options.length === 0 && <li className="px-4 py-2.5 text-[15px] text-gray-400 font-bold">無選項可用</li>}
-          {options.map(opt => <li key={opt} onClick={() => { onChange(opt); setIsOpen(false); }} className={`px-4 py-3 text-[16px] font-bold cursor-pointer transition-colors flex items-center gap-2 ${value === opt ? 'bg-blue-500 text-white' : 'text-gray-700 hover:bg-gray-100'}`}>{opt}</li>)}
+          {options.map(opt => (
+            <li key={opt} onClick={() => { onChange(opt); setIsOpen(false); }} className={`px-4 py-3 text-[16px] font-bold cursor-pointer transition-colors flex items-center gap-2 ${value === opt ? 'bg-blue-500 text-white' : 'text-gray-700 hover:bg-gray-100'}`}>{opt}</li>
+          ))}
         </ul>
       )}
     </div>
@@ -237,7 +288,9 @@ const MyCustomPieChart = ({ data, colors }) => {
     const MIN_DIST = 0.16; 
     sideSlices.sort((a, b) => a.targetY - b.targetY); 
     for (let j = 1; j < sideSlices.length; j++) {
-      if (sideSlices[j].targetY - sideSlices[j-1].targetY < MIN_DIST) sideSlices[j].targetY = sideSlices[j-1].targetY + MIN_DIST;
+      if (sideSlices[j].targetY - sideSlices[j-1].targetY < MIN_DIST) {
+        sideSlices[j].targetY = sideSlices[j-1].targetY + MIN_DIST;
+      }
     }
   };
 
@@ -256,7 +309,8 @@ const MyCustomPieChart = ({ data, colors }) => {
             </g>
           );
         }
-        const startX = Math.cos(s.startAngle), startY = Math.sin(s.startAngle), endX = Math.cos(s.endAngle), endY = Math.sin(s.endAngle);
+        const startX = Math.cos(s.startAngle), startY = Math.sin(s.startAngle);
+        const endX = Math.cos(s.endAngle), endY = Math.sin(s.endAngle);
         const largeArcFlag = s.slicePercent > 0.5 ? 1 : 0;
         const pathData = [`M 0 0`, `L ${startX} ${startY}`, `A 1 1 0 ${largeArcFlag} 1 ${endX} ${endY}`, `Z`].join(' ');
 
@@ -363,7 +417,6 @@ export default function App() {
   const [touchStart, setTouchStart] = useState(null);
   const [touchEnd, setTouchEnd] = useState(null);
 
-  const amountInputRef = useRef(null);
   const fileInputRef = useRef(null); 
   const photoInputRef = useRef(null); 
   const recordDateInputRef = useRef(null); 
@@ -381,12 +434,18 @@ export default function App() {
     const handleBeforeUnload = (e) => { e.preventDefault(); e.returnValue = ''; };
     const handlePopState = (e) => {
       const confirmExit = window.confirm("確定要關閉記帳本嗎？\n\n(免煩惱！您的資料都已經即時安全儲存至雲端囉 ✨)");
-      if (!confirmExit) { window.history.pushState({ trap: true }, ''); } 
-      else { setTimeout(() => { try { window.close(); } catch(err) {} window.history.back(); }, 100); }
+      if (!confirmExit) {
+        window.history.pushState({ trap: true }, '');
+      } else {
+        setTimeout(() => { try { window.close(); } catch(err) {} window.history.back(); }, 100);
+      }
     };
     window.addEventListener('beforeunload', handleBeforeUnload);
     window.addEventListener('popstate', handlePopState);
-    return () => { window.removeEventListener('beforeunload', handleBeforeUnload); window.removeEventListener('popstate', handlePopState); };
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      window.removeEventListener('popstate', handlePopState);
+    };
   }, []);
 
   useEffect(() => {
@@ -440,6 +499,7 @@ export default function App() {
     const NINETY_DAYS_MS = 90 * 24 * 60 * 60 * 1000;
     const now = Date.now();
     const recordsToPrune = records.filter(r => r.photoBase64 && (now - r.timestamp > NINETY_DAYS_MS));
+
     if (recordsToPrune.length > 0) {
       const pruneOldPhotos = async () => {
         try {
@@ -450,7 +510,7 @@ export default function App() {
             batch.update(docRef, { photoBase64: deleteField(), note: newNote });
           });
           await batch.commit();
-        } catch (e) {}
+        } catch (e) { console.error("圖片清理失敗", e); }
       };
       pruneOldPhotos();
     }
@@ -496,6 +556,20 @@ export default function App() {
     }
   }, [currentRoom, activeRoomId]);
 
+  useEffect(() => {
+    if (!editRecordId && recordType === 'expense' && selectedItem && currentRoom?.autoFillRules) {
+      const defaultMerchant = currentRoom.autoFillRules[selectedItem];
+      if (defaultMerchant) setRecordMerchant(defaultMerchant);
+    }
+  }, [selectedItem, recordType, currentRoom?.autoFillRules, editRecordId]);
+
+  useEffect(() => {
+    if (!editRecordId && recordType === 'expense' && recordMerchant && currentRoom?.methodRules) {
+      const rule = currentRoom.methodRules[recordMerchant];
+      if (rule) { setRecordMethod(rule.method); setRecordSubMethod(rule.subMethod || ''); }
+    }
+  }, [recordMerchant, recordType, currentRoom?.methodRules, editRecordId]);
+
   const handleTouchStart = (e) => { setTouchEnd(null); setTouchStart({ x: e.targetTouches[0].clientX, y: e.targetTouches[0].clientY }); };
   const handleTouchMove = (e) => { setTouchEnd({ x: e.targetTouches[0].clientX, y: e.targetTouches[0].clientY }); };
   const handleTouchEnd = () => {
@@ -516,7 +590,8 @@ export default function App() {
     const displayRecs = searchQuery 
        ? records.filter(r => {
             if (r.date > getLocalTodayStr()) return false;
-            return `${r.title || ''} ${r.merchant || ''} ${r.note || ''} ${r.category || ''} ${r.method || ''} ${r.subMethod || ''} ${r.transferToMethod || ''} ${r.transferToSubMethod || ''} ${Array.isArray(r.payer)?r.payer.join(' '):r.payer || ''}`.toLowerCase().includes(searchQuery.toLowerCase());
+            const q = searchQuery.toLowerCase();
+            return `${r.title || ''} ${r.merchant || ''} ${r.note || ''} ${r.category || ''} ${r.method || ''} ${r.subMethod || ''} ${r.transferToMethod || ''} ${r.transferToSubMethod || ''} ${Array.isArray(r.payer)?r.payer.join(' '):r.payer || ''}`.toLowerCase().includes(q);
          })
        : records.filter(r => r.date === homeFilterDate);
     if (index + direction < 0 || index + direction >= displayRecs.length) return;
@@ -639,21 +714,27 @@ export default function App() {
       else if (recordType === 'income') { baseData.payer = recordPayer; baseData.category = recordCategory; baseData.title = '收入'; } 
       else if (recordType === 'transfer') { baseData.payer = recordPayer; baseData.category = recordCategory; baseData.title = '轉帳'; baseData.transferToMethod = transferToMethod; baseData.transferToSubMethod = transferToSubMethod; }
 
-      const batch = writeBatch(db); let opsCount = 0;
+      const batch = writeBatch(db);
+      let opsCount = 0;
 
       if (!isEditing) {
-        batch.set(doc(collection(db, 'artifacts', appId, 'public', 'data', 'expenses')), { ...baseData, timestamp: Date.now() }); opsCount++;
+        const curRef = doc(collection(db, 'artifacts', appId, 'public', 'data', 'expenses'));
+        batch.set(curRef, { ...baseData, timestamp: Date.now() });
+        opsCount++;
         if (recordFrequency !== '一次') {
           generateFutureDates(recordDate, recordFrequency, recordFrequencyDays, recordFrequencyInterval, recordFrequencyCustomText, 1).forEach(d => {
             if(opsCount >= 490) return;
-            batch.set(doc(collection(db, 'artifacts', appId, 'public', 'data', 'expenses')), { ...baseData, date: d, timestamp: new Date(d + 'T07:00:00').getTime() }); opsCount++;
+            const futRef = doc(collection(db, 'artifacts', appId, 'public', 'data', 'expenses'));
+            batch.set(futRef, { ...baseData, date: d, timestamp: new Date(d + 'T07:00:00').getTime() });
+            opsCount++;
           });
         }
       } else {
         const curRef = doc(db, 'artifacts', appId, 'public', 'data', 'expenses', editRecordId);
         if (!recordPhoto && oldRecord?.photoBase64) baseData.photoBase64 = deleteField();
         if (!updateFuture && oldRecord?.groupId) { baseData.frequency = '一次'; baseData.frequencyDays = []; baseData.frequencyInterval = ''; baseData.frequencyCustomText = ''; }
-        batch.update(curRef, { ...baseData, timestamp: oldRecord.timestamp }); opsCount++;
+        batch.update(curRef, { ...baseData, timestamp: oldRecord.timestamp });
+        opsCount++;
         if (updateFuture && currentGroupId) {
           records.filter(r => r.groupId === currentGroupId && r.date > oldRecord.date && r.id !== editRecordId).forEach(r => {
             if(opsCount >= 490) return; batch.delete(doc(db, 'artifacts', appId, 'public', 'data', 'expenses', r.id)); opsCount++; 
@@ -662,7 +743,8 @@ export default function App() {
         if (updateFuture && recordFrequency !== '一次') {
            generateFutureDates(recordDate, recordFrequency, recordFrequencyDays, recordFrequencyInterval, recordFrequencyCustomText, 1).filter(d => d > recordDate).forEach(d => {
              if(opsCount >= 490) return;
-             batch.set(doc(collection(db, 'artifacts', appId, 'public', 'data', 'expenses')), { ...baseData, date: d, timestamp: new Date(d + 'T07:00:00').getTime() }); opsCount++;
+             batch.set(doc(collection(db, 'artifacts', appId, 'public', 'data', 'expenses')), { ...baseData, date: d, timestamp: new Date(d + 'T07:00:00').getTime() });
+             opsCount++;
            });
         }
       }
@@ -1235,6 +1317,9 @@ export default function App() {
     else setRecordFrequencyDays([...recordFrequencyDays, d]);
   };
 
+  // -------------------------------------------------------------
+  // Data Filtering and Totals Calculation
+  // -------------------------------------------------------------
   const displayRecords = records.filter(r => {
     if (searchQuery) {
       if (r.date > getLocalTodayStr()) return false; 
@@ -1306,7 +1391,9 @@ export default function App() {
   const totalAnalysisAmount = chartData.reduce((sum, d) => sum + d.value, 0);
   const chartColors = ['#F472B6', '#60A5FA', '#34D399', '#FBBF24', '#A78BFA', '#F87171', '#38BDF8', '#4ADE80', '#FCD34D', '#C084FC'];
 
-  const uniqueRoles = useMemo(() => { return ['全部', ...new Set(records.map(r => r.addedByRole).filter(Boolean))]; }, [records]);
+  const uniqueRoles = useMemo(() => {
+    return ['全部', ...new Set(records.map(r => r.addedByRole).filter(Boolean))];
+  }, [records]);
 
   let isFormValid = false;
   const parsedAmt = Number(String(recordAmount).replace(/,/g, '').replace(/[^\d]/g, ''));
@@ -1326,6 +1413,9 @@ export default function App() {
     }
   }
 
+  // ==========================================
+  // Render Guard
+  // ==========================================
   if (!user) {
     return (
       <div className={globalWrapperStyle}>
@@ -1346,6 +1436,9 @@ export default function App() {
     );
   }
 
+  // ==========================================
+  // Main View Content Generation
+  // ==========================================
   let content = null;
 
   if (view === 'login') {
@@ -1594,79 +1687,6 @@ export default function App() {
              <p className="text-[12px] font-bold text-orange-400 mt-4 bg-orange-50 p-3 rounded-xl text-center leading-relaxed">* 行動支付與信用卡金額代表「累積應繳卡費（負債）」。刷卡會增加金額，透過轉帳繳費後金額會減少。</p>
           </div>
         </main>
-        
-        {/* 帳戶明細歷史 Modal */}
-        {viewingAccountHistory && (
-          <div className="fixed inset-0 bg-black/40 z-[100] flex justify-center items-center p-4 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setViewingAccountHistory(null)}>
-            <div className="bg-white w-full max-w-md max-h-[85vh] flex flex-col rounded-[1.5rem] p-5 shadow-2xl relative" onClick={e => e.stopPropagation()}>
-              <button onClick={() => setViewingAccountHistory(null)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 bg-gray-100 p-1.5 rounded-full transition"><X size={18}/></button>
-              <h3 className="font-black text-[20px] text-gray-800 mb-4 border-b border-gray-100 pb-3 flex items-center gap-1.5">
-                <Wallet size={20} className="text-indigo-500" /> {viewingAccountHistory} 明細
-              </h3>
-              
-              <div className="grid grid-cols-2 gap-2 mb-4">
-                  <div>
-                    <label className="block text-[12px] font-bold text-gray-500 mb-1">開始日期</label>
-                    <input type="date" value={historyStartDate} onChange={e=>setHistoryStartDate(e.target.value)} className="w-full bg-gray-50 border border-gray-200 p-1.5 rounded-lg text-[14px] font-bold text-gray-700 outline-none focus:border-indigo-300 transition" />
-                  </div>
-                  <div>
-                    <label className="block text-[12px] font-bold text-gray-500 mb-1">結束日期</label>
-                    <input type="date" value={historyEndDate} onChange={e=>setHistoryEndDate(e.target.value)} className="w-full bg-gray-50 border border-gray-200 p-1.5 rounded-lg text-[14px] font-bold text-gray-700 outline-none focus:border-indigo-300 transition" />
-                  </div>
-              </div>
-
-              <div className="scroll-container flex-1 overflow-y-auto space-y-2 pr-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-                {(() => {
-                  const todayStr = getLocalTodayStr();
-                  const accHistory = records.filter(r => {
-                     if (r.date > historyEndDate || r.date < historyStartDate) return false;
-                     if (r.date > todayStr) return false;
-                     const getAccName = (method, subMethod) => method === '現金' ? '現金' : subMethod;
-                     const fromAcc = getAccName(r.method, r.subMethod);
-                     const toAcc = getAccName(r.transferToMethod, r.transferToSubMethod);
-                     return fromAcc === viewingAccountHistory || toAcc === viewingAccountHistory;
-                  }).sort((a, b) => {
-                      if (a.date !== b.date) return a.date > b.date ? -1 : 1;
-                      return b.timestamp - a.timestamp;
-                  }); 
-
-                  if (accHistory.length === 0) return <p className="text-center text-gray-400 font-bold py-10 text-[15px]">此區間尚無明細</p>;
-
-                  return accHistory.map(exp => {
-                    const isIncome = exp.type === 'income';
-                    const isTransfer = exp.type === 'transfer';
-                    const getAccName = (method, subMethod) => method === '現金' ? '現金' : subMethod;
-                    let isPositive = false;
-                    if (isIncome && getAccName(exp.method, exp.subMethod) === viewingAccountHistory) isPositive = true;
-                    if (isTransfer && getAccName(exp.transferToMethod, exp.transferToSubMethod) === viewingAccountHistory) isPositive = true;
-                    let freqDisplay = exp.frequency === '區間' ? (exp.frequencyInterval === '自訂' ? exp.frequencyCustomText : exp.frequencyInterval) : exp.frequency;
-
-                    return (
-                      <div key={exp.id} onClick={() => setViewingRecord(exp)} className="bg-gray-50 p-3 rounded-xl border border-gray-100 flex justify-between items-center cursor-pointer hover:bg-gray-100 transition">
-                        <div className="overflow-hidden pr-2">
-                           <div className="flex flex-wrap items-center gap-1.5 mb-1">
-                             <span className="text-[13px] font-bold text-gray-400">{toROCYearStr(exp.date)}</span>
-                             {exp.addedByRole && <span className={`${getRoleColorStyle(exp.addedByRole).lightBg} ${getRoleColorStyle(exp.addedByRole).text} border ${getRoleColorStyle(exp.addedByRole).lightBorder} px-1.5 py-0.5 rounded text-[11px] font-bold tracking-wide shrink-0`}>{exp.addedByRole}</span>}
-                             <span className="bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded text-[11px] font-bold tracking-wide">{freqDisplay || '一次'}</span>
-                             {exp.payer && <span className="bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded text-[11px] font-bold tracking-wide">{Array.isArray(exp.payer)?exp.payer.join(', '):exp.payer}</span>}
-                           </div>
-                           <div className="font-black text-[16px] text-gray-700 truncate">{isTransfer ? `轉帳: ${exp.method}➜${exp.transferToMethod}` : exp.title}</div>
-                           <div className="flex flex-wrap items-center gap-1.5 mt-1">
-                             {!isTransfer && exp.method && exp.method !== '未指定' && <span className="text-gray-500 text-[12px] font-bold bg-gray-100 px-1.5 py-0.5 rounded border border-gray-200">💳 {exp.method}{exp.subMethod ? `(${exp.subMethod})` : ''}</span>}
-                             {exp.merchant && exp.merchant !== '未指定' && <span className="text-gray-500 text-[12px] font-bold bg-gray-100 px-1.5 py-0.5 rounded border border-gray-200">🏪 {exp.merchant}</span>}
-                             {exp.photoBase64 && <span className="shrink-0 w-[22px] h-[22px] rounded-md overflow-hidden shadow-sm inline-block border border-gray-200" title="有照片"><img src={exp.photoBase64} alt="圖" className="w-full h-full object-cover" /></span>}
-                             {exp.note && <span className="text-gray-500 text-[12px] font-bold bg-white px-1.5 py-0.5 rounded border border-gray-200 max-w-[120px] truncate">📝 {exp.note}</span>}
-                           </div>
-                        </div>
-                        <div className={`font-black text-[19px] shrink-0 ${isPositive ? 'text-green-500' : 'text-gray-800'}`}>{isPositive ? '+' : '-'}${exp.amount.toLocaleString()}</div>
-                      </div>
-                    )
-                  });
-                })()}
-              </div>
-            </div>
-          </div>
-        )}
       </>
     );
   }
@@ -1745,12 +1765,12 @@ export default function App() {
                         <div className="flex flex-wrap items-center gap-1.5">
                           {!isTransfer && <span className={`font-bold text-[14px] px-1.5 py-0.5 rounded whitespace-nowrap border shrink-0 ${isIncome ? 'bg-green-50 text-green-600 border-green-100' : 'bg-orange-50 text-orange-600 border-orange-100'}`}>{exp.category}</span>}
                           <span className="font-black text-gray-800 text-[18px] shrink-0 mr-1 flex items-center gap-1.5">
-                            {exp.photoBase64 && <span className="shrink-0 w-6 h-6 rounded-md overflow-hidden shadow-sm inline-block"><img src={exp.photoBase64} alt="圖" className="w-full h-full object-cover" /></span>}
                             {isTransfer ? `轉帳: ${exp.method}${exp.subMethod ? '('+exp.subMethod+')' : ''} ➜ ${exp.transferToMethod}${exp.transferToSubMethod ? '('+exp.transferToSubMethod+')' : ''}` : exp.title}
                           </span>
                           {payerStr && payerStr !== '未指定' && <span className="text-gray-500 text-[13px] font-bold bg-gray-50 px-1.5 py-0.5 rounded border border-gray-200">👤 {payerStr}</span>}
                           {!isTransfer && exp.method && exp.method !== '未指定' && <span className="text-gray-500 text-[13px] font-bold bg-gray-50 px-1.5 py-0.5 rounded border border-gray-200">💳 {exp.method}{exp.subMethod ? `(${exp.subMethod})` : ''}</span>}
                           {exp.merchant && exp.merchant !== '未指定' && <span className="text-gray-500 text-[13px] font-bold bg-gray-50 px-1.5 py-0.5 rounded border border-gray-200">🏪 {exp.merchant}</span>}
+                          {exp.photoBase64 && <span className="shrink-0 w-[24px] h-[24px] rounded-md overflow-hidden shadow-sm inline-block border border-gray-200 mt-0.5" title="此紀錄附有照片"><img src={exp.photoBase64} alt="圖" className="w-full h-full object-cover" /></span>}
                           {exp.note && <span className="text-gray-500 text-[13px] font-bold bg-[#FFFDF9] px-1.5 py-0.5 rounded border border-[#F2EFE9] max-w-full truncate mt-0.5">📝 {exp.note}</span>}
                         </div>
                       </div>
@@ -2269,8 +2289,8 @@ export default function App() {
                            <div className="flex flex-wrap items-center gap-1.5 mt-1">
                              {!isTransfer && exp.method && exp.method !== '未指定' && <span className="text-gray-500 text-[12px] font-bold bg-gray-100 px-1.5 py-0.5 rounded border border-gray-200">💳 {exp.method}{exp.subMethod ? `(${exp.subMethod})` : ''}</span>}
                              {exp.merchant && exp.merchant !== '未指定' && <span className="text-gray-500 text-[12px] font-bold bg-gray-100 px-1.5 py-0.5 rounded border border-gray-200">🏪 {exp.merchant}</span>}
-                             {exp.photoBase64 && <span className="shrink-0 w-[22px] h-[22px] rounded-md overflow-hidden shadow-sm inline-block border border-gray-200"><img src={exp.photoBase64} alt="圖" className="w-full h-full object-cover" /></span>}
-                             {exp.note && <span className="text-gray-500 text-[12px] font-bold bg-white px-1.5 py-0.5 rounded border border-gray-200 max-w-[120px] truncate">📝 {exp.note}</span>}
+                             {exp.photoBase64 && <span className="shrink-0 w-[24px] h-[24px] rounded-md overflow-hidden shadow-sm inline-block border border-gray-200 mt-0.5" title="此紀錄附有照片"><img src={exp.photoBase64} alt="圖" className="w-full h-full object-cover" /></span>}
+                             {exp.note && <span className="text-gray-500 text-[12px] font-bold bg-white px-1.5 py-0.5 rounded border border-gray-200 max-w-[120px] truncate mt-0.5">📝 {exp.note}</span>}
                            </div>
                         </div>
                         <div className={`font-black text-[19px] shrink-0 ${isIncome ? 'text-green-500' : isTransfer ? 'text-blue-500' : 'text-gray-800'}`}>{isIncome ? '+' : isTransfer ? '⇆' : '-'}${exp.amount.toLocaleString()}</div>
