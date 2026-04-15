@@ -160,7 +160,7 @@ const db = getFirestore(app);
 const appId = typeof __app_id !== 'undefined' ? __app_id : 'linbei-family-app';
 
 // ==========================================
-// 共用組件
+// 共用組件：選項管理區塊
 // ==========================================
 const SettingBlock = ({ title, items, onUpdate, themeClass, spanClass, btnClass, placeholder }) => {
   const [newItem, setNewItem] = useState('');
@@ -255,6 +255,7 @@ const CustomDropdown = ({ label, icon: Icon, options, value, onChange, placehold
         <span className={`font-bold text-[16px] truncate pr-2 ${value ? 'text-gray-800' : 'text-gray-300'}`}>{value || placeholder}</span>
         <span className={`text-gray-400 text-[14px] transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}>▼</span>
       </button>
+
       {isOpen && (
         <ul className="absolute z-50 w-full mt-1.5 bg-white border-2 border-gray-100 rounded-xl shadow-[0_10px_40px_rgba(0,0,0,0.12)] max-h-60 overflow-y-auto py-1.5 top-full left-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
           {options.length === 0 && <li className="px-4 py-2.5 text-[15px] text-gray-400 font-bold">無選項可用</li>}
@@ -267,6 +268,9 @@ const CustomDropdown = ({ label, icon: Icon, options, value, onChange, placehold
   );
 };
 
+// ==========================================
+// 共用組件：圓餅圖 SVG 
+// ==========================================
 const MyCustomPieChart = ({ data, colors }) => {
   const total = data.reduce((sum, d) => sum + d.value, 0);
   if (total === 0) return <div className="text-gray-400 text-center py-10 font-bold bg-white rounded-[1.5rem] border-2 border-dashed border-gray-200 text-base">無分析數據 📊</div>;
@@ -281,6 +285,7 @@ const MyCustomPieChart = ({ data, colors }) => {
     const endAngle = (endPercent - 0.25) * 2 * Math.PI;
     const midAngle = (startPercent + slicePercent / 2 - 0.25) * 2 * Math.PI;
     const isSmall = slicePercent < 0.08;
+
     return { ...slice, i, startPercent, endPercent, slicePercent, startAngle, endAngle, midAngle, isSmall, anchorSide: Math.cos(midAngle) >= 0 ? 1 : -1, targetY: Math.sin(midAngle) * 1.15 };
   });
 
@@ -640,7 +645,8 @@ export default function App() {
         creditCards: ['玉山銀行', '國泰世華', '台北富邦', '元大銀行'],
         bankAccounts: ['台北富邦', '元大銀行', '中國信託'],
         electronicTickets: ['點點卡', '悠遊卡', '悠遊付錢包'],
-        initialBalances: { '現金': 0 }
+        initialBalances: { '現金': 0 },
+        promptCashSync: false
       };
       await setDoc(roomRef, newRoomData);
       saveRoomToLocal(roomCode, roomName, roomPin, currentUserRole);
@@ -686,7 +692,7 @@ export default function App() {
     } catch(err) { setErrorMsg('連線失敗：' + err.message); } finally { setIsLoading(false); }
   };
 
-  const handleSaveRecord = (e) => {
+  const handleSaveRecord = async (e) => {
     if (e) e.preventDefault();
     if (!isFormValid || !user) return;
     try {
@@ -748,7 +754,13 @@ export default function App() {
            });
         }
       }
-      batch.commit().catch(err => console.error('背景儲存同步錯誤', err));
+      
+      await batch.commit();
+      
+      if (!isEditing && recordType === 'expense' && recordMethod === '現金' && currentRoom?.promptCashSync) {
+        setCrossRoomRecord({ ...baseData, id: `auto_${Date.now()}` });
+      }
+      
       resetForm(); setShowAddForm(false);
     } catch (err) { alert('儲存過程發生錯誤！'); }
   };
@@ -1270,7 +1282,7 @@ export default function App() {
           const isSelected = values.includes(opt);
           const isDisabled = isPayer && ((opt === '全家' && hasIndividuals) || (opt !== '全家' && hasFamily));
           
-          const style = isPayer ? getRoleColorStyle(opt, actualIdx) : { bg: 'bg-[#F59E0B]', text: 'text-gray-700', borderSel: 'border-[#F59E0B]', lightBg: 'bg-[#FFE28A]' };
+          const style = isPayer ? getRoleColorStyle(opt, actualIdx) : { bg: 'bg-[#F59E0B]', text: 'text-gray-700', borderSel: 'border-[#F59E0B]', lightBg: 'bg-[#FFE28A]', lightBorder: 'border-[#F59E0B]' };
           
           let btnClass = '';
           if (isDisabled) {
@@ -1278,7 +1290,7 @@ export default function App() {
           } else if (isSelected) {
              btnClass = isPayer 
                ? `${style.bg} text-white ${style.borderSel} transform -translate-y-0.5 z-10` 
-               : `${style.lightBg} text-gray-900 border-[#F59E0B] transform -translate-y-0.5 z-10`;
+               : `${style.lightBg} text-gray-900 ${style.borderSel} transform -translate-y-0.5 z-10`;
           } else {
              btnClass = isPayer
                ? `bg-white ${style.text} border-gray-200 hover:border-gray-300 hover:${style.lightBg}`
@@ -1317,9 +1329,6 @@ export default function App() {
     else setRecordFrequencyDays([...recordFrequencyDays, d]);
   };
 
-  // -------------------------------------------------------------
-  // Data Filtering and Totals Calculation
-  // -------------------------------------------------------------
   const displayRecords = records.filter(r => {
     if (searchQuery) {
       if (r.date > getLocalTodayStr()) return false; 
@@ -1414,7 +1423,7 @@ export default function App() {
   }
 
   // ==========================================
-  // Render Guard
+  // 畫面渲染區塊 (完全移除重複程式碼)
   // ==========================================
   if (!user) {
     return (
@@ -1436,9 +1445,6 @@ export default function App() {
     );
   }
 
-  // ==========================================
-  // Main View Content Generation
-  // ==========================================
   let content = null;
 
   if (view === 'login') {
@@ -2034,6 +2040,20 @@ export default function App() {
               <>
                 <SettingBlock title="🙋 登入人員 (付款人)" items={currentRoom?.loginUsers || ['老公', '老婆']} onUpdate={(newList, oldItem, newItem) => updateSettingField('loginUsers', newList, oldItem, newItem)} themeClass="border-purple-100" spanClass="text-purple-600" btnClass="bg-purple-400" placeholder="輸入登入者名稱..." />
                 <p className="text-[13px] font-bold text-purple-400 mt-1 mb-4 bg-purple-50 p-3 rounded-xl leading-relaxed">💡 在這裡新增的名稱，會自動變成登入畫面的按鈕喔！修改名稱也會連動更新歷史紀錄。</p>
+                
+                <div className="bg-white p-4 sm:p-5 rounded-[1.5rem] border-2 border-green-100 shadow-sm mb-4 flex justify-between items-center gap-4">
+                  <div className="flex-1">
+                    <h3 className="font-bold text-gray-700 text-[16px] sm:text-[18px]">現金支出自動跨房間提示</h3>
+                    <p className="text-[12px] sm:text-[13px] text-gray-500 font-bold mt-1 leading-relaxed">開啟後，每次新增「現金」支出存檔時，會自動跳出傳送至其他房間的詢問視窗。</p>
+                  </div>
+                  <button 
+                    onClick={() => updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', activeRoomId), { promptCashSync: !currentRoom?.promptCashSync })}
+                    className={`w-14 h-8 rounded-full transition-colors relative shadow-inner shrink-0 ${currentRoom?.promptCashSync ? 'bg-green-500' : 'bg-gray-300'}`}
+                  >
+                    <div className={`w-6 h-6 bg-white rounded-full absolute top-1 transition-transform shadow-sm ${currentRoom?.promptCashSync ? 'translate-x-7' : 'translate-x-1'}`}></div>
+                  </button>
+                </div>
+
                 <SettingBlock title="👥 花費對象" items={currentRoom?.payers || []} onUpdate={(newList, oldItem, newItem) => updateSettingField('payers', newList, oldItem, newItem)} themeClass="border-gray-200" spanClass="text-gray-700" btnClass="bg-gray-800" placeholder="輸入花費對象名稱..." />
 
                 <div className={`p-4 sm:p-5 rounded-[1.5rem] border-2 border-orange-100 bg-white shadow-sm mb-4`}>
