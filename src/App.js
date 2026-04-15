@@ -6,7 +6,7 @@ import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken }
 import { getFirestore, collection, doc, setDoc, getDoc, updateDoc, onSnapshot, addDoc, deleteDoc, deleteField, writeBatch } from 'firebase/firestore';
 
 // ==========================================
-// 0. 自動載入 Tailwind CSS 魔法
+// 0. 自動載入 Tailwind CSS
 // ==========================================
 if (typeof document !== 'undefined' && !document.getElementById('tailwind-script')) {
   const script = document.createElement('script');
@@ -14,6 +14,30 @@ if (typeof document !== 'undefined' && !document.getElementById('tailwind-script
   script.src = 'https://cdn.tailwindcss.com';
   document.head.appendChild(script);
 }
+
+// ==========================================
+// 人員專屬色塊統一定義 (付款人、花費對象共用)
+// ==========================================
+const getRoleColorStyle = (role, index = 0) => {
+  if (!role) return { bg: 'bg-gray-100', text: 'text-gray-500', borderSel: 'border-gray-200', lightBg: 'bg-gray-100', lightBorder: 'border-transparent' };
+  
+  const specificColors = {
+    '全家': { bg: 'bg-amber-500', text: 'text-amber-600', borderSel: 'border-amber-600', lightBg: 'bg-amber-50', lightBorder: 'border-amber-200' },
+    '老公': { bg: 'bg-lime-500', text: 'text-lime-600', borderSel: 'border-lime-600', lightBg: 'bg-lime-50', lightBorder: 'border-lime-200' },
+    '老婆': { bg: 'bg-[#FF8C94]', text: 'text-[#E65A65]', borderSel: 'border-[#FF8C94]', lightBg: 'bg-[#FFF0F2]', lightBorder: 'border-[#FFB6C1]' },
+    '蔚蔚': { bg: 'bg-[#48D1CC]', text: 'text-[#289C97]', borderSel: 'border-[#48D1CC]', lightBg: 'bg-[#E6FAFA]', lightBorder: 'border-[#A4EBE8]' },
+    '恩恩': { bg: 'bg-[#92A8D1]', text: 'text-[#6A85B6]', borderSel: 'border-[#92A8D1]', lightBg: 'bg-[#F0F4F8]', lightBorder: 'border-[#C5D3EB]' },
+  };
+  
+  const fallbackColors = [
+    { bg: 'bg-sky-500', text: 'text-sky-600', borderSel: 'border-sky-600', lightBg: 'bg-sky-50', lightBorder: 'border-sky-200' },
+    { bg: 'bg-violet-500', text: 'text-violet-600', borderSel: 'border-violet-600', lightBg: 'bg-violet-50', lightBorder: 'border-violet-200' },
+    { bg: 'bg-rose-500', text: 'text-rose-600', borderSel: 'border-rose-600', lightBg: 'bg-rose-50', lightBorder: 'border-rose-200' },
+    { bg: 'bg-cyan-500', text: 'text-cyan-600', borderSel: 'border-cyan-600', lightBg: 'bg-cyan-50', lightBorder: 'border-cyan-200' }
+  ];
+
+  return specificColors[role] || fallbackColors[index % fallbackColors.length];
+};
 
 // ==========================================
 // 計算機功能與按鍵設定
@@ -49,56 +73,35 @@ const evaluateCalc = (str) => {
       if (!isFinite(result) || isNaN(result)) return '0';
       result = Math.round(result * 100) / 100;
       return String(result);
-  } catch(e) {
-      return str; 
-  }
+  } catch(e) { return str; }
 };
 
 // ==========================================
 // 日期工具函數
 // ==========================================
-const getLocalTodayStr = () => {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-};
-
-const getLocalMonthStartStr = () => {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
-};
-
+const getLocalTodayStr = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+const getLocalMonthStartStr = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`; };
 const toROCYearStr = (dateStr) => { if (!dateStr) return ''; const d = new Date(dateStr); if (isNaN(d.getTime())) return dateStr; return `${d.getFullYear() - 1911}/${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}`; };
-const toROCFullStr = (dateStr) => { if (!dateStr) return ''; const d = new Date(dateStr); if (isNaN(d.getTime())) return dateStr; const days = ['日', '一', '二', '三', '四', '五', '六']; return `${d.getFullYear() - 1911}年${String(d.getMonth() + 1).padStart(2, '0')}月${String(d.getDate()).padStart(2, '0')}日(週${days[d.getDay()]})`; };
 const toROCShortStr = (dateStr) => { if (!dateStr) return ''; const d = new Date(dateStr); if (isNaN(d.getTime())) return dateStr; const days = ['日', '一', '二', '三', '四', '五', '六']; return `${d.getFullYear() - 1911}/${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}(${days[d.getDay()]})`; };
 
 const generateFutureDates = (startDateStr, freq, daysArr, intervalStr, customText, maxYears = 1) => {
-  const dates = [];
-  if (!startDateStr) return dates;
+  const dates = []; if (!startDateStr) return dates;
   const [y, m, d] = startDateStr.split('-').map(Number);
   const startD = new Date(y, m - 1, d, 12, 0, 0, 0); 
   if (isNaN(startD.getTime())) return dates;
-  const endD = new Date(startD.getTime());
-  endD.setFullYear(endD.getFullYear() + maxYears);
+  const endD = new Date(startD.getTime()); endD.setFullYear(endD.getFullYear() + maxYears);
   
   const formatDate = (dateObj) => `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}`;
-  let curr = new Date(startD.getTime());
-  curr.setDate(curr.getDate() + 1); 
+  let curr = new Date(startD.getTime()); curr.setDate(curr.getDate() + 1); 
   const mapDayToNum = { '週日':0, '週一':1, '週二':2, '週三':3, '週四':4, '週五':5, '週六':6 };
   
   if (freq === '每週') {
       const targetDays = daysArr.map(d => mapDayToNum[d]).filter(d => d !== undefined);
       if(targetDays.length === 0) return dates;
-      while(curr <= endD) {
-          if (targetDays.includes(curr.getDay())) dates.push(formatDate(curr));
-          curr.setDate(curr.getDate() + 1);
-      }
+      while(curr <= endD) { if (targetDays.includes(curr.getDay())) dates.push(formatDate(curr)); curr.setDate(curr.getDate() + 1); }
   } else if (freq === '每月') {
       let nextD = new Date(startD.getTime());
-      while (true) {
-          nextD.setMonth(nextD.getMonth() + 1);
-          if (nextD > endD) break;
-          dates.push(formatDate(nextD));
-      }
+      while (true) { nextD.setMonth(nextD.getMonth() + 1); if (nextD > endD) break; dates.push(formatDate(nextD)); }
   } else if (freq === '區間') {
       let nextD = new Date(startD.getTime());
       while(true) {
@@ -108,11 +111,7 @@ const generateFutureDates = (startDateStr, freq, daysArr, intervalStr, customTex
           else if (intervalStr === '一年') { nextD.setFullYear(nextD.getFullYear() + 1); added = true; }
           else if (intervalStr === '自訂') {
               const days = parseInt(customText.replace(/\D/g, ''));
-              if(!isNaN(days) && days > 0) {
-                  const addDays = days > 1 ? days - 1 : 1;
-                  nextD.setDate(nextD.getDate() + addDays);
-                  added = true;
-              }
+              if(!isNaN(days) && days > 0) { const addDays = days > 1 ? days - 1 : 1; nextD.setDate(nextD.getDate() + addDays); added = true; }
           }
           if (!added || nextD > endD) break;
           dates.push(formatDate(nextD));
@@ -144,34 +143,15 @@ const SettingBlock = ({ title, items, onUpdate, themeClass, spanClass, btnClass,
   const [editIdx, setEditIndex] = useState(null);
   const [editValue, setEditValue] = useState('');
 
-  const handleAdd = () => {
-    const trimmed = newItem.trim();
-    if (!trimmed || items.includes(trimmed)) return;
-    onUpdate([...items, trimmed]);
-    setNewItem('');
-  };
-  const handleDelete = (idx) => {
-    const newList = [...items];
-    newList.splice(idx, 1);
-    onUpdate(newList);
-  };
-  const handleMove = (idx, dir) => {
-    if (idx + dir < 0 || idx + dir >= items.length) return;
-    const newList = [...items];
-    const temp = newList[idx];
-    newList[idx] = newList[idx + dir];
-    newList[idx + dir] = temp;
-    onUpdate(newList);
-  };
+  const handleAdd = () => { const trimmed = newItem.trim(); if (!trimmed || items.includes(trimmed)) return; onUpdate([...items, trimmed]); setNewItem(''); };
+  const handleDelete = (idx) => { const newList = [...items]; newList.splice(idx, 1); onUpdate(newList); };
+  const handleMove = (idx, dir) => { if (idx + dir < 0 || idx + dir >= items.length) return; const newList = [...items]; const temp = newList[idx]; newList[idx] = newList[idx + dir]; newList[idx + dir] = temp; onUpdate(newList); };
   const handleSaveEdit = (idx) => {
     const trimmed = editValue.trim();
     if (!trimmed || trimmed === items[idx]) return setEditIndex(null);
     if (items.includes(trimmed)) return alert('此選項已存在！');
-    const oldItem = items[idx];
-    const newList = [...items];
-    newList[idx] = trimmed;
-    onUpdate(newList, oldItem, trimmed);
-    setEditIndex(null);
+    const oldItem = items[idx]; const newList = [...items]; newList[idx] = trimmed;
+    onUpdate(newList, oldItem, trimmed); setEditIndex(null);
   };
 
   return (
@@ -214,20 +194,14 @@ const CustomDropdown = ({ label, icon: Icon, options, value, onChange, placehold
   const dropdownRef = useRef(null);
 
   useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) setIsOpen(false);
-    };
+    const handleClickOutside = (event) => { if (dropdownRef.current && !dropdownRef.current.contains(event.target)) setIsOpen(false); };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
   return (
     <div className="relative w-full" ref={dropdownRef}>
-      {label && (
-        <label className="flex items-center gap-1.5 text-[15px] font-bold text-gray-500 mb-1.5 ml-1">
-          {Icon && <Icon size={16} className="text-gray-400" />} {label}
-        </label>
-      )}
+      {label && <label className="flex items-center gap-1.5 text-[15px] font-bold text-gray-500 mb-1.5 ml-1">{Icon && <Icon size={16} className="text-gray-400" />} {label}</label>}
       <button type="button" onClick={() => setIsOpen(!isOpen)} className={`w-full bg-white border-2 ${isOpen ? 'border-blue-400 shadow-md' : 'border-gray-200 hover:border-gray-300'} p-3.5 rounded-xl flex justify-between items-center outline-none transition-all shadow-sm text-left`}>
         <span className={`font-bold text-[16px] truncate pr-2 ${value ? 'text-gray-800' : 'text-gray-300'}`}>{value || placeholder}</span>
         <span className={`text-gray-400 text-[14px] transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}>▼</span>
@@ -235,9 +209,7 @@ const CustomDropdown = ({ label, icon: Icon, options, value, onChange, placehold
       {isOpen && (
         <ul className="absolute z-50 w-full mt-1.5 bg-white border-2 border-gray-100 rounded-xl shadow-[0_10px_40px_rgba(0,0,0,0.12)] max-h-60 overflow-y-auto py-1.5 top-full left-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
           {options.length === 0 && <li className="px-4 py-2.5 text-[15px] text-gray-400 font-bold">無選項可用</li>}
-          {options.map(opt => (
-            <li key={opt} onClick={() => { onChange(opt); setIsOpen(false); }} className={`px-4 py-3 text-[16px] font-bold cursor-pointer transition-colors flex items-center gap-2 ${value === opt ? 'bg-blue-500 text-white' : 'text-gray-700 hover:bg-gray-100'}`}>{opt}</li>
-          ))}
+          {options.map(opt => <li key={opt} onClick={() => { onChange(opt); setIsOpen(false); }} className={`px-4 py-3 text-[16px] font-bold cursor-pointer transition-colors flex items-center gap-2 ${value === opt ? 'bg-blue-500 text-white' : 'text-gray-700 hover:bg-gray-100'}`}>{opt}</li>)}
         </ul>
       )}
     </div>
@@ -265,9 +237,7 @@ const MyCustomPieChart = ({ data, colors }) => {
     const MIN_DIST = 0.16; 
     sideSlices.sort((a, b) => a.targetY - b.targetY); 
     for (let j = 1; j < sideSlices.length; j++) {
-      if (sideSlices[j].targetY - sideSlices[j-1].targetY < MIN_DIST) {
-        sideSlices[j].targetY = sideSlices[j-1].targetY + MIN_DIST;
-      }
+      if (sideSlices[j].targetY - sideSlices[j-1].targetY < MIN_DIST) sideSlices[j].targetY = sideSlices[j-1].targetY + MIN_DIST;
     }
   };
 
@@ -286,8 +256,7 @@ const MyCustomPieChart = ({ data, colors }) => {
             </g>
           );
         }
-        const startX = Math.cos(s.startAngle), startY = Math.sin(s.startAngle);
-        const endX = Math.cos(s.endAngle), endY = Math.sin(s.endAngle);
+        const startX = Math.cos(s.startAngle), startY = Math.sin(s.startAngle), endX = Math.cos(s.endAngle), endY = Math.sin(s.endAngle);
         const largeArcFlag = s.slicePercent > 0.5 ? 1 : 0;
         const pathData = [`M 0 0`, `L ${startX} ${startY}`, `A 1 1 0 ${largeArcFlag} 1 ${endX} ${endY}`, `Z`].join(' ');
 
@@ -412,18 +381,12 @@ export default function App() {
     const handleBeforeUnload = (e) => { e.preventDefault(); e.returnValue = ''; };
     const handlePopState = (e) => {
       const confirmExit = window.confirm("確定要關閉記帳本嗎？\n\n(免煩惱！您的資料都已經即時安全儲存至雲端囉 ✨)");
-      if (!confirmExit) {
-        window.history.pushState({ trap: true }, '');
-      } else {
-        setTimeout(() => { try { window.close(); } catch(err) {} window.history.back(); }, 100);
-      }
+      if (!confirmExit) { window.history.pushState({ trap: true }, ''); } 
+      else { setTimeout(() => { try { window.close(); } catch(err) {} window.history.back(); }, 100); }
     };
     window.addEventListener('beforeunload', handleBeforeUnload);
     window.addEventListener('popstate', handlePopState);
-    return () => {
-      window.removeEventListener('beforeunload', handleBeforeUnload);
-      window.removeEventListener('popstate', handlePopState);
-    };
+    return () => { window.removeEventListener('beforeunload', handleBeforeUnload); window.removeEventListener('popstate', handlePopState); };
   }, []);
 
   useEffect(() => {
@@ -477,7 +440,6 @@ export default function App() {
     const NINETY_DAYS_MS = 90 * 24 * 60 * 60 * 1000;
     const now = Date.now();
     const recordsToPrune = records.filter(r => r.photoBase64 && (now - r.timestamp > NINETY_DAYS_MS));
-
     if (recordsToPrune.length > 0) {
       const pruneOldPhotos = async () => {
         try {
@@ -488,7 +450,7 @@ export default function App() {
             batch.update(docRef, { photoBase64: deleteField(), note: newNote });
           });
           await batch.commit();
-        } catch (e) { console.error("圖片清理失敗", e); }
+        } catch (e) {}
       };
       pruneOldPhotos();
     }
@@ -554,8 +516,7 @@ export default function App() {
     const displayRecs = searchQuery 
        ? records.filter(r => {
             if (r.date > getLocalTodayStr()) return false;
-            const q = searchQuery.toLowerCase();
-            return `${r.title || ''} ${r.merchant || ''} ${r.note || ''} ${r.category || ''} ${r.method || ''} ${r.subMethod || ''} ${r.transferToMethod || ''} ${r.transferToSubMethod || ''} ${Array.isArray(r.payer)?r.payer.join(' '):r.payer || ''}`.toLowerCase().includes(q);
+            return `${r.title || ''} ${r.merchant || ''} ${r.note || ''} ${r.category || ''} ${r.method || ''} ${r.subMethod || ''} ${r.transferToMethod || ''} ${r.transferToSubMethod || ''} ${Array.isArray(r.payer)?r.payer.join(' '):r.payer || ''}`.toLowerCase().includes(searchQuery.toLowerCase());
          })
        : records.filter(r => r.date === homeFilterDate);
     if (index + direction < 0 || index + direction >= displayRecs.length) return;
@@ -678,26 +639,21 @@ export default function App() {
       else if (recordType === 'income') { baseData.payer = recordPayer; baseData.category = recordCategory; baseData.title = '收入'; } 
       else if (recordType === 'transfer') { baseData.payer = recordPayer; baseData.category = recordCategory; baseData.title = '轉帳'; baseData.transferToMethod = transferToMethod; baseData.transferToSubMethod = transferToSubMethod; }
 
-      const batch = writeBatch(db);
-      let opsCount = 0;
+      const batch = writeBatch(db); let opsCount = 0;
 
       if (!isEditing) {
-        const curRef = doc(collection(db, 'artifacts', appId, 'public', 'data', 'expenses'));
-        batch.set(curRef, { ...baseData, timestamp: Date.now() });
-        opsCount++;
+        batch.set(doc(collection(db, 'artifacts', appId, 'public', 'data', 'expenses')), { ...baseData, timestamp: Date.now() }); opsCount++;
         if (recordFrequency !== '一次') {
           generateFutureDates(recordDate, recordFrequency, recordFrequencyDays, recordFrequencyInterval, recordFrequencyCustomText, 1).forEach(d => {
             if(opsCount >= 490) return;
-            batch.set(doc(collection(db, 'artifacts', appId, 'public', 'data', 'expenses')), { ...baseData, date: d, timestamp: new Date(d + 'T07:00:00').getTime() });
-            opsCount++;
+            batch.set(doc(collection(db, 'artifacts', appId, 'public', 'data', 'expenses')), { ...baseData, date: d, timestamp: new Date(d + 'T07:00:00').getTime() }); opsCount++;
           });
         }
       } else {
         const curRef = doc(db, 'artifacts', appId, 'public', 'data', 'expenses', editRecordId);
         if (!recordPhoto && oldRecord?.photoBase64) baseData.photoBase64 = deleteField();
         if (!updateFuture && oldRecord?.groupId) { baseData.frequency = '一次'; baseData.frequencyDays = []; baseData.frequencyInterval = ''; baseData.frequencyCustomText = ''; }
-        batch.update(curRef, { ...baseData, timestamp: oldRecord.timestamp });
-        opsCount++;
+        batch.update(curRef, { ...baseData, timestamp: oldRecord.timestamp }); opsCount++;
         if (updateFuture && currentGroupId) {
           records.filter(r => r.groupId === currentGroupId && r.date > oldRecord.date && r.id !== editRecordId).forEach(r => {
             if(opsCount >= 490) return; batch.delete(doc(db, 'artifacts', appId, 'public', 'data', 'expenses', r.id)); opsCount++; 
@@ -706,8 +662,7 @@ export default function App() {
         if (updateFuture && recordFrequency !== '一次') {
            generateFutureDates(recordDate, recordFrequency, recordFrequencyDays, recordFrequencyInterval, recordFrequencyCustomText, 1).filter(d => d > recordDate).forEach(d => {
              if(opsCount >= 490) return;
-             batch.set(doc(collection(db, 'artifacts', appId, 'public', 'data', 'expenses')), { ...baseData, date: d, timestamp: new Date(d + 'T07:00:00').getTime() });
-             opsCount++;
+             batch.set(doc(collection(db, 'artifacts', appId, 'public', 'data', 'expenses')), { ...baseData, date: d, timestamp: new Date(d + 'T07:00:00').getTime() }); opsCount++;
            });
         }
       }
@@ -1209,6 +1164,77 @@ export default function App() {
     );
   };
 
+  const PillGroupMulti = ({ label, icon: Icon, options, values = [], onChange, isPayer = false }) => {
+    const hasFamily = values.includes('全家');
+    const hasIndividuals = values.some(v => v !== '全家');
+    const handleToggle = (opt) => {
+      let newVals = [...values];
+      if (isPayer) {
+        if (opt === '全家') { if (hasFamily) newVals = []; else newVals = ['全家']; } 
+        else {
+          if (hasFamily) newVals = [opt]; 
+          else { if (newVals.includes(opt)) newVals = newVals.filter(v => v !== opt); else newVals.push(opt); }
+        }
+      } else {
+        if (newVals.includes(opt)) newVals = newVals.filter(v => v !== opt); else newVals.push(opt);
+      }
+      onChange(newVals);
+    };
+
+    const renderButtonRow = (rowOptions, startIndex = 0) => (
+      <div className="flex w-full gap-1 sm:gap-1.5">
+        {rowOptions.map((opt, idxOffset) => {
+          const actualIdx = startIndex + idxOffset;
+          const isSelected = values.includes(opt);
+          const isDisabled = isPayer && ((opt === '全家' && hasIndividuals) || (opt !== '全家' && hasFamily));
+          
+          const style = isPayer ? getRoleColorStyle(opt, actualIdx) : { bg: 'bg-[#F59E0B]', text: 'text-gray-700', borderSel: 'border-[#F59E0B]', lightBg: 'bg-[#FFE28A]' };
+          
+          let btnClass = '';
+          if (isDisabled) {
+             btnClass = 'bg-gray-100 text-gray-300 border-transparent cursor-not-allowed opacity-60';
+          } else if (isSelected) {
+             btnClass = isPayer 
+               ? `${style.bg} text-white ${style.borderSel} transform -translate-y-0.5 z-10` 
+               : `${style.lightBg} text-gray-900 border-[#F59E0B] transform -translate-y-0.5 z-10`;
+          } else {
+             btnClass = isPayer
+               ? `bg-white ${style.text} border-gray-200 hover:border-gray-300 hover:${style.lightBg}`
+               : `bg-white text-gray-500 border-gray-200 hover:border-gray-300 hover:bg-gray-50`;
+          }
+
+          return (
+            <button key={opt} type="button" onClick={() => handleToggle(opt)} className={`flex-1 min-w-0 py-2 px-0.5 rounded-[1.2rem] text-[12px] sm:text-[14px] font-black transition-all duration-200 border-2 shadow-sm flex items-center justify-center leading-tight truncate ${btnClass}`}>
+              {opt}
+            </button>
+          )
+        })}
+      </div>
+    );
+
+    const needsTwoRows = options.length >= 6;
+    const splitIndex = Math.ceil(options.length / 2);
+
+    return (
+      <div className="mb-4 w-full">
+        {label && <label className="flex items-center gap-1.5 text-[14px] font-bold text-gray-500 mb-2 ml-1">{Icon && <Icon size={14} className="text-gray-400" />} {label}</label>}
+        {needsTwoRows ? (
+          <div className="flex flex-col gap-1.5">
+            {renderButtonRow(options.slice(0, splitIndex), 0)}
+            {renderButtonRow(options.slice(splitIndex), splitIndex)}
+          </div>
+        ) : (
+          renderButtonRow(options, 0)
+        )}
+      </div>
+    );
+  };
+
+  const toggleFrequencyDay = (d) => {
+    if (recordFrequencyDays.includes(d)) setRecordFrequencyDays(recordFrequencyDays.filter(v => v !== d));
+    else setRecordFrequencyDays([...recordFrequencyDays, d]);
+  };
+
   const displayRecords = records.filter(r => {
     if (searchQuery) {
       if (r.date > getLocalTodayStr()) return false; 
@@ -1280,9 +1306,7 @@ export default function App() {
   const totalAnalysisAmount = chartData.reduce((sum, d) => sum + d.value, 0);
   const chartColors = ['#F472B6', '#60A5FA', '#34D399', '#FBBF24', '#A78BFA', '#F87171', '#38BDF8', '#4ADE80', '#FCD34D', '#C084FC'];
 
-  const uniqueRoles = useMemo(() => {
-    return ['全部', ...new Set(records.map(r => r.addedByRole).filter(Boolean))];
-  }, [records]);
+  const uniqueRoles = useMemo(() => { return ['全部', ...new Set(records.map(r => r.addedByRole).filter(Boolean))]; }, [records]);
 
   let isFormValid = false;
   const parsedAmt = Number(String(recordAmount).replace(/,/g, '').replace(/[^\d]/g, ''));
@@ -1301,93 +1325,6 @@ export default function App() {
       if (recordFrequency === '區間' && recordFrequencyInterval === '自訂' && !recordFrequencyCustomText) isFormValid = false;
     }
   }
-
-  const PillGroupMulti = ({ label, icon: Icon, options, values = [], onChange, isPayer = false }) => {
-    const payerColors = [
-      { bg: 'bg-sky-500', text: 'text-sky-600', borderSel: 'border-sky-600', lightBg: 'bg-sky-50' },
-      { bg: 'bg-violet-500', text: 'text-violet-600', borderSel: 'border-violet-600', lightBg: 'bg-violet-50' },
-      { bg: 'bg-rose-500', text: 'text-rose-600', borderSel: 'border-rose-600', lightBg: 'bg-rose-50' },
-      { bg: 'bg-cyan-500', text: 'text-cyan-600', borderSel: 'border-cyan-600', lightBg: 'bg-cyan-50' }
-    ];
-
-    const specificPayerColors = {
-      '全家': { bg: 'bg-amber-500', text: 'text-amber-600', borderSel: 'border-amber-600', lightBg: 'bg-amber-50' },
-      '老公': { bg: 'bg-lime-500', text: 'text-lime-600', borderSel: 'border-lime-600', lightBg: 'bg-lime-50' },
-      '老婆': { bg: 'bg-[#FF8C94]', text: 'text-[#E65A65]', borderSel: 'border-[#FF8C94]', lightBg: 'bg-[#FFF0F2]' },
-      '蔚蔚': { bg: 'bg-[#48D1CC]', text: 'text-[#289C97]', borderSel: 'border-[#48D1CC]', lightBg: 'bg-[#E6FAFA]' },
-      '恩恩': { bg: 'bg-[#92A8D1]', text: 'text-[#6A85B6]', borderSel: 'border-[#92A8D1]', lightBg: 'bg-[#F0F4F8]' },
-    };
-
-    const hasFamily = values.includes('全家');
-    const hasIndividuals = values.some(v => v !== '全家');
-    const handleToggle = (opt) => {
-      let newVals = [...values];
-      if (isPayer) {
-        if (opt === '全家') { if (hasFamily) newVals = []; else newVals = ['全家']; } 
-        else {
-          if (hasFamily) newVals = [opt]; 
-          else { if (newVals.includes(opt)) newVals = newVals.filter(v => v !== opt); else newVals.push(opt); }
-        }
-      } else {
-        if (newVals.includes(opt)) newVals = newVals.filter(v => v !== opt); else newVals.push(opt);
-      }
-      onChange(newVals);
-    };
-
-    const renderButtonRow = (rowOptions, startIndex = 0) => (
-      <div className="flex w-full gap-1 sm:gap-1.5">
-        {rowOptions.map((opt, idxOffset) => {
-          const actualIdx = startIndex + idxOffset;
-          const isSelected = values.includes(opt);
-          const isDisabled = isPayer && ((opt === '全家' && hasIndividuals) || (opt !== '全家' && hasFamily));
-          
-          const defaultStyle = isPayer ? payerColors[actualIdx % payerColors.length] : { bg: 'bg-[#F59E0B]', text: 'text-gray-700', borderSel: 'border-[#F59E0B]', lightBg: 'bg-[#FFE28A]' };
-          const style = isPayer ? (specificPayerColors[opt] || defaultStyle) : defaultStyle;
-          
-          let btnClass = '';
-          if (isDisabled) {
-             btnClass = 'bg-gray-100 text-gray-300 border-transparent cursor-not-allowed opacity-60';
-          } else if (isSelected) {
-             btnClass = isPayer 
-               ? `${style.bg} text-white ${style.borderSel} transform -translate-y-0.5 z-10` 
-               : `${style.lightBg} text-gray-900 border-[#F59E0B] transform -translate-y-0.5 z-10`;
-          } else {
-             btnClass = isPayer
-               ? `bg-white ${style.text} border-gray-200 hover:border-gray-300 hover:${style.lightBg}`
-               : `bg-white text-gray-500 border-gray-200 hover:border-gray-300 hover:bg-gray-50`;
-          }
-
-          return (
-            <button key={opt} type="button" onClick={() => handleToggle(opt)} className={`flex-1 min-w-0 py-2 px-0.5 rounded-[1.2rem] text-[12px] sm:text-[14px] font-black transition-all duration-200 border-2 shadow-sm flex items-center justify-center leading-tight truncate ${btnClass}`}>
-              {opt}
-            </button>
-          )
-        })}
-      </div>
-    );
-
-    const needsTwoRows = options.length >= 6;
-    const splitIndex = Math.ceil(options.length / 2);
-
-    return (
-      <div className="mb-4 w-full">
-        {label && <label className="flex items-center gap-1.5 text-[14px] font-bold text-gray-500 mb-2 ml-1">{Icon && <Icon size={14} className="text-gray-400" />} {label}</label>}
-        {needsTwoRows ? (
-          <div className="flex flex-col gap-1.5">
-            {renderButtonRow(options.slice(0, splitIndex), 0)}
-            {renderButtonRow(options.slice(splitIndex), splitIndex)}
-          </div>
-        ) : (
-          renderButtonRow(options, 0)
-        )}
-      </div>
-    );
-  };
-
-  const toggleFrequencyDay = (d) => {
-    if (recordFrequencyDays.includes(d)) setRecordFrequencyDays(recordFrequencyDays.filter(v => v !== d));
-    else setRecordFrequencyDays([...recordFrequencyDays, d]);
-  };
 
   if (!user) {
     return (
@@ -1658,7 +1595,7 @@ export default function App() {
           </div>
         </main>
         
-        {/* 帳戶明細歷史 Modal (加入日期區間) */}
+        {/* 帳戶明細歷史 Modal */}
         {viewingAccountHistory && (
           <div className="fixed inset-0 bg-black/40 z-[100] flex justify-center items-center p-4 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setViewingAccountHistory(null)}>
             <div className="bg-white w-full max-w-md max-h-[85vh] flex flex-col rounded-[1.5rem] p-5 shadow-2xl relative" onClick={e => e.stopPropagation()}>
@@ -1684,7 +1621,6 @@ export default function App() {
                   const accHistory = records.filter(r => {
                      if (r.date > historyEndDate || r.date < historyStartDate) return false;
                      if (r.date > todayStr) return false;
-                     
                      const getAccName = (method, subMethod) => method === '現金' ? '現金' : subMethod;
                      const fromAcc = getAccName(r.method, r.subMethod);
                      const toAcc = getAccName(r.transferToMethod, r.transferToSubMethod);
@@ -1700,47 +1636,29 @@ export default function App() {
                     const isIncome = exp.type === 'income';
                     const isTransfer = exp.type === 'transfer';
                     const getAccName = (method, subMethod) => method === '現金' ? '現金' : subMethod;
-                    
                     let isPositive = false;
                     if (isIncome && getAccName(exp.method, exp.subMethod) === viewingAccountHistory) isPositive = true;
                     if (isTransfer && getAccName(exp.transferToMethod, exp.transferToSubMethod) === viewingAccountHistory) isPositive = true;
-
-                    let freqDisplay = exp.frequency;
-                    if (freqDisplay === '區間') freqDisplay = exp.frequencyInterval === '自訂' ? exp.frequencyCustomText : exp.frequencyInterval;
+                    let freqDisplay = exp.frequency === '區間' ? (exp.frequencyInterval === '自訂' ? exp.frequencyCustomText : exp.frequencyInterval) : exp.frequency;
 
                     return (
                       <div key={exp.id} onClick={() => setViewingRecord(exp)} className="bg-gray-50 p-3 rounded-xl border border-gray-100 flex justify-between items-center cursor-pointer hover:bg-gray-100 transition">
                         <div className="overflow-hidden pr-2">
                            <div className="flex flex-wrap items-center gap-1.5 mb-1">
                              <span className="text-[13px] font-bold text-gray-400">{toROCYearStr(exp.date)}</span>
-                             <span className="bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded text-[11px] font-bold tracking-wide">
-                               {freqDisplay || '一次'}
-                             </span>
+                             {exp.addedByRole && <span className={`${getRoleColorStyle(exp.addedByRole).lightBg} ${getRoleColorStyle(exp.addedByRole).text} border ${getRoleColorStyle(exp.addedByRole).lightBorder} px-1.5 py-0.5 rounded text-[11px] font-bold tracking-wide shrink-0`}>{exp.addedByRole}</span>}
+                             <span className="bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded text-[11px] font-bold tracking-wide">{freqDisplay || '一次'}</span>
                              {exp.payer && <span className="bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded text-[11px] font-bold tracking-wide">{Array.isArray(exp.payer)?exp.payer.join(', '):exp.payer}</span>}
                            </div>
-                           <div className="font-black text-[16px] text-gray-700 truncate">
-                              {isTransfer ? `轉帳: ${exp.method}➜${exp.transferToMethod}` : exp.title}
-                           </div>
+                           <div className="font-black text-[16px] text-gray-700 truncate">{isTransfer ? `轉帳: ${exp.method}➜${exp.transferToMethod}` : exp.title}</div>
                            <div className="flex flex-wrap items-center gap-1.5 mt-1">
                              {!isTransfer && exp.method && exp.method !== '未指定' && <span className="text-gray-500 text-[12px] font-bold bg-gray-100 px-1.5 py-0.5 rounded border border-gray-200">💳 {exp.method}{exp.subMethod ? `(${exp.subMethod})` : ''}</span>}
                              {exp.merchant && exp.merchant !== '未指定' && <span className="text-gray-500 text-[12px] font-bold bg-gray-100 px-1.5 py-0.5 rounded border border-gray-200">🏪 {exp.merchant}</span>}
-                             
-                             {exp.photoBase64 && (
-                               <span className="shrink-0 w-[22px] h-[22px] rounded-md overflow-hidden shadow-sm inline-block border border-gray-200" title="有照片">
-                                 <img src={exp.photoBase64} alt="圖" className="w-full h-full object-cover" />
-                               </span>
-                             )}
-                             
-                             {exp.note && (
-                               <span className="text-gray-500 text-[12px] font-bold bg-white px-1.5 py-0.5 rounded border border-gray-200 max-w-[120px] truncate">
-                                 📝 {exp.note}
-                               </span>
-                             )}
+                             {exp.photoBase64 && <span className="shrink-0 w-[22px] h-[22px] rounded-md overflow-hidden shadow-sm inline-block border border-gray-200" title="有照片"><img src={exp.photoBase64} alt="圖" className="w-full h-full object-cover" /></span>}
+                             {exp.note && <span className="text-gray-500 text-[12px] font-bold bg-white px-1.5 py-0.5 rounded border border-gray-200 max-w-[120px] truncate">📝 {exp.note}</span>}
                            </div>
                         </div>
-                        <div className={`font-black text-[19px] shrink-0 ${isPositive ? 'text-green-500' : 'text-gray-800'}`}>
-                           {isPositive ? '+' : '-'}${exp.amount.toLocaleString()}
-                        </div>
+                        <div className={`font-black text-[19px] shrink-0 ${isPositive ? 'text-green-500' : 'text-gray-800'}`}>{isPositive ? '+' : '-'}${exp.amount.toLocaleString()}</div>
                       </div>
                     )
                   });
@@ -1813,8 +1731,7 @@ export default function App() {
                   const isIncome = exp.type === 'income'; const isTransfer = exp.type === 'transfer';
                   const payerStr = Array.isArray(exp.payer) ? exp.payer.join(', ') : exp.payer;
                   const isSortable = !searchQuery && homeFilterDate;
-                  let freqDisplay = exp.frequency;
-                  if (freqDisplay === '區間') freqDisplay = exp.frequencyInterval === '自訂' ? exp.frequencyCustomText : exp.frequencyInterval;
+                  let freqDisplay = exp.frequency === '區間' ? (exp.frequencyInterval === '自訂' ? exp.frequencyCustomText : exp.frequencyInterval) : exp.frequency;
                   
                   return (
                     <div key={exp.id} onClick={() => setViewingRecord(exp)} className="bg-white p-3 rounded-xl shadow-sm border border-gray-100 flex justify-between items-start group relative hover:shadow-md transition duration-300 cursor-pointer">
@@ -1822,7 +1739,7 @@ export default function App() {
                       <div className="flex-1 pl-2.5 pr-2 overflow-hidden flex flex-col justify-center py-1.5">
                         <div className="flex flex-wrap items-center gap-1.5 mb-1.5">
                           <div className="text-[12px] font-bold text-gray-400">建檔: {toROCYearStr(exp.timestamp)} {new Date(exp.timestamp).toLocaleTimeString('zh-TW', { hour12: false, hour: '2-digit', minute: '2-digit' })}</div>
-                          {exp.addedByRole && <span className="bg-gray-100 px-1.5 py-0.5 rounded text-gray-500 text-[12px] font-bold tracking-wide shrink-0">{exp.addedByRole}</span>}
+                          {exp.addedByRole && <span className={`${getRoleColorStyle(exp.addedByRole).lightBg} ${getRoleColorStyle(exp.addedByRole).text} border ${getRoleColorStyle(exp.addedByRole).lightBorder} px-1.5 py-0.5 rounded text-[12px] font-bold tracking-wide shrink-0`}>{exp.addedByRole}</span>}
                           <span className="bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded text-[12px] font-bold tracking-wide shrink-0">{freqDisplay || '一次'}</span>
                         </div>
                         <div className="flex flex-wrap items-center gap-1.5">
@@ -2344,6 +2261,7 @@ export default function App() {
                         <div className="overflow-hidden pr-2">
                            <div className="flex flex-wrap items-center gap-1.5 mb-1">
                              <span className="text-[13px] font-bold text-gray-400">{toROCYearStr(exp.date)}</span>
+                             {exp.addedByRole && <span className={`${getRoleColorStyle(exp.addedByRole).lightBg} ${getRoleColorStyle(exp.addedByRole).text} border ${getRoleColorStyle(exp.addedByRole).lightBorder} px-1.5 py-0.5 rounded text-[11px] font-bold tracking-wide shrink-0`}>{exp.addedByRole}</span>}
                              <span className="bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded text-[11px] font-bold tracking-wide">{freqDisplay || '一次'}</span>
                              {exp.payer && <span className="bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded text-[11px] font-bold tracking-wide">{Array.isArray(exp.payer)?exp.payer.join(', '):exp.payer}</span>}
                            </div>
@@ -2382,7 +2300,7 @@ export default function App() {
                 {viewingRecord.method && viewingRecord.method !== '未指定' && <div className="flex justify-between items-center border-b border-gray-100 pb-1.5"><span className="text-gray-400">{viewingRecord.type === 'transfer' ? '轉出帳戶' : '付款方式'}</span><span className="text-gray-800">{viewingRecord.method} {viewingRecord.subMethod ? `(${viewingRecord.subMethod})` : ''}</span></div>}
                 {viewingRecord.transferToMethod && <div className="flex justify-between items-center border-b border-gray-100 pb-1.5"><span className="text-gray-400">轉入帳戶</span><span className="text-gray-800">{viewingRecord.transferToMethod} {viewingRecord.transferToSubMethod ? `(${viewingRecord.transferToSubMethod})` : ''}</span></div>}
                 <div className="flex justify-between items-center border-b border-gray-100 pb-1.5"><span className="text-gray-400">頻率</span><span className="text-gray-800">{viewingRecord.frequency === '每週' && viewingRecord.frequencyDays?.length > 0 ? `每週 (${viewingRecord.frequencyDays.join('、')})` : viewingRecord.frequency === '每月' && viewingRecord.frequencyDays?.length > 0 ? `每月 (${viewingRecord.frequencyDays.join('、')}號)` : viewingRecord.frequency === '區間' ? (viewingRecord.frequencyInterval === '自訂' ? viewingRecord.frequencyCustomText : viewingRecord.frequencyInterval) : viewingRecord.frequency}</span></div>
-                <div className="flex justify-between items-center border-b border-gray-100 pb-1.5"><span className="text-gray-400">付款人</span><span className="text-gray-800">{viewingRecord.addedByRole}</span></div>
+                <div className="flex justify-between items-center border-b border-gray-100 pb-1.5"><span className="text-gray-400">付款人</span><span className={`${getRoleColorStyle(viewingRecord.addedByRole).lightBg} ${getRoleColorStyle(viewingRecord.addedByRole).text} border ${getRoleColorStyle(viewingRecord.addedByRole).lightBorder} px-2 py-0.5 rounded-md text-[14px] font-bold`}>{viewingRecord.addedByRole}</span></div>
                 {viewingRecord.note && <div className="pt-1.5"><span className="text-gray-400 block mb-1">備註</span><span className="text-gray-800 block bg-gray-50 p-2.5 rounded-xl border border-gray-100">{viewingRecord.note}</span></div>}
                 {viewingRecord.photoBase64 && (
                   <div className="pt-2">
