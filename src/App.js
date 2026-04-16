@@ -16,11 +16,10 @@ if (typeof document !== 'undefined' && !document.getElementById('tailwind-script
 }
 
 // ==========================================
-// 人員專屬色塊統一定義 (付款人、花費對象共用)
+// 人員專屬色塊統一定義
 // ==========================================
 const getRoleColorStyle = (role, index = 0) => {
   if (!role) return { bg: 'bg-gray-100', text: 'text-gray-500', borderSel: 'border-gray-200', lightBg: 'bg-gray-100', lightBorder: 'border-transparent' };
-  
   const specificColors = {
     '全家': { bg: 'bg-amber-500', text: 'text-amber-600', borderSel: 'border-amber-600', lightBg: 'bg-amber-50', lightBorder: 'border-amber-200' },
     '老公': { bg: 'bg-lime-500', text: 'text-lime-600', borderSel: 'border-lime-600', lightBg: 'bg-lime-50', lightBorder: 'border-lime-200' },
@@ -28,14 +27,12 @@ const getRoleColorStyle = (role, index = 0) => {
     '蔚蔚': { bg: 'bg-[#48D1CC]', text: 'text-[#289C97]', borderSel: 'border-[#48D1CC]', lightBg: 'bg-[#E6FAFA]', lightBorder: 'border-[#A4EBE8]' },
     '恩恩': { bg: 'bg-[#92A8D1]', text: 'text-[#6A85B6]', borderSel: 'border-[#92A8D1]', lightBg: 'bg-[#F0F4F8]', lightBorder: 'border-[#C5D3EB]' },
   };
-  
   const fallbackColors = [
     { bg: 'bg-sky-500', text: 'text-sky-600', borderSel: 'border-sky-600', lightBg: 'bg-sky-50', lightBorder: 'border-sky-200' },
     { bg: 'bg-violet-500', text: 'text-violet-600', borderSel: 'border-violet-600', lightBg: 'bg-violet-50', lightBorder: 'border-violet-200' },
     { bg: 'bg-rose-500', text: 'text-rose-600', borderSel: 'border-rose-600', lightBg: 'bg-rose-50', lightBorder: 'border-rose-200' },
     { bg: 'bg-cyan-500', text: 'text-cyan-600', borderSel: 'border-cyan-600', lightBg: 'bg-cyan-50', lightBorder: 'border-cyan-200' }
   ];
-
   return specificColors[role] || fallbackColors[index % fallbackColors.length];
 };
 
@@ -43,26 +40,16 @@ const getRoleColorStyle = (role, index = 0) => {
 // 計算機功能與按鍵設定
 // ==========================================
 const calcKeys = [
-  { label: 'C', color: 'text-red-500 bg-red-50 font-black' },
-  { label: '⌫', color: 'text-orange-500 bg-orange-50 font-black' },
-  { label: '(', color: 'text-gray-600 bg-gray-200 font-bold' },
-  { label: ')', color: 'text-gray-600 bg-gray-200 font-bold' },
-  { label: '7', color: 'bg-white border border-gray-200 shadow-sm text-gray-800 font-black' },
-  { label: '8', color: 'bg-white border border-gray-200 shadow-sm text-gray-800 font-black' },
-  { label: '9', color: 'bg-white border border-gray-200 shadow-sm text-gray-800 font-black' },
-  { label: '÷', color: 'bg-blue-100 text-blue-600 font-black text-[24px]' },
-  { label: '4', color: 'bg-white border border-gray-200 shadow-sm text-gray-800 font-black' },
-  { label: '5', color: 'bg-white border border-gray-200 shadow-sm text-gray-800 font-black' },
-  { label: '6', color: 'bg-white border border-gray-200 shadow-sm text-gray-800 font-black' },
-  { label: '×', color: 'bg-blue-100 text-blue-600 font-black text-[24px]' },
-  { label: '1', color: 'bg-white border border-gray-200 shadow-sm text-gray-800 font-black' },
-  { label: '2', color: 'bg-white border border-gray-200 shadow-sm text-gray-800 font-black' },
-  { label: '3', color: 'bg-white border border-gray-200 shadow-sm text-gray-800 font-black' },
-  { label: '-', color: 'bg-blue-100 text-blue-600 font-black text-[24px]' },
-  { label: '0', color: 'bg-white border border-gray-200 shadow-sm text-gray-800 font-black' },
-  { label: '.', color: 'bg-white border border-gray-200 shadow-sm text-gray-800 font-black' },
-  { label: '=', color: 'bg-indigo-500 text-white shadow-md font-black text-[24px]' },
-  { label: '+', color: 'bg-blue-100 text-blue-600 font-black text-[24px]' }
+  { label: 'C', color: 'text-red-500 bg-red-50 font-black' }, { label: '⌫', color: 'text-orange-500 bg-orange-50 font-black' },
+  { label: '(', color: 'text-gray-600 bg-gray-200 font-bold' }, { label: ')', color: 'text-gray-600 bg-gray-200 font-bold' },
+  { label: '7', color: 'bg-white border border-gray-200 shadow-sm text-gray-800 font-black' }, { label: '8', color: 'bg-white border border-gray-200 shadow-sm text-gray-800 font-black' },
+  { label: '9', color: 'bg-white border border-gray-200 shadow-sm text-gray-800 font-black' }, { label: '÷', color: 'bg-blue-100 text-blue-600 font-black text-[24px]' },
+  { label: '4', color: 'bg-white border border-gray-200 shadow-sm text-gray-800 font-black' }, { label: '5', color: 'bg-white border border-gray-200 shadow-sm text-gray-800 font-black' },
+  { label: '6', color: 'bg-white border border-gray-200 shadow-sm text-gray-800 font-black' }, { label: '×', color: 'bg-blue-100 text-blue-600 font-black text-[24px]' },
+  { label: '1', color: 'bg-white border border-gray-200 shadow-sm text-gray-800 font-black' }, { label: '2', color: 'bg-white border border-gray-200 shadow-sm text-gray-800 font-black' },
+  { label: '3', color: 'bg-white border border-gray-200 shadow-sm text-gray-800 font-black' }, { label: '-', color: 'bg-blue-100 text-blue-600 font-black text-[24px]' },
+  { label: '0', color: 'bg-white border border-gray-200 shadow-sm text-gray-800 font-black' }, { label: '.', color: 'bg-white border border-gray-200 shadow-sm text-gray-800 font-black' },
+  { label: '=', color: 'bg-indigo-500 text-white shadow-md font-black text-[24px]' }, { label: '+', color: 'bg-blue-100 text-blue-600 font-black text-[24px]' }
 ];
 
 const evaluateCalc = (str) => {
@@ -73,55 +60,35 @@ const evaluateCalc = (str) => {
       if (!isFinite(result) || isNaN(result)) return '0';
       result = Math.round(result * 100) / 100;
       return String(result);
-  } catch(e) {
-      return str; 
-  }
+  } catch(e) { return str; }
 };
 
 // ==========================================
 // 日期工具函數
 // ==========================================
-const getLocalTodayStr = () => {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-};
-
-const getLocalMonthStartStr = () => {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
-};
-
+const getLocalTodayStr = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+const getLocalMonthStartStr = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`; };
 const toROCYearStr = (dateStr) => { if (!dateStr) return ''; const d = new Date(dateStr); if (isNaN(d.getTime())) return dateStr; return `${d.getFullYear() - 1911}/${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}`; };
 const toROCShortStr = (dateStr) => { if (!dateStr) return ''; const d = new Date(dateStr); if (isNaN(d.getTime())) return dateStr; const days = ['日', '一', '二', '三', '四', '五', '六']; return `${d.getFullYear() - 1911}/${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}(${days[d.getDay()]})`; };
 
 const generateFutureDates = (startDateStr, freq, daysArr, intervalStr, customText, maxYears = 1) => {
-  const dates = [];
-  if (!startDateStr) return dates;
+  const dates = []; if (!startDateStr) return dates;
   const [y, m, d] = startDateStr.split('-').map(Number);
   const startD = new Date(y, m - 1, d, 12, 0, 0, 0); 
   if (isNaN(startD.getTime())) return dates;
-  const endD = new Date(startD.getTime());
-  endD.setFullYear(endD.getFullYear() + maxYears);
+  const endD = new Date(startD.getTime()); endD.setFullYear(endD.getFullYear() + maxYears);
   
   const formatDate = (dateObj) => `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}`;
-  let curr = new Date(startD.getTime());
-  curr.setDate(curr.getDate() + 1); 
+  let curr = new Date(startD.getTime()); curr.setDate(curr.getDate() + 1); 
   const mapDayToNum = { '週日':0, '週一':1, '週二':2, '週三':3, '週四':4, '週五':5, '週六':6 };
   
   if (freq === '每週') {
       const targetDays = daysArr.map(d => mapDayToNum[d]).filter(d => d !== undefined);
       if(targetDays.length === 0) return dates;
-      while(curr <= endD) {
-          if (targetDays.includes(curr.getDay())) dates.push(formatDate(curr));
-          curr.setDate(curr.getDate() + 1);
-      }
+      while(curr <= endD) { if (targetDays.includes(curr.getDay())) dates.push(formatDate(curr)); curr.setDate(curr.getDate() + 1); }
   } else if (freq === '每月') {
       let nextD = new Date(startD.getTime());
-      while (true) {
-          nextD.setMonth(nextD.getMonth() + 1);
-          if (nextD > endD) break;
-          dates.push(formatDate(nextD));
-      }
+      while (true) { nextD.setMonth(nextD.getMonth() + 1); if (nextD > endD) break; dates.push(formatDate(nextD)); }
   } else if (freq === '區間') {
       let nextD = new Date(startD.getTime());
       while(true) {
@@ -131,11 +98,7 @@ const generateFutureDates = (startDateStr, freq, daysArr, intervalStr, customTex
           else if (intervalStr === '一年') { nextD.setFullYear(nextD.getFullYear() + 1); added = true; }
           else if (intervalStr === '自訂') {
               const days = parseInt(customText.replace(/\D/g, ''));
-              if(!isNaN(days) && days > 0) {
-                  const addDays = days > 1 ? days - 1 : 1;
-                  nextD.setDate(nextD.getDate() + addDays);
-                  added = true;
-              }
+              if(!isNaN(days) && days > 0) { const addDays = days > 1 ? days - 1 : 1; nextD.setDate(nextD.getDate() + addDays); added = true; }
           }
           if (!added || nextD > endD) break;
           dates.push(formatDate(nextD));
@@ -645,7 +608,8 @@ export default function App() {
         bankAccounts: ['台北富邦', '元大銀行', '中國信託'],
         electronicTickets: ['點點卡', '悠遊卡', '悠遊付錢包'],
         initialBalances: { '現金': 0 },
-        promptCashSync: false
+        promptCashSync: false,
+        excludedPromptPayers: []
       };
       await setDoc(roomRef, newRoomData);
       saveRoomToLocal(roomCode, roomName, roomPin, currentUserRole);
@@ -666,7 +630,17 @@ export default function App() {
       else {
         const data = roomSnap.data();
         if (data.pin !== roomPin) { setErrorMsg('房間密碼錯誤！'); } 
-        else { saveRoomToLocal(roomCode, data.name, roomPin, currentUserRole); setActiveRoomId(roomCode); setHomeFilterDate(getLocalTodayStr()); setView('room'); }
+        else {
+          let rLoginUsers = data.loginUsers || ['老公', '老婆'];
+          if (!rLoginUsers.includes(currentUserRole)) {
+              rLoginUsers = [...rLoginUsers, currentUserRole];
+              updateDoc(roomRef, { loginUsers: rLoginUsers }).catch(()=>{});
+          }
+          saveRoomToLocal(roomCode, data.name, roomPin, currentUserRole); 
+          setActiveRoomId(roomCode); 
+          setHomeFilterDate(getLocalTodayStr()); 
+          setView('room'); 
+        }
       }
     } catch (err) { setErrorMsg('加入房間失敗：' + err.message); } finally { setIsLoading(false); }
   };
@@ -680,14 +654,14 @@ export default function App() {
       if (roomSnap.exists() && roomSnap.data().pin === savedRoom.pin) {
         let roleToUse = savedRoom.role || '其他家人';
         const roomData = roomSnap.data();
-        const rLoginUsers = roomData.loginUsers || ['老公', '老婆'];
+        let rLoginUsers = roomData.loginUsers || ['老公', '老婆'];
         if (!rLoginUsers.includes(roleToUse)) {
-          setRoomCode(savedRoom.id); setRoomPin(savedRoom.pin); setAvailableLoginUsers(rLoginUsers); setCurrentUserRole('');
-          setErrorMsg(`您的登入身份 [${roleToUse}] 已被更改，請重新點選`); setIsLoading(false); return;
+            rLoginUsers = [...rLoginUsers, roleToUse];
+            updateDoc(roomRef, { loginUsers: rLoginUsers }).catch(()=>{});
         }
         setRoomCode(savedRoom.id); setRoomPin(savedRoom.pin); setCurrentUserRole(roleToUse); setActiveRoomId(savedRoom.id); setHomeFilterDate(getLocalTodayStr()); setView('room');
         saveRoomToLocal(savedRoom.id, roomData.name, savedRoom.pin, roleToUse);
-      } else { setErrorMsg(`進入「${savedRoom.name}」失敗，密碼可能已被更改`); }
+      } else { setErrorMsg(`進入「${savedRoom.name || savedRoom.id}」失敗，密碼可能已被更改`); }
     } catch(err) { setErrorMsg('連線失敗：' + err.message); } finally { setIsLoading(false); }
   };
 
@@ -755,7 +729,14 @@ export default function App() {
       
       await batch.commit();
       
-      if (!isEditing && recordType === 'expense' && recordMethod === '現金' && currentRoom?.promptCashSync) {
+      let shouldPrompt = !isEditing && recordType === 'expense' && recordMethod === '現金' && currentRoom?.promptCashSync;
+      if (shouldPrompt && currentRoom?.excludedPromptPayers?.length > 0) {
+          const payers = Array.isArray(recordPayer) ? recordPayer : [recordPayer];
+          const isExcluded = payers.some(p => currentRoom.excludedPromptPayers.includes(p));
+          if (isExcluded) shouldPrompt = false;
+      }
+
+      if (shouldPrompt) {
         setCrossRoomRecord({ ...baseData, id: `auto_${Date.now()}` });
       }
       
@@ -1989,6 +1970,72 @@ export default function App() {
     );
   }
   else if (view === 'settings') {
+    const PillGroupMulti = ({ label, icon: Icon, options, values = [], onChange, isPayer = false }) => {
+      const hasFamily = values.includes('全家');
+      const hasIndividuals = values.some(v => v !== '全家');
+      const handleToggle = (opt) => {
+        let newVals = [...values];
+        if (isPayer) {
+          if (opt === '全家') { if (hasFamily) newVals = []; else newVals = ['全家']; } 
+          else {
+            if (hasFamily) newVals = [opt]; 
+            else { if (newVals.includes(opt)) newVals = newVals.filter(v => v !== opt); else newVals.push(opt); }
+          }
+        } else {
+          if (newVals.includes(opt)) newVals = newVals.filter(v => v !== opt); else newVals.push(opt);
+        }
+        onChange(newVals);
+      };
+
+      const renderButtonRow = (rowOptions, startIndex = 0) => (
+        <div className="flex w-full gap-1 sm:gap-1.5">
+          {rowOptions.map((opt, idxOffset) => {
+            const actualIdx = startIndex + idxOffset;
+            const isSelected = values.includes(opt);
+            const isDisabled = isPayer && ((opt === '全家' && hasIndividuals) || (opt !== '全家' && hasFamily));
+            
+            const style = isPayer ? getRoleColorStyle(opt, actualIdx) : { bg: 'bg-[#F59E0B]', text: 'text-gray-700', borderSel: 'border-[#F59E0B]', lightBg: 'bg-[#FFE28A]', lightBorder: 'border-[#F59E0B]' };
+            
+            let btnClass = '';
+            if (isDisabled) {
+               btnClass = 'bg-gray-100 text-gray-300 border-transparent cursor-not-allowed opacity-60';
+            } else if (isSelected) {
+               btnClass = isPayer 
+                 ? `${style.bg} text-white ${style.borderSel} transform -translate-y-0.5 z-10` 
+                 : `${style.lightBg} text-gray-900 ${style.borderSel} transform -translate-y-0.5 z-10`;
+            } else {
+               btnClass = isPayer
+                 ? `bg-white ${style.text} border-gray-200 hover:border-gray-300 hover:${style.lightBg}`
+                 : `bg-white text-gray-500 border-gray-200 hover:border-gray-300 hover:bg-gray-50`;
+            }
+
+            return (
+              <button key={opt} type="button" onClick={() => handleToggle(opt)} className={`flex-1 min-w-0 py-2 px-0.5 rounded-[1.2rem] text-[12px] sm:text-[14px] font-black transition-all duration-200 border-2 shadow-sm flex items-center justify-center leading-tight truncate ${btnClass}`}>
+                {opt}
+              </button>
+            )
+          })}
+        </div>
+      );
+
+      const needsTwoRows = options.length >= 6;
+      const splitIndex = Math.ceil(options.length / 2);
+
+      return (
+        <div className="mb-4 w-full">
+          {label && <label className="flex items-center gap-1.5 text-[14px] font-bold text-gray-500 mb-2 ml-1">{Icon && <Icon size={14} className="text-gray-400" />} {label}</label>}
+          {needsTwoRows ? (
+            <div className="flex flex-col gap-1.5">
+              {renderButtonRow(options.slice(0, splitIndex), 0)}
+              {renderButtonRow(options.slice(splitIndex), splitIndex)}
+            </div>
+          ) : (
+            renderButtonRow(options, 0)
+          )}
+        </div>
+      );
+    };
+
     content = (
       <>
         <header className="bg-gradient-to-r from-purple-400 to-pink-400 px-5 py-5 shadow-md shrink-0 z-10 rounded-b-[1.5rem] border-b-4 border-white/20">
@@ -2039,17 +2086,32 @@ export default function App() {
                 <SettingBlock title="🙋 登入人員 (付款人)" items={currentRoom?.loginUsers || ['老公', '老婆']} onUpdate={(newList, oldItem, newItem) => updateSettingField('loginUsers', newList, oldItem, newItem)} themeClass="border-purple-100" spanClass="text-purple-600" btnClass="bg-purple-400" placeholder="輸入登入者名稱..." />
                 <p className="text-[13px] font-bold text-purple-400 mt-1 mb-4 bg-purple-50 p-3 rounded-xl leading-relaxed">💡 在這裡新增的名稱，會自動變成登入畫面的按鈕喔！修改名稱也會連動更新歷史紀錄。</p>
                 
-                <div className="bg-white p-4 sm:p-5 rounded-[1.5rem] border-2 border-green-100 shadow-sm mb-4 flex justify-between items-center gap-4">
-                  <div className="flex-1">
-                    <h3 className="font-bold text-gray-700 text-[16px] sm:text-[18px]">現金支出自動跨房間提示</h3>
-                    <p className="text-[12px] sm:text-[13px] text-gray-500 font-bold mt-1 leading-relaxed">開啟後，每次新增「現金」支出存檔時，會自動跳出傳送至其他房間的詢問視窗。</p>
+                <div className="bg-white p-4 sm:p-5 rounded-[1.5rem] border-2 border-green-100 shadow-sm mb-4">
+                  <div className="flex justify-between items-center gap-4">
+                    <div className="flex-1">
+                      <h3 className="font-bold text-gray-700 text-[16px] sm:text-[18px]">現金支出自動跨房間提示</h3>
+                      <p className="text-[12px] sm:text-[13px] text-gray-500 font-bold mt-1 leading-relaxed">開啟後，每次新增「現金」支出存檔時，會自動跳出傳送至其他房間的詢問視窗。</p>
+                    </div>
+                    <button 
+                      onClick={() => updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', activeRoomId), { promptCashSync: !currentRoom?.promptCashSync })}
+                      className={`w-14 h-8 rounded-full transition-colors relative shadow-inner shrink-0 ${currentRoom?.promptCashSync ? 'bg-green-500' : 'bg-gray-300'}`}
+                    >
+                      <div className={`w-6 h-6 bg-white rounded-full absolute top-1 transition-transform shadow-sm ${currentRoom?.promptCashSync ? 'translate-x-7' : 'translate-x-1'}`}></div>
+                    </button>
                   </div>
-                  <button 
-                    onClick={() => updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', activeRoomId), { promptCashSync: !currentRoom?.promptCashSync })}
-                    className={`w-14 h-8 rounded-full transition-colors relative shadow-inner shrink-0 ${currentRoom?.promptCashSync ? 'bg-green-500' : 'bg-gray-300'}`}
-                  >
-                    <div className={`w-6 h-6 bg-white rounded-full absolute top-1 transition-transform shadow-sm ${currentRoom?.promptCashSync ? 'translate-x-7' : 'translate-x-1'}`}></div>
-                  </button>
+                  {currentRoom?.promptCashSync && (
+                    <div className="mt-4 pt-4 border-t border-gray-100 animate-in fade-in duration-300">
+                       <PillGroupMulti 
+                         label="⛔ 排除提示的花費對象 (選填)" 
+                         icon={User} 
+                         options={currentRoom?.payers || []} 
+                         values={currentRoom?.excludedPromptPayers || []} 
+                         onChange={(vals) => updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', activeRoomId), { excludedPromptPayers: vals })} 
+                         isPayer={true} 
+                       />
+                       <p className="text-[12px] text-gray-400 font-bold mt-2">💡 當現金支出的對象包含上方勾選的對象時，將「不會」跳出跨房間提示。</p>
+                    </div>
+                  )}
                 </div>
 
                 <SettingBlock title="👥 花費對象" items={currentRoom?.payers || []} onUpdate={(newList, oldItem, newItem) => updateSettingField('payers', newList, oldItem, newItem)} themeClass="border-gray-200" spanClass="text-gray-700" btnClass="bg-gray-800" placeholder="輸入花費對象名稱..." />
@@ -2274,31 +2336,31 @@ export default function App() {
         <input type="file" accept=".json" style={{display: 'none'}} ref={fileInputRef} onChange={handleImport} />
         {content}
 
-        {/* 彈跳視窗群組 (全域層級，確保所有 Modal 穩定顯示並可堆疊) */}
-        
+        {/* 彈跳視窗群組 (置於頂層外框中) */}
+
         {/* 0. 智慧計算機 Modal */}
         {showCalc && (
           <div className="fixed inset-0 z-[150] bg-black/60 flex flex-col justify-center items-center p-4 backdrop-blur-[2px] animate-in fade-in duration-200" onClick={() => { setRecordAmount(evaluateCalc(calcStr)); setShowCalc(false); }}>
-             <div className="bg-gray-50 w-full max-w-[280px] sm:max-w-[300px] rounded-[2rem] p-4 sm:p-5 shadow-2xl animate-in zoom-in-95 duration-200 border border-gray-200" onClick={e => e.stopPropagation()}>
+             <div className="bg-gray-50 w-full max-w-[340px] sm:max-w-[380px] rounded-3xl p-5 sm:p-6 shadow-2xl animate-in zoom-in-95 duration-200 border border-gray-200" onClick={e => e.stopPropagation()}>
                 <div className="flex justify-between items-center mb-3">
-                   <span className="text-gray-500 font-bold text-[14px] flex items-center gap-1.5"><Calculator size={16}/> 智慧計算機</span>
-                   <button onClick={() => { setRecordAmount(evaluateCalc(calcStr)); setShowCalc(false); }} className="text-gray-500 bg-gray-200 hover:bg-gray-300 rounded-full p-1.5 transition"><X size={16}/></button>
+                   <span className="text-gray-500 font-bold text-[15px] flex items-center gap-1.5"><Calculator size={18}/> 智慧計算機</span>
+                   <button onClick={() => { setRecordAmount(evaluateCalc(calcStr)); setShowCalc(false); }} className="text-gray-500 bg-gray-200 hover:bg-gray-300 rounded-full p-1.5 transition"><X size={18}/></button>
                 </div>
-                <div className="text-right text-[36px] font-black text-gray-800 mb-4 overflow-x-auto whitespace-nowrap pb-2 border-b-2 border-gray-200 tracking-wider">{calcStr}</div>
-                <div className="grid grid-cols-4 gap-1.5">
+                <div className="text-right text-[42px] font-black text-gray-800 mb-5 overflow-x-auto whitespace-nowrap pb-2 border-b-2 border-gray-200 tracking-wider">{calcStr}</div>
+                <div className="grid grid-cols-4 gap-2.5">
                    {calcKeys.map(k => (
                      <button key={k.label} onClick={() => {
                          if (k.label === 'C') setCalcStr('0');
                          else if (k.label === '⌫') setCalcStr(prev => prev.length > 1 ? prev.slice(0, -1) : '0');
                          else if (k.label === '=') setCalcStr(prev => evaluateCalc(prev));
                          else setCalcStr(prev => prev === '0' && !['+','-','×','÷','.'].includes(k.label) ? k.label : prev + k.label);
-                       }} className={`h-[44px] sm:h-[48px] rounded-xl text-[20px] active:scale-95 transition-transform flex items-center justify-center shadow-sm ${k.color}`}>
+                       }} className={`p-4 sm:py-5 rounded-2xl text-[22px] sm:text-[24px] active:scale-95 transition-transform flex items-center justify-center shadow-sm ${k.color}`}>
                        {k.label}
                      </button>
                    ))}
                 </div>
-                <button onClick={() => { setRecordAmount(evaluateCalc(calcStr)); setShowCalc(false); }} className={`w-full mt-3 ${recordType === 'income' ? 'bg-green-500' : recordType === 'transfer' ? 'bg-blue-500' : 'bg-orange-500'} text-white py-3 rounded-xl font-black text-[18px] shadow-md active:scale-95 transition flex justify-center items-center gap-2`}>
-                  <Check size={20}/> 確認金額
+                <button onClick={() => { setRecordAmount(evaluateCalc(calcStr)); setShowCalc(false); }} className={`w-full mt-4 ${recordType === 'income' ? 'bg-green-500' : recordType === 'transfer' ? 'bg-blue-500' : 'bg-orange-500'} text-white py-4 rounded-xl font-black text-[20px] shadow-md active:scale-95 transition flex justify-center items-center gap-2`}>
+                  <Check size={24}/> 確認金額
                 </button>
              </div>
           </div>
