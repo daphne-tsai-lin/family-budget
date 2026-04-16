@@ -439,7 +439,7 @@ export default function App() {
           if (snap.exists() && snap.data().loginUsers) setAvailableLoginUsers(snap.data().loginUsers);
           else setAvailableLoginUsers(['老公', '老婆']);
         } catch (e) {}
-      }, 400);
+      } , 400);
       return () => clearTimeout(timer);
     } else if ((view === 'login' || view === 'create') && !roomCode) {
        setAvailableLoginUsers(['老公', '老婆']);
@@ -1426,7 +1426,7 @@ export default function App() {
       if (needsSubMethod(recordMethod) && !recordSubMethod) isFormValid = false;
       if (recordType === 'transfer') { if (needsSubMethod(transferToMethod) && !transferToSubMethod) isFormValid = false; }
       if (recordFrequency === '每週' && recordFrequencyDays.length === 0) isFormValid = false;
-      if (recordFrequency === '每月' && recordFrequencyDays.length === 0) isFormValid = false;
+      // 修正：已移除每月的額外驗證條件，確保能順利存檔
       if (recordFrequency === '區間' && !recordFrequencyInterval) isFormValid = false;
       if (recordFrequency === '區間' && recordFrequencyInterval === '自訂' && !recordFrequencyCustomText) isFormValid = false;
     }
@@ -1772,6 +1772,9 @@ export default function App() {
                   const isSortable = !searchQuery && homeFilterDate;
                   let freqDisplay = exp.frequency === '區間' ? (exp.frequencyInterval === '自訂' ? exp.frequencyCustomText : exp.frequencyInterval) : exp.frequency;
                   
+                  // 權限判斷：是否為該筆紀錄建立者 (若無建立者紀錄則為了相容舊資料預設放行)
+                  const canModify = !exp.addedByRole || currentUserRole === exp.addedByRole;
+                  
                   return (
                     <div key={exp.id} onClick={() => setViewingRecord(exp)} className="bg-white p-3 rounded-xl shadow-sm border border-gray-100 flex justify-between items-start group relative hover:shadow-md transition duration-300 cursor-pointer">
                       <div className={`absolute left-0 top-1/2 -translate-y-1/2 h-1/2 w-1 rounded-r-md ${isIncome ? 'bg-green-400' : isTransfer ? 'bg-blue-400' : 'bg-orange-400'}`}></div>
@@ -1797,9 +1800,12 @@ export default function App() {
                         <span className={`font-black text-[22px] sm:text-[24px] ${isIncome ? 'text-green-500' : isTransfer ? 'text-blue-500' : 'text-gray-800'}`}>{isIncome ? '+' : isTransfer ? '⇆' : '-'}${exp.amount.toLocaleString()}</span>
                         <div className="grid grid-cols-2 gap-1 mt-1.5 w-[72px] relative z-20">
                           <button onClick={(e) => { e.stopPropagation(); handleMoveRecord(idx, -1); }} disabled={idx === 0 || !isSortable} className={`text-gray-400 hover:text-blue-500 font-bold p-1.5 transition bg-gray-50 hover:bg-blue-50 rounded-md shadow-sm flex items-center justify-center disabled:opacity-30 ${!isSortable ? 'cursor-not-allowed' : ''}`}><ArrowUp size={15} /></button>
-                          <button onClick={(e) => { e.stopPropagation(); openEditForm(exp); }} className="text-gray-400 hover:text-blue-500 font-bold p-1.5 transition bg-gray-50 hover:bg-blue-50 rounded-md shadow-sm flex items-center justify-center"><Pencil size={15} /></button>
+                          
+                          <button onClick={(e) => { e.stopPropagation(); openEditForm(exp); }} disabled={!canModify} className={`font-bold p-1.5 transition bg-gray-50 rounded-md shadow-sm flex items-center justify-center ${canModify ? 'text-gray-400 hover:text-blue-500 hover:bg-blue-50' : 'text-gray-300 opacity-40 cursor-not-allowed'}`}><Pencil size={15} /></button>
+                          
                           <button onClick={(e) => { e.stopPropagation(); handleMoveRecord(idx, 1); }} disabled={idx === displayRecords.length - 1 || !isSortable} className={`text-gray-400 hover:text-blue-500 font-bold p-1.5 transition bg-gray-50 hover:bg-blue-50 rounded-md shadow-sm flex items-center justify-center disabled:opacity-30 ${!isSortable ? 'cursor-not-allowed' : ''}`}><ArrowDown size={15} /></button>
-                          <button onClick={(e) => { e.stopPropagation(); setCrossRoomRecord(exp); }} className="text-gray-400 hover:text-orange-500 font-bold p-1.5 transition bg-gray-50 hover:bg-orange-50 rounded-md shadow-sm flex items-center justify-center"><Send size={15} /></button>
+                          
+                          <button onClick={(e) => { e.stopPropagation(); setCrossRoomRecord(exp); }} disabled={!canModify} className={`font-bold p-1.5 transition bg-gray-50 rounded-md shadow-sm flex items-center justify-center ${canModify ? 'text-gray-400 hover:text-orange-500 hover:bg-orange-50' : 'text-gray-300 opacity-40 cursor-not-allowed'}`}><Send size={15} /></button>
                         </div>
                       </div>
                     </div>
@@ -2529,8 +2535,9 @@ export default function App() {
                 )}
               </div>
               <div className="flex gap-3 mt-4 pt-4 border-t border-gray-100">
-                 <button onClick={() => { handleCopyRecord(viewingRecord); setViewingRecord(null); setViewingAnalysisItem(null); }} className="flex-1 bg-green-50 text-green-600 font-bold py-3 rounded-xl flex items-center justify-center gap-2 transition hover:bg-green-100 active:scale-95"><Copy size={16}/> 複製此筆</button>
-                 <button onClick={() => { handleDeleteRecord(viewingRecord); setViewingRecord(null); }} className="flex-1 bg-red-50 text-red-500 font-bold py-3 rounded-xl flex items-center justify-center gap-2 transition hover:bg-red-100 active:scale-95"><Trash2 size={16}/> 刪除此筆</button>
+                {/* 權限判斷：非建立者無法複製與刪除，按鈕會反灰且無法點擊 */}
+                 <button onClick={() => { handleCopyRecord(viewingRecord); setViewingRecord(null); setViewingAnalysisItem(null); }} disabled={!(!viewingRecord.addedByRole || currentUserRole === viewingRecord.addedByRole)} className={`flex-1 font-bold py-3 rounded-xl flex items-center justify-center gap-2 transition ${(!viewingRecord.addedByRole || currentUserRole === viewingRecord.addedByRole) ? 'bg-green-50 text-green-600 hover:bg-green-100 active:scale-95' : 'bg-gray-100 text-gray-400 opacity-40 cursor-not-allowed'}`}><Copy size={16}/> 複製此筆</button>
+                 <button onClick={() => { handleDeleteRecord(viewingRecord); setViewingRecord(null); }} disabled={!(!viewingRecord.addedByRole || currentUserRole === viewingRecord.addedByRole)} className={`flex-1 font-bold py-3 rounded-xl flex items-center justify-center gap-2 transition ${(!viewingRecord.addedByRole || currentUserRole === viewingRecord.addedByRole) ? 'bg-red-50 text-red-500 hover:bg-red-100 active:scale-95' : 'bg-gray-100 text-gray-400 opacity-40 cursor-not-allowed'}`}><Trash2 size={16}/> 刪除此筆</button>
               </div>
             </div>
           </div>
