@@ -45,24 +45,24 @@ const getRoleColorStyle = (role, index = 0) => {
 const calcKeys = [
   { label: 'C', color: 'text-red-500 bg-red-50 font-black' },
   { label: '⌫', color: 'text-orange-500 bg-orange-50 font-black' },
-  { label: '(', color: 'text-gray-600 bg-gray-100 font-bold' },
-  { label: ')', color: 'text-gray-600 bg-gray-100 font-bold' },
+  { label: '(', color: 'text-gray-600 bg-gray-200 font-bold' },
+  { label: ')', color: 'text-gray-600 bg-gray-200 font-bold' },
   { label: '7', color: 'bg-white border border-gray-200 shadow-sm text-gray-800 font-black' },
   { label: '8', color: 'bg-white border border-gray-200 shadow-sm text-gray-800 font-black' },
   { label: '9', color: 'bg-white border border-gray-200 shadow-sm text-gray-800 font-black' },
-  { label: '÷', color: 'bg-blue-50 text-blue-600 font-black text-[24px]' },
+  { label: '÷', color: 'bg-blue-100 text-blue-600 font-black text-[24px]' },
   { label: '4', color: 'bg-white border border-gray-200 shadow-sm text-gray-800 font-black' },
   { label: '5', color: 'bg-white border border-gray-200 shadow-sm text-gray-800 font-black' },
   { label: '6', color: 'bg-white border border-gray-200 shadow-sm text-gray-800 font-black' },
-  { label: '×', color: 'bg-blue-50 text-blue-600 font-black text-[24px]' },
+  { label: '×', color: 'bg-blue-100 text-blue-600 font-black text-[24px]' },
   { label: '1', color: 'bg-white border border-gray-200 shadow-sm text-gray-800 font-black' },
   { label: '2', color: 'bg-white border border-gray-200 shadow-sm text-gray-800 font-black' },
   { label: '3', color: 'bg-white border border-gray-200 shadow-sm text-gray-800 font-black' },
-  { label: '-', color: 'bg-blue-50 text-blue-600 font-black text-[24px]' },
+  { label: '-', color: 'bg-blue-100 text-blue-600 font-black text-[24px]' },
   { label: '0', color: 'bg-white border border-gray-200 shadow-sm text-gray-800 font-black' },
   { label: '.', color: 'bg-white border border-gray-200 shadow-sm text-gray-800 font-black' },
   { label: '=', color: 'bg-indigo-500 text-white shadow-md font-black text-[24px]' },
-  { label: '+', color: 'bg-blue-50 text-blue-600 font-black text-[24px]' }
+  { label: '+', color: 'bg-blue-100 text-blue-600 font-black text-[24px]' }
 ];
 
 const evaluateCalc = (str) => {
@@ -160,7 +160,7 @@ const db = getFirestore(app);
 const appId = typeof __app_id !== 'undefined' ? __app_id : 'linbei-family-app';
 
 // ==========================================
-// 共用組件：選項管理區塊
+// 共用組件
 // ==========================================
 const SettingBlock = ({ title, items, onUpdate, themeClass, spanClass, btnClass, placeholder }) => {
   const [newItem, setNewItem] = useState('');
@@ -285,7 +285,6 @@ const MyCustomPieChart = ({ data, colors }) => {
     const endAngle = (endPercent - 0.25) * 2 * Math.PI;
     const midAngle = (startPercent + slicePercent / 2 - 0.25) * 2 * Math.PI;
     const isSmall = slicePercent < 0.08;
-
     return { ...slice, i, startPercent, endPercent, slicePercent, startAngle, endAngle, midAngle, isSmall, anchorSide: Math.cos(midAngle) >= 0 ? 1 : -1, targetY: Math.sin(midAngle) * 1.15 };
   });
 
@@ -724,8 +723,7 @@ export default function App() {
       let opsCount = 0;
 
       if (!isEditing) {
-        const curRef = doc(collection(db, 'artifacts', appId, 'public', 'data', 'expenses'));
-        batch.set(curRef, { ...baseData, timestamp: Date.now() });
+        batch.set(doc(collection(db, 'artifacts', appId, 'public', 'data', 'expenses')), { ...baseData, timestamp: Date.now() });
         opsCount++;
         if (recordFrequency !== '一次') {
           generateFutureDates(recordDate, recordFrequency, recordFrequencyDays, recordFrequencyInterval, recordFrequencyCustomText, 1).forEach(d => {
@@ -821,38 +819,69 @@ export default function App() {
       if (!targetRoomSnap.exists()) return alert('目標房間不存在！');
       const tRoom = targetRoomSnap.data();
       const data = crossRoomRecord;
-      const checkInArray = (val, arr) => !val || val === '未指定' || (arr || []).includes(val);
-      if (!checkInArray(data.addedByRole, tRoom.loginUsers)) return alert(`目標房間沒有名為 [${data.addedByRole}] 的登入人員，故無法傳送。`);
-      const payers = Array.isArray(data.payer) ? data.payer : [data.payer];
-      if (!payers.every(p => checkInArray(p, tRoom.payers))) return alert('目標房間沒有相對應的花費對象，故無法傳送。');
-      if (data.type === 'expense') {
-        if (!checkInArray(data.category, tRoom.categories)) return alert(`目標房間沒有支出主分類 [${data.category}]，故無法傳送。`);
-        if (data.title && !(tRoom.categoryItems?.[data.category] || []).includes(data.title)) return alert(`目標房間沒有項目 [${data.title}]，故無法傳送。`);
-        if (!checkInArray(data.merchant, tRoom.merchants)) return alert(`目標房間沒有商家 [${data.merchant}]，故無法傳送。`);
-      } else if (data.type === 'income') {
-        if (!checkInArray(data.category, tRoom.incomeCategories)) return alert(`目標房間沒有收入分類 [${data.category}]，故無法傳送。`);
-      } else if (data.type === 'transfer') {
-        if (!checkInArray(data.category, tRoom.transferCategories)) return alert(`目標房間沒有轉帳分類 [${data.category}]，故無法傳送。`);
-      }
-      const validateMethod = (m, sm) => {
-        if (!m || m === '未指定') return true;
-        if (!(tRoom.paymentMethods || []).includes(m)) return false;
-        if (['行動支付', '信用卡', '信用卡 / 行動支付'].includes(m)) return !sm || (tRoom.creditCards || []).includes(sm);
-        if (['銀行', '銀行 / 電子票證'].includes(m)) return !sm || (tRoom.bankAccounts || []).includes(sm);
-        if (m === '電子票證') return !sm || (tRoom.electronicTickets || []).includes(sm);
-        return true;
+
+      let needsRoomUpdate = false;
+      let newRoomData = { ...tRoom };
+
+      const ensureInArray = (field, val) => {
+          if (val && val !== '未指定') {
+              if (!newRoomData[field]) newRoomData[field] = [];
+              if (!newRoomData[field].includes(val)) {
+                  newRoomData[field].push(val);
+                  needsRoomUpdate = true;
+              }
+          }
       };
-      if (!validateMethod(data.method, data.subMethod)) return alert('目標房間沒有相對應的付款方式/帳戶，故無法傳送。');
-      if (data.type === 'transfer' && !validateMethod(data.transferToMethod, data.transferToSubMethod)) return alert('目標房間沒有相對應的轉入帳戶，故無法傳送。');
+
+      ensureInArray('loginUsers', data.addedByRole);
+      if (Array.isArray(data.payer)) data.payer.forEach(p => ensureInArray('payers', p));
+      else ensureInArray('payers', data.payer);
+
+      if (data.type === 'expense') {
+          ensureInArray('categories', data.category);
+          ensureInArray('merchants', data.merchant);
+          if (data.title) {
+              if (!newRoomData.categoryItems) newRoomData.categoryItems = {};
+              if (!newRoomData.categoryItems[data.category]) newRoomData.categoryItems[data.category] = [];
+              if (!newRoomData.categoryItems[data.category].includes(data.title)) {
+                  newRoomData.categoryItems[data.category].push(data.title);
+                  needsRoomUpdate = true;
+              }
+          }
+      } else if (data.type === 'income') {
+          ensureInArray('incomeCategories', data.category);
+      } else if (data.type === 'transfer') {
+          ensureInArray('transferCategories', data.category);
+      }
+      
+      ensureInArray('paymentMethods', data.method);
+      ensureInArray('paymentMethods', data.transferToMethod);
+      
+      const ensureSubMethod = (m, sm) => {
+          if (!m || m === '未指定' || !sm) return;
+          if (['信用卡', '行動支付', '信用卡 / 行動支付'].includes(m)) ensureInArray('creditCards', sm);
+          if (['銀行', '銀行 / 電子票證'].includes(m)) ensureInArray('bankAccounts', sm);
+          if (m === '電子票證') ensureInArray('electronicTickets', sm);
+      };
+      ensureSubMethod(data.method, data.subMethod);
+      ensureSubMethod(data.transferToMethod, data.transferToSubMethod);
 
       const { id, ...dataToCopy } = data;
-      dataToCopy.roomId = targetRoomId; dataToCopy.timestamp = Date.now();
+      dataToCopy.roomId = targetRoomId; 
+      dataToCopy.timestamp = Date.now();
+      
       if (!keepFrequency) {
           dataToCopy.frequency = '一次'; dataToCopy.frequencyDays = []; dataToCopy.frequencyInterval = ''; dataToCopy.frequencyCustomText = ''; dataToCopy.groupId = null;
-      } else { dataToCopy.groupId = dataToCopy.frequency !== '一次' ? (Date.now().toString() + Math.random().toString(36).substring(2, 9)) : null; }
+      } else { 
+          dataToCopy.groupId = dataToCopy.frequency !== '一次' ? (Date.now().toString() + Math.random().toString(36).substring(2, 9)) : null; 
+      }
 
-      const batch = writeBatch(db); let opsCount = 0;
+      const batch = writeBatch(db); 
+      if (needsRoomUpdate) batch.update(targetRoomRef, newRoomData);
+
+      let opsCount = needsRoomUpdate ? 1 : 0;
       batch.set(doc(collection(db, 'artifacts', appId, 'public', 'data', 'expenses')), dataToCopy); opsCount++;
+      
       if (dataToCopy.frequency !== '一次') {
         generateFutureDates(dataToCopy.date, dataToCopy.frequency, dataToCopy.frequencyDays, dataToCopy.frequencyInterval, dataToCopy.frequencyCustomText, 1).forEach(d => {
           if (opsCount >= 490) return;
@@ -862,7 +891,7 @@ export default function App() {
       await batch.commit();
       alert(`✅ 成功傳送${keepFrequency && crossRoomRecord.frequency !== '一次' ? '週期' : '單次'}紀錄至另一個房間！`);
       setCrossRoomRecord(null); setSelectedTransferRoom(null);
-    } catch (err) { alert('傳送失敗：請檢查網路連線'); }
+    } catch (err) { alert('傳送失敗：請檢查網路連線或權限'); console.error(err); }
   };
 
   const handleBackup = () => {
@@ -1423,7 +1452,7 @@ export default function App() {
   }
 
   // ==========================================
-  // 畫面渲染區塊 (完全移除重複程式碼)
+  // Render Guard
   // ==========================================
   if (!user) {
     return (
@@ -1445,6 +1474,9 @@ export default function App() {
     );
   }
 
+  // ==========================================
+  // Main View Content Generation
+  // ==========================================
   let content = null;
 
   if (view === 'login') {
@@ -1501,7 +1533,7 @@ export default function App() {
           <button type="submit" disabled={isLoading} className="w-full bg-gray-800 text-white font-extrabold text-[20px] p-4 rounded-[1.5rem] hover:bg-gray-700 shadow-md transition active:scale-95 disabled:opacity-50 mt-2">{isLoading ? '處理中...' : '開啟小財庫 🚀'}</button>
         </form>
         <div className="mt-6 text-center w-full pb-6">
-          <button onClick={() => {setView('create'); setErrorMsg('');}} className="text-gray-500 text-[17px] font-bold hover:text-gray-700 transition bg-white px-6 py-3 rounded-full shadow-sm border border-gray-200">💡 建立新的家庭房間</button>
+          <button onClick={() => {setView('create'); setErrorMsg(''); setRoomCode(''); setRoomPin(''); setCurrentUserRole(''); setRoomName('');}} className="text-gray-500 text-[17px] font-bold hover:text-gray-700 transition bg-white px-6 py-3 rounded-full shadow-sm border border-gray-200">💡 建立新的家庭房間</button>
         </div>
       </div>
     );
@@ -1532,7 +1564,7 @@ export default function App() {
           <button type="submit" disabled={isLoading} className="w-full bg-green-500 text-white font-extrabold text-[20px] py-4 rounded-[1.5rem] hover:bg-green-600 shadow-md transition active:scale-95 mt-2">{isLoading ? '處理中...' : '建立並進入 🚀'}</button>
         </form>
         <div className="mt-6 text-center w-full pb-6">
-           <button onClick={() => {setView('login'); setErrorMsg('');}} className="text-gray-500 text-[17px] font-bold hover:text-gray-700 transition bg-white px-6 py-3 rounded-full shadow-sm border border-gray-200">返回登入</button>
+           <button onClick={() => {setView('login'); setErrorMsg(''); setRoomCode(''); setRoomPin(''); setCurrentUserRole(''); setRoomName('');}} className="text-gray-500 text-[17px] font-bold hover:text-gray-700 transition bg-white px-6 py-3 rounded-full shadow-sm border border-gray-200">返回登入</button>
         </div>
       </div>
     );
@@ -1711,7 +1743,7 @@ export default function App() {
               <button onClick={() => fileInputRef.current?.click()} className="p-2 bg-white/20 hover:bg-white/30 text-white rounded-xl transition backdrop-blur-sm" title="匯入資料"><Upload size={20} /></button>
               <button onClick={handleBackup} className="p-2 bg-white/20 hover:bg-white/30 text-white rounded-xl transition backdrop-blur-sm" title="備份雲端資料"><Download size={20} /></button>
               <button onClick={() => { setSettingsTab('expense'); setView('settings'); }} className="p-2 bg-white/20 hover:bg-white/30 text-white rounded-xl transition backdrop-blur-sm" title="設定"><Settings size={20} /></button>
-              <button onClick={() => { setActiveRoomId(null); setView('login'); setRoomPin(''); setHomeFilterDate(getLocalTodayStr()); }} className="p-2 bg-white/20 hover:bg-white/30 text-white rounded-xl transition backdrop-blur-sm" title="登出"><LogOut size={20} /></button>
+              <button onClick={() => { setActiveRoomId(null); setView('login'); setRoomCode(''); setRoomPin(''); setCurrentUserRole(''); setRoomName(''); setHomeFilterDate(getLocalTodayStr()); }} className="p-2 bg-white/20 hover:bg-white/30 text-white rounded-xl transition backdrop-blur-sm" title="登出"><LogOut size={20} /></button>
             </div>
           </div>
           
@@ -1810,33 +1842,6 @@ export default function App() {
     
     content = (
       <>
-        {showCalc && (
-          <div className="fixed inset-0 z-[60] bg-black/50 flex flex-col justify-end backdrop-blur-[2px] animate-in fade-in duration-200" onClick={() => { setRecordAmount(evaluateCalc(calcStr)); setShowCalc(false); }}>
-             <div className="bg-white rounded-t-[2rem] p-5 pb-8 shadow-2xl animate-in slide-in-from-bottom-8 duration-300" onClick={e => e.stopPropagation()}>
-                <div className="flex justify-between items-center mb-4">
-                   <span className="text-gray-500 font-bold text-[15px] flex items-center gap-1.5"><Calculator size={18}/> 智慧計算機</span>
-                   <button onClick={() => { setRecordAmount(evaluateCalc(calcStr)); setShowCalc(false); }} className="text-gray-500 bg-gray-100 hover:bg-gray-200 rounded-full p-1.5 transition"><X size={18}/></button>
-                </div>
-                <div className="text-right text-[42px] font-black text-gray-800 mb-5 overflow-x-auto whitespace-nowrap pb-2 border-b-2 border-gray-100 tracking-wider">{calcStr}</div>
-                <div className="grid grid-cols-4 gap-2.5">
-                   {calcKeys.map(k => (
-                     <button key={k.label} onClick={() => {
-                         if (k.label === 'C') setCalcStr('0');
-                         else if (k.label === '⌫') setCalcStr(prev => prev.length > 1 ? prev.slice(0, -1) : '0');
-                         else if (k.label === '=') setCalcStr(prev => evaluateCalc(prev));
-                         else setCalcStr(prev => prev === '0' && !['+','-','×','÷','.'].includes(k.label) ? k.label : prev + k.label);
-                       }} className={`p-4 rounded-2xl text-[22px] active:scale-95 transition-transform flex items-center justify-center ${k.color}`}>
-                       {k.label}
-                     </button>
-                   ))}
-                </div>
-                <button onClick={() => { setRecordAmount(evaluateCalc(calcStr)); setShowCalc(false); }} className={`w-full mt-4 ${themeBg} text-white py-4 rounded-2xl font-black text-[20px] shadow-md active:scale-95 transition flex justify-center items-center gap-2`}>
-                  <Check size={24}/> 確認金額
-                </button>
-             </div>
-          </div>
-        )}
-
         <header className={`${themeBg} text-white px-5 py-4 shadow-md shrink-0 z-10 border-b-4 border-white/20 rounded-b-[1.5rem] transition-colors duration-300`}>
           <div className="flex justify-between items-center mb-3">
             <h1 className="text-2xl font-black flex items-center gap-2 drop-shadow-md">{editRecordId ? '✏️ 編輯紀錄' : '✨ 新增紀錄'} {titleEmoji}</h1>
@@ -1854,7 +1859,12 @@ export default function App() {
         <main className="scroll-container px-4 py-4 space-y-4 flex-1 overflow-y-auto pb-[90px] [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
           <form onSubmit={handleSaveRecord} className="space-y-4">
             
-            <div className={`bg-white rounded-[1.5rem] pt-3 pb-2 px-5 shadow-sm border-2 ${themeBorder} text-center relative overflow-hidden cursor-pointer active:scale-[0.98] transition-transform`} onClick={() => { setCalcStr(recordAmount || '0'); setShowCalc(true); }}>
+            <div 
+              role="button" 
+              tabIndex={0} 
+              className={`w-full block bg-white rounded-[1.5rem] pt-3 pb-2 px-5 shadow-sm border-2 ${themeBorder} text-center relative overflow-hidden cursor-pointer active:scale-[0.98] transition-transform select-none`} 
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); setCalcStr(String(recordAmount || '0')); setShowCalc(true); }}
+            >
                <div className={`absolute top-0 left-0 w-full h-1.5 ${themeBg} opacity-20`}></div>
                <p className={`${themeText} font-extrabold text-[13px] mb-1 flex items-center justify-center gap-1.5`}>輸入金額 💰 <span className="bg-gray-50 border border-gray-100 px-2 py-0.5 rounded text-[10px] text-gray-400 flex items-center gap-1"><Calculator size={12}/> 點擊計算</span></p>
                <div className={`text-center text-[40px] leading-none font-black w-full text-gray-800 py-1 tracking-tight`}> 
@@ -1917,23 +1927,11 @@ export default function App() {
                     }} placeholder="選擇分類..." />
                     <CustomDropdown label="項目清單 🛒" options={currentRoom?.categoryItems?.[recordCategory] || []} value={selectedItem} onChange={(val) => {
                         setSelectedItem(val);
-                        if (!editRecordId && currentRoom?.autoFillRules?.[val]) {
-                            const defaultMerchant = currentRoom.autoFillRules[val];
-                            setRecordMerchant(defaultMerchant);
-                            if (currentRoom?.methodRules?.[defaultMerchant]) {
-                                setRecordMethod(currentRoom.methodRules[defaultMerchant].method);
-                                setRecordSubMethod(currentRoom.methodRules[defaultMerchant].subMethod || '');
-                            }
-                        }
                     }} placeholder="選擇項目..." />
                   </div>
                   <div className="flex flex-col gap-3 mb-5 z-20">
                      <CustomDropdown label="商家 🏪" icon={Store} options={currentRoom?.merchants || []} value={recordMerchant} onChange={(val) => {
                          setRecordMerchant(val);
-                         if (!editRecordId && currentRoom?.methodRules?.[val]) {
-                             setRecordMethod(currentRoom.methodRules[val].method);
-                             setRecordSubMethod(currentRoom.methodRules[val].subMethod || '');
-                         }
                      }} placeholder="選擇商家..." />
                      <PillGroupMulti label="花費對象 (可複選) 👥" icon={User} options={currentRoom?.payers || []} values={recordPayer} onChange={setRecordPayer} isPayer={true} />
                   </div>
@@ -2276,7 +2274,37 @@ export default function App() {
         <input type="file" accept=".json" style={{display: 'none'}} ref={fileInputRef} onChange={handleImport} />
         {content}
 
-        {/* 彈跳視窗群組 */}
+        {/* 彈跳視窗群組 (全域層級，確保所有 Modal 穩定顯示並可堆疊) */}
+        
+        {/* 0. 智慧計算機 Modal */}
+        {showCalc && (
+          <div className="fixed inset-0 z-[150] bg-black/60 flex flex-col justify-center items-center p-4 backdrop-blur-[2px] animate-in fade-in duration-200" onClick={() => { setRecordAmount(evaluateCalc(calcStr)); setShowCalc(false); }}>
+             <div className="bg-gray-50 w-full max-w-[280px] sm:max-w-[300px] rounded-[2rem] p-4 sm:p-5 shadow-2xl animate-in zoom-in-95 duration-200 border border-gray-200" onClick={e => e.stopPropagation()}>
+                <div className="flex justify-between items-center mb-3">
+                   <span className="text-gray-500 font-bold text-[14px] flex items-center gap-1.5"><Calculator size={16}/> 智慧計算機</span>
+                   <button onClick={() => { setRecordAmount(evaluateCalc(calcStr)); setShowCalc(false); }} className="text-gray-500 bg-gray-200 hover:bg-gray-300 rounded-full p-1.5 transition"><X size={16}/></button>
+                </div>
+                <div className="text-right text-[36px] font-black text-gray-800 mb-4 overflow-x-auto whitespace-nowrap pb-2 border-b-2 border-gray-200 tracking-wider">{calcStr}</div>
+                <div className="grid grid-cols-4 gap-1.5">
+                   {calcKeys.map(k => (
+                     <button key={k.label} onClick={() => {
+                         if (k.label === 'C') setCalcStr('0');
+                         else if (k.label === '⌫') setCalcStr(prev => prev.length > 1 ? prev.slice(0, -1) : '0');
+                         else if (k.label === '=') setCalcStr(prev => evaluateCalc(prev));
+                         else setCalcStr(prev => prev === '0' && !['+','-','×','÷','.'].includes(k.label) ? k.label : prev + k.label);
+                       }} className={`h-[44px] sm:h-[48px] rounded-xl text-[20px] active:scale-95 transition-transform flex items-center justify-center shadow-sm ${k.color}`}>
+                       {k.label}
+                     </button>
+                   ))}
+                </div>
+                <button onClick={() => { setRecordAmount(evaluateCalc(calcStr)); setShowCalc(false); }} className={`w-full mt-3 ${recordType === 'income' ? 'bg-green-500' : recordType === 'transfer' ? 'bg-blue-500' : 'bg-orange-500'} text-white py-3 rounded-xl font-black text-[18px] shadow-md active:scale-95 transition flex justify-center items-center gap-2`}>
+                  <Check size={20}/> 確認金額
+                </button>
+             </div>
+          </div>
+        )}
+
+        {/* 1. 放大圖片 Modal */}
         {enlargedPhoto && (
           <div className="fixed inset-0 bg-black/90 z-[130] flex flex-col items-center justify-center p-4 backdrop-blur-md animate-in zoom-in duration-200" onClick={() => setEnlargedPhoto(null)}>
             <div className="absolute top-6 right-6 p-2 bg-white/20 hover:bg-white/40 rounded-full cursor-pointer transition"><X size={28} className="text-white" /></div>
@@ -2284,6 +2312,7 @@ export default function App() {
           </div>
         )}
 
+        {/* 2. 統計分析詳細明細 Modal */}
         {viewingAnalysisItem && (
           <div className="fixed inset-0 bg-black/40 z-[100] flex justify-center items-center p-4 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setViewingAnalysisItem(null)}>
             <div className="bg-white w-full max-w-md max-h-[85vh] flex flex-col rounded-[1.5rem] p-5 shadow-2xl relative" onClick={e => e.stopPropagation()}>
@@ -2310,7 +2339,7 @@ export default function App() {
                              {!isTransfer && exp.method && exp.method !== '未指定' && <span className="text-gray-500 text-[12px] font-bold bg-gray-100 px-1.5 py-0.5 rounded border border-gray-200">💳 {exp.method}{exp.subMethod ? `(${exp.subMethod})` : ''}</span>}
                              {exp.merchant && exp.merchant !== '未指定' && <span className="text-gray-500 text-[12px] font-bold bg-gray-100 px-1.5 py-0.5 rounded border border-gray-200">🏪 {exp.merchant}</span>}
                              {exp.photoBase64 && <span className="shrink-0 w-[24px] h-[24px] rounded-md overflow-hidden shadow-sm inline-block border border-gray-200 mt-0.5" title="此紀錄附有照片"><img src={exp.photoBase64} alt="圖" className="w-full h-full object-cover" /></span>}
-                             {exp.note && <span className="text-gray-500 text-[12px] font-bold bg-white px-1.5 py-0.5 rounded border border-gray-200 max-w-[120px] truncate mt-0.5">📝 {exp.note}</span>}
+                             {exp.note && <span className="text-gray-500 text-[13px] font-bold bg-[#FFFDF9] px-1.5 py-0.5 rounded border border-[#F2EFE9] max-w-full truncate mt-0.5">📝 {exp.note}</span>}
                            </div>
                         </div>
                         <div className={`font-black text-[19px] shrink-0 ${isIncome ? 'text-green-500' : isTransfer ? 'text-blue-500' : 'text-gray-800'}`}>{isIncome ? '+' : isTransfer ? '⇆' : '-'}${exp.amount.toLocaleString()}</div>
@@ -2323,6 +2352,94 @@ export default function App() {
           </div>
         )}
 
+        {/* 3. 帳戶歷史明細 Modal */}
+        {viewingAccountHistory && (
+          <div className="fixed inset-0 bg-black/40 z-[100] flex justify-center items-center p-4 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setViewingAccountHistory(null)}>
+            <div className="bg-white w-full max-w-md max-h-[85vh] flex flex-col rounded-[1.5rem] p-5 shadow-2xl relative" onClick={e => e.stopPropagation()}>
+              <button onClick={() => setViewingAccountHistory(null)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 bg-gray-100 p-1.5 rounded-full transition"><X size={18}/></button>
+              <h3 className="font-black text-[20px] text-gray-800 mb-4 border-b border-gray-100 pb-3 flex items-center gap-1.5">
+                <Wallet size={20} className="text-indigo-500" /> {viewingAccountHistory} 明細
+              </h3>
+              
+              <div className="grid grid-cols-2 gap-2 mb-4">
+                  <div>
+                    <label className="block text-[12px] font-bold text-gray-500 mb-1">開始日期</label>
+                    <input type="date" value={historyStartDate} onChange={e=>setHistoryStartDate(e.target.value)} className="w-full bg-gray-50 border border-gray-200 p-1.5 rounded-lg text-[14px] font-bold text-gray-700 outline-none focus:border-indigo-300 transition" />
+                  </div>
+                  <div>
+                    <label className="block text-[12px] font-bold text-gray-500 mb-1">結束日期</label>
+                    <input type="date" value={historyEndDate} onChange={e=>setHistoryEndDate(e.target.value)} className="w-full bg-gray-50 border border-gray-200 p-1.5 rounded-lg text-[14px] font-bold text-gray-700 outline-none focus:border-indigo-300 transition" />
+                  </div>
+              </div>
+
+              <div className="scroll-container flex-1 overflow-y-auto space-y-2 pr-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+                {(() => {
+                  const todayStr = getLocalTodayStr();
+                  const accHistory = records.filter(r => {
+                     if (r.date > historyEndDate || r.date < historyStartDate) return false;
+                     if (r.date > todayStr) return false;
+                     const getAccName = (method, subMethod) => method === '現金' ? '現金' : subMethod;
+                     const fromAcc = getAccName(r.method, r.subMethod);
+                     const toAcc = getAccName(r.transferToMethod, r.transferToSubMethod);
+                     return fromAcc === viewingAccountHistory || toAcc === viewingAccountHistory;
+                  }).sort((a, b) => {
+                      if (a.date !== b.date) return a.date > b.date ? -1 : 1;
+                      return b.timestamp - a.timestamp;
+                  }); 
+
+                  if (accHistory.length === 0) return <p className="text-center text-gray-400 font-bold py-10 text-[15px]">此區間尚無明細</p>;
+
+                  return accHistory.map(exp => {
+                    const isIncome = exp.type === 'income';
+                    const isTransfer = exp.type === 'transfer';
+                    const getAccName = (method, subMethod) => method === '現金' ? '現金' : subMethod;
+                    let isPositive = false;
+                    if (isIncome && getAccName(exp.method, exp.subMethod) === viewingAccountHistory) isPositive = true;
+                    if (isTransfer && getAccName(exp.transferToMethod, exp.transferToSubMethod) === viewingAccountHistory) isPositive = true;
+                    let freqDisplay = exp.frequency === '區間' ? (exp.frequencyInterval === '自訂' ? exp.frequencyCustomText : exp.frequencyInterval) : exp.frequency;
+
+                    return (
+                      <div key={exp.id} onClick={() => { setViewingRecord(exp); }} className="bg-gray-50 p-3 rounded-xl border border-gray-100 flex justify-between items-center cursor-pointer hover:bg-gray-100 transition">
+                        <div className="overflow-hidden pr-2">
+                           <div className="flex flex-wrap items-center gap-1.5 mb-1">
+                             <span className="text-[13px] font-bold text-gray-400">{toROCYearStr(exp.date)}</span>
+                             {exp.addedByRole && <span className={`${getRoleColorStyle(exp.addedByRole).lightBg} ${getRoleColorStyle(exp.addedByRole).text} border ${getRoleColorStyle(exp.addedByRole).lightBorder} px-1.5 py-0.5 rounded text-[11px] font-bold tracking-wide shrink-0`}>{exp.addedByRole}</span>}
+                             <span className="bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded text-[11px] font-bold tracking-wide">{freqDisplay || '一次'}</span>
+                             {exp.payer && <span className="bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded text-[11px] font-bold tracking-wide">{Array.isArray(exp.payer)?exp.payer.join(', '):exp.payer}</span>}
+                           </div>
+                           <div className="font-black text-[16px] text-gray-700 truncate">
+                              {isTransfer ? `轉帳: ${exp.method}➜${exp.transferToMethod}` : exp.title}
+                           </div>
+                           <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                             {!isTransfer && exp.method && exp.method !== '未指定' && <span className="text-gray-500 text-[12px] font-bold bg-gray-100 px-1.5 py-0.5 rounded border border-gray-200">💳 {exp.method}{exp.subMethod ? `(${exp.subMethod})` : ''}</span>}
+                             {exp.merchant && exp.merchant !== '未指定' && <span className="text-gray-500 text-[12px] font-bold bg-gray-100 px-1.5 py-0.5 rounded border border-gray-200">🏪 {exp.merchant}</span>}
+                             
+                             {exp.photoBase64 && (
+                               <span className="shrink-0 w-[22px] h-[22px] rounded-md overflow-hidden shadow-sm inline-block border border-gray-200" title="有照片">
+                                 <img src={exp.photoBase64} alt="圖" className="w-full h-full object-cover" />
+                               </span>
+                             )}
+                             
+                             {exp.note && (
+                               <span className="text-gray-500 text-[12px] font-bold bg-white px-1.5 py-0.5 rounded border border-gray-200 max-w-[120px] truncate">
+                                 📝 {exp.note}
+                               </span>
+                             )}
+                           </div>
+                        </div>
+                        <div className={`font-black text-[19px] shrink-0 ${isPositive ? 'text-green-500' : 'text-gray-800'}`}>
+                           {isPositive ? '+' : '-'}${exp.amount.toLocaleString()}
+                        </div>
+                      </div>
+                    )
+                  });
+                })()}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 4. 單筆紀錄詳細資訊 Modal */}
         {viewingRecord && (
           <div className="fixed inset-0 bg-black/40 z-[110] flex justify-center items-center p-4 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setViewingRecord(null)}>
             <div className="bg-white w-full max-w-sm rounded-[1.5rem] p-5 shadow-2xl relative" onClick={e => e.stopPropagation()}>
@@ -2357,6 +2474,7 @@ export default function App() {
           </div>
         )}
 
+        {/* 5. 跨房間傳送 Modal */}
         {crossRoomRecord && (
           <div className="fixed inset-0 bg-black/40 z-[120] flex justify-center items-center p-4 backdrop-blur-sm animate-in fade-in duration-200">
             <div className="bg-white w-full max-w-sm rounded-[1.5rem] p-5 shadow-2xl">
@@ -2391,7 +2509,7 @@ export default function App() {
           </div>
         )}
 
-        {/* 跨房間同步設定 Modal */}
+        {/* 6. 跨房間同步設定 Modal */}
         {syncSettingsModalOpen && (
           <div className="fixed inset-0 bg-black/40 z-[140] flex justify-center items-end sm:items-center p-0 sm:p-4 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setSyncSettingsModalOpen(false)}>
             <div className="bg-white w-full max-w-md rounded-t-[1.5rem] sm:rounded-[1.5rem] p-5 shadow-2xl relative animate-in slide-in-from-bottom-10" onClick={e => e.stopPropagation()}>
@@ -2473,6 +2591,7 @@ export default function App() {
           </div>
         )}
         
+        {/* 底部導覽列 */}
         {user && view === 'room' && !showAddForm && (
           <div className="absolute bottom-0 left-0 w-full bg-white/95 backdrop-blur-xl p-2 pb-6 sm:pb-4 rounded-t-[2rem] shadow-[0_-15px_40px_rgba(0,0,0,0.08)] flex justify-between items-center z-20 border-t border-gray-100 px-6">
             <button onClick={() => setView('accounts')} className="flex flex-col items-center gap-1 text-gray-400 hover:text-indigo-500 transition px-4 py-2"><Wallet size={24} /><span className="font-extrabold text-[12px]">帳戶</span></button>
