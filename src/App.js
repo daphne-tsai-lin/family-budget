@@ -37,19 +37,29 @@ const getRoleColorStyle = (role, index = 0) => {
 };
 
 // ==========================================
-// 計算機功能與按鍵設定
+// 計算機功能與按鍵設定 (馬卡龍色系)
 // ==========================================
 const calcKeys = [
-  { label: 'C', color: 'text-red-500 bg-red-50 font-black' }, { label: '⌫', color: 'text-orange-500 bg-orange-50 font-black' },
-  { label: '(', color: 'text-gray-600 bg-gray-200 font-bold' }, { label: ')', color: 'text-gray-600 bg-gray-200 font-bold' },
-  { label: '7', color: 'bg-white border border-gray-200 shadow-sm text-gray-800 font-black' }, { label: '8', color: 'bg-white border border-gray-200 shadow-sm text-gray-800 font-black' },
-  { label: '9', color: 'bg-white border border-gray-200 shadow-sm text-gray-800 font-black' }, { label: '÷', color: 'bg-blue-100 text-blue-600 font-black text-[24px]' },
-  { label: '4', color: 'bg-white border border-gray-200 shadow-sm text-gray-800 font-black' }, { label: '5', color: 'bg-white border border-gray-200 shadow-sm text-gray-800 font-black' },
-  { label: '6', color: 'bg-white border border-gray-200 shadow-sm text-gray-800 font-black' }, { label: '×', color: 'bg-blue-100 text-blue-600 font-black text-[24px]' },
-  { label: '1', color: 'bg-white border border-gray-200 shadow-sm text-gray-800 font-black' }, { label: '2', color: 'bg-white border border-gray-200 shadow-sm text-gray-800 font-black' },
-  { label: '3', color: 'bg-white border border-gray-200 shadow-sm text-gray-800 font-black' }, { label: '-', color: 'bg-blue-100 text-blue-600 font-black text-[24px]' },
-  { label: '0', color: 'bg-white border border-gray-200 shadow-sm text-gray-800 font-black' }, { label: '.', color: 'bg-white border border-gray-200 shadow-sm text-gray-800 font-black' },
-  { label: '=', color: 'bg-indigo-500 text-white shadow-md font-black text-[24px]' }, { label: '+', color: 'bg-blue-100 text-blue-600 font-black text-[24px]' }
+  { label: 'C', color: 'bg-[#FFD1DC] text-[#9F1239] shadow-sm font-black' },
+  { label: '⌫', color: 'bg-[#FFE4B5] text-[#9A3412] shadow-sm font-black' },
+  { label: '(', color: 'bg-[#F1F5F9] text-slate-600 shadow-sm font-bold' },
+  { label: ')', color: 'bg-[#F1F5F9] text-slate-600 shadow-sm font-bold' },
+  { label: '7', color: 'bg-[#E0E7FF] text-[#3730A3] shadow-sm font-black' },
+  { label: '8', color: 'bg-[#E0E7FF] text-[#3730A3] shadow-sm font-black' },
+  { label: '9', color: 'bg-[#E0E7FF] text-[#3730A3] shadow-sm font-black' },
+  { label: '÷', color: 'bg-[#FEF08A] text-[#B45309] shadow-sm font-black text-[22px]' },
+  { label: '4', color: 'bg-[#CCFBF1] text-[#115E59] shadow-sm font-black' },
+  { label: '5', color: 'bg-[#CCFBF1] text-[#115E59] shadow-sm font-black' },
+  { label: '6', color: 'bg-[#CCFBF1] text-[#115E59] shadow-sm font-black' },
+  { label: '×', color: 'bg-[#FEF08A] text-[#B45309] shadow-sm font-black text-[22px]' },
+  { label: '1', color: 'bg-[#D1FAE5] text-[#065F46] shadow-sm font-black' },
+  { label: '2', color: 'bg-[#D1FAE5] text-[#065F46] shadow-sm font-black' },
+  { label: '3', color: 'bg-[#D1FAE5] text-[#065F46] shadow-sm font-black' },
+  { label: '-', color: 'bg-[#FEF08A] text-[#B45309] shadow-sm font-black text-[24px]' },
+  { label: '0', color: 'bg-[#FCE7F3] text-[#9D174D] shadow-sm font-black' },
+  { label: '.', color: 'bg-[#FCE7F3] text-[#9D174D] shadow-sm font-black' },
+  { label: '=', color: 'bg-[#38BDF8] text-white shadow-md font-black text-[24px]' },
+  { label: '+', color: 'bg-[#FEF08A] text-[#B45309] shadow-sm font-black text-[24px]' }
 ];
 
 const evaluateCalc = (str) => {
@@ -161,35 +171,35 @@ const SettingBlock = ({ title, items, onUpdate, themeClass, spanClass, btnClass,
   };
 
   return (
-    <div className={`p-4 sm:p-5 rounded-[1.5rem] border-2 ${themeClass} bg-white shadow-sm mb-4`}>
-      <h3 className="font-bold text-gray-700 mb-4 text-[18px] flex items-center gap-2">{title}</h3>
-      <div className="flex flex-col gap-2 mb-5">
+    <div className={`p-3 sm:p-4 rounded-2xl border-2 ${themeClass} bg-white shadow-sm mb-3`}>
+      <h3 className="font-bold text-gray-700 mb-2.5 text-[16px] flex items-center gap-2">{title}</h3>
+      <div className="flex flex-col gap-2 mb-3">
         {items.map((item, idx) => (
-          <div key={idx} className="flex justify-between items-center bg-gray-50 p-2 sm:p-2.5 rounded-[1.2rem] border border-gray-100 shadow-sm gap-2 transition-all">
+          <div key={idx} className="flex justify-between items-center bg-gray-50 p-2 rounded-xl border border-gray-100 shadow-sm gap-2 transition-all">
             {editIdx === idx ? (
               <div className="flex flex-1 gap-2 items-center">
-                <input type="text" value={editValue} onChange={e=>setEditValue(e.target.value)} className="flex-1 px-3 py-2 rounded-xl border border-gray-300 outline-none font-bold text-[16px] min-w-0" autoFocus />
-                <button onClick={()=>handleSaveEdit(idx)} className="bg-green-500 text-white px-3 py-2 rounded-xl text-[15px] font-bold shadow-sm whitespace-nowrap active:scale-95 transition shrink-0">儲存</button>
-                <button onClick={()=>setEditIndex(null)} className="bg-gray-400 text-white px-3 py-2 rounded-xl text-[15px] font-bold shadow-sm whitespace-nowrap active:scale-95 transition shrink-0">取消</button>
+                <input type="text" value={editValue} onChange={e=>setEditValue(e.target.value)} className="flex-1 px-2.5 py-1.5 rounded-lg border border-gray-300 outline-none font-bold text-[14px] min-w-0" autoFocus />
+                <button onClick={()=>handleSaveEdit(idx)} className="bg-green-500 text-white px-2 py-1.5 rounded-lg text-[13px] font-bold shadow-sm whitespace-nowrap active:scale-95 transition shrink-0">儲存</button>
+                <button onClick={()=>setEditIndex(null)} className="bg-gray-400 text-white px-2 py-1.5 rounded-lg text-[13px] font-bold shadow-sm whitespace-nowrap active:scale-95 transition shrink-0">取消</button>
               </div>
             ) : (
               <>
-                <span className={`px-2 sm:px-3 py-1.5 rounded-xl text-[16px] font-bold ${spanClass} flex-1 min-w-0 truncate`}>{item}</span>
-                <div className="flex items-center gap-1 shrink-0 ml-2">
-                  <button onClick={()=>handleMove(idx, -1)} disabled={idx===0} className="w-8 h-8 flex items-center justify-center bg-white border border-gray-200 rounded-md text-gray-400 hover:bg-gray-100 hover:text-blue-500 disabled:opacity-30 transition font-black">↑</button>
-                  <button onClick={()=>handleMove(idx, 1)} disabled={idx===items.length-1} className="w-8 h-8 flex items-center justify-center bg-white border border-gray-200 rounded-md text-gray-400 hover:bg-gray-100 hover:text-blue-500 disabled:opacity-30 transition font-black">↓</button>
-                  <button onClick={()=>{setEditIndex(idx); setEditValue(item);}} className="w-8 h-8 flex items-center justify-center bg-white border border-gray-200 rounded-md text-gray-400 hover:bg-gray-100 hover:text-orange-500 transition"><Pencil size={14}/></button>
-                  <button onClick={()=>handleDelete(idx)} className="w-8 h-8 flex items-center justify-center bg-white border border-gray-200 rounded-md text-gray-400 hover:bg-gray-100 hover:text-red-500 transition"><Trash2 size={14}/></button>
+                <span className={`px-2 py-1 rounded-lg text-[14px] font-bold ${spanClass} flex-1 min-w-0 truncate`}>{item}</span>
+                <div className="flex items-center gap-1 shrink-0 ml-1">
+                  <button onClick={()=>handleMove(idx, -1)} disabled={idx===0} className="w-6 h-6 flex items-center justify-center bg-white border border-gray-200 rounded text-gray-400 hover:bg-gray-100 hover:text-blue-500 disabled:opacity-30 transition font-black">↑</button>
+                  <button onClick={()=>handleMove(idx, 1)} disabled={idx===items.length-1} className="w-6 h-6 flex items-center justify-center bg-white border border-gray-200 rounded text-gray-400 hover:bg-gray-100 hover:text-blue-500 disabled:opacity-30 transition font-black">↓</button>
+                  <button onClick={()=>{setEditIndex(idx); setEditValue(item);}} className="w-6 h-6 flex items-center justify-center bg-white border border-gray-200 rounded text-gray-400 hover:bg-gray-100 hover:text-orange-500 transition"><Pencil size={12}/></button>
+                  <button onClick={()=>handleDelete(idx)} className="w-6 h-6 flex items-center justify-center bg-white border border-gray-200 rounded text-gray-400 hover:bg-gray-100 hover:text-red-500 transition"><Trash2 size={12}/></button>
                 </div>
               </>
             )}
           </div>
         ))}
-        {items.length === 0 && <div className="text-gray-400 text-[16px] font-bold py-4 text-center bg-gray-50 rounded-[1.2rem] border border-gray-100">尚無選項</div>}
+        {items.length === 0 && <div className="text-gray-400 text-[14px] font-bold py-2 text-center bg-gray-50 rounded-xl border border-gray-100">尚無選項</div>}
       </div>
-      <div className="flex gap-2 mt-2">
-        <input type="text" value={newItem} onChange={(e) => setNewItem(e.target.value)} placeholder={placeholder} className={`flex-1 border-2 ${themeClass} bg-gray-50 rounded-[1.2rem] p-3 outline-none focus:bg-white transition text-[16px] font-bold min-w-0`} onKeyPress={(e) => e.key === 'Enter' && handleAdd()} />
-        <button onClick={handleAdd} className={`${btnClass} text-white px-5 py-3 rounded-[1.2rem] text-[16px] font-bold shadow-md transition hover:scale-105 active:scale-95 shrink-0`}>新增</button>
+      <div className="flex gap-2">
+        <input type="text" value={newItem} onChange={(e) => setNewItem(e.target.value)} placeholder={placeholder} className={`flex-1 border-2 ${themeClass} bg-gray-50 rounded-xl p-2 outline-none focus:bg-white transition text-[14px] font-bold min-w-0`} onKeyPress={(e) => e.key === 'Enter' && handleAdd()} />
+        <button onClick={handleAdd} className={`${btnClass} text-white px-3 py-2 rounded-xl text-[14px] font-bold shadow-md transition hover:scale-105 active:scale-95 shrink-0`}>新增</button>
       </div>
     </div>
   );
@@ -210,20 +220,20 @@ const CustomDropdown = ({ label, icon: Icon, options, value, onChange, placehold
   return (
     <div className="relative w-full" ref={dropdownRef}>
       {label && (
-        <label className="flex items-center gap-1.5 text-[15px] font-bold text-gray-500 mb-1.5 ml-1">
-          {Icon && <Icon size={16} className="text-gray-400" />} {label}
+        <label className="flex items-center gap-1.5 text-[13px] font-bold text-gray-500 mb-1 ml-1">
+          {Icon && <Icon size={14} className="text-gray-400" />} {label}
         </label>
       )}
-      <button type="button" onClick={() => setIsOpen(!isOpen)} className={`w-full bg-white border-2 ${isOpen ? 'border-blue-400 shadow-md' : 'border-gray-200 hover:border-gray-300'} p-3.5 rounded-xl flex justify-between items-center outline-none transition-all shadow-sm text-left`}>
-        <span className={`font-bold text-[16px] truncate pr-2 ${value ? 'text-gray-800' : 'text-gray-300'}`}>{value || placeholder}</span>
-        <span className={`text-gray-400 text-[14px] transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}>▼</span>
+      <button type="button" onClick={() => setIsOpen(!isOpen)} className={`w-full bg-white border-2 ${isOpen ? 'border-blue-400 shadow-md' : 'border-gray-200 hover:border-gray-300'} p-2.5 rounded-xl flex justify-between items-center outline-none transition-all shadow-sm text-left`}>
+        <span className={`font-bold text-[14px] truncate pr-2 ${value ? 'text-gray-800' : 'text-gray-300'}`}>{value || placeholder}</span>
+        <span className={`text-gray-400 text-[12px] transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}>▼</span>
       </button>
 
       {isOpen && (
-        <ul className="absolute z-50 w-full mt-1.5 bg-white border-2 border-gray-100 rounded-xl shadow-[0_10px_40px_rgba(0,0,0,0.12)] max-h-60 overflow-y-auto py-1.5 top-full left-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-          {options.length === 0 && <li className="px-4 py-2.5 text-[15px] text-gray-400 font-bold">無選項可用</li>}
+        <ul className="absolute z-50 w-full mt-1 bg-white border-2 border-gray-100 rounded-xl shadow-[0_10px_40px_rgba(0,0,0,0.12)] max-h-60 overflow-y-auto py-1 top-full left-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+          {options.length === 0 && <li className="px-3 py-2 text-[13px] text-gray-400 font-bold">無選項可用</li>}
           {options.map(opt => (
-            <li key={opt} onClick={() => { onChange(opt); setIsOpen(false); }} className={`px-4 py-3 text-[16px] font-bold cursor-pointer transition-colors flex items-center gap-2 ${value === opt ? 'bg-blue-500 text-white' : 'text-gray-700 hover:bg-gray-100'}`}>{opt}</li>
+            <li key={opt} onClick={() => { onChange(opt); setIsOpen(false); }} className={`px-3 py-2 text-[14px] font-bold cursor-pointer transition-colors flex items-center gap-2 ${value === opt ? 'bg-blue-500 text-white' : 'text-gray-700 hover:bg-gray-100'}`}>{opt}</li>
           ))}
         </ul>
       )}
@@ -236,7 +246,7 @@ const CustomDropdown = ({ label, icon: Icon, options, value, onChange, placehold
 // ==========================================
 const MyCustomPieChart = ({ data, colors }) => {
   const total = data.reduce((sum, d) => sum + d.value, 0);
-  if (total === 0) return <div className="text-gray-400 text-center py-10 font-bold bg-white rounded-[1.5rem] border-2 border-dashed border-gray-200 text-base">無分析數據 📊</div>;
+  if (total === 0) return <div className="text-gray-400 text-center py-10 font-bold bg-white rounded-2xl border-2 border-dashed border-gray-200 text-sm">無分析數據 📊</div>;
 
   let cumulativeValue = 0;
   const slices = data.map((slice, i) => {
@@ -265,7 +275,7 @@ const MyCustomPieChart = ({ data, colors }) => {
   resolveCollisions(slices.filter(s => s.isSmall && s.anchorSide === -1));
 
   return (
-    <svg viewBox="-1.25 -1.25 2.5 2.5" className="w-full max-w-[230px] h-auto mx-auto drop-shadow-md overflow-visible">
+    <svg viewBox="-1.25 -1.25 2.5 2.5" className="w-full max-w-[200px] h-auto mx-auto drop-shadow-md overflow-visible">
       {slices.map((s) => {
         const color = colors[s.i % colors.length];
         if (s.value === total) {
@@ -348,6 +358,7 @@ export default function App() {
   const [recordSubMethod, setRecordSubMethod] = useState('');
   const [recordNote, setRecordNote] = useState('');
   const [recordPhoto, setRecordPhoto] = useState(null); 
+  const [excludeFromBalance, setExcludeFromBalance] = useState(false); // 不計入帳戶功能
 
   const [showCalc, setShowCalc] = useState(false);
   const [calcStr, setCalcStr] = useState('0');
@@ -388,13 +399,14 @@ export default function App() {
   const photoInputRef = useRef(null); 
   const recordDateInputRef = useRef(null); 
 
-  const globalWrapperStyle = "min-h-screen bg-gray-100 sm:py-8 flex justify-center items-center font-sans text-[16px]";
-  const phoneContainerStyle = `w-full ${view === 'login' || view === 'create' ? 'max-w-[420px]' : 'max-w-[480px]'} min-h-screen sm:min-h-0 sm:h-[844px] bg-[#FFFBF0] flex flex-col relative sm:rounded-[3rem] sm:border-[8px] sm:border-gray-800 shadow-2xl overflow-hidden transition-all duration-500`;
+  const globalWrapperStyle = "min-h-screen bg-gray-100 sm:py-4 flex justify-center items-center font-sans text-[16px]";
+  const phoneContainerStyle = `w-full ${view === 'login' || view === 'create' ? 'max-w-[400px]' : 'max-w-[460px]'} min-h-screen sm:min-h-0 sm:h-[800px] bg-[#FFFBF0] flex flex-col relative sm:rounded-[2.5rem] sm:border-[6px] sm:border-gray-800 shadow-2xl overflow-hidden transition-all duration-500`;
 
+  // 優化捲動重置邏輯：只在主要視圖或分頁切換時重置主要視窗的捲軸，不會被 Modal 影響
   useEffect(() => {
-    const scrollContainers = document.querySelectorAll('.scroll-container');
+    const scrollContainers = document.querySelectorAll('main.scroll-container');
     scrollContainers.forEach(container => container.scrollTop = 0);
-  }, [view, settingsTab, showAddForm, viewingAccountHistory, viewingAnalysisItem, viewingRecord]);
+  }, [view, settingsTab, showAddForm]);
 
   useEffect(() => {
     window.history.pushState({ trap: true }, '');
@@ -698,7 +710,8 @@ export default function App() {
         frequencyInterval: recordFrequencyInterval, frequencyCustomText: recordFrequencyCustomText, 
         method: recordMethod || '未指定', 
         subMethod: recordSubMethod || '',
-        note: recordNote, addedBy: user.uid, addedByRole: currentUserRole, groupId: newGroupId, photoBase64: recordPhoto || null
+        note: recordNote, addedBy: user.uid, addedByRole: currentUserRole, groupId: newGroupId, photoBase64: recordPhoto || null,
+        excludeFromBalance: recordType === 'transfer' ? false : excludeFromBalance
       };
 
       if (recordType === 'expense') { baseData.payer = recordPayer; baseData.category = recordCategory; baseData.title = selectedItem; baseData.merchant = recordMerchant; } 
@@ -745,7 +758,7 @@ export default function App() {
       
       await batch.commit();
       
-      let shouldPrompt = !isEditing && recordType === 'expense' && recordMethod === '現金' && currentRoom?.promptCashSync;
+      let shouldPrompt = !isEditing && recordType === 'expense' && recordMethod === '現金' && currentRoom?.promptCashSync && !excludeFromBalance;
       if (shouldPrompt && currentRoom?.excludedPromptPayers?.length > 0) {
           const payers = Array.isArray(recordPayer) ? recordPayer : [recordPayer];
           const isExcluded = payers.some(p => currentRoom.excludedPromptPayers.includes(p));
@@ -763,9 +776,9 @@ export default function App() {
   const resetForm = () => {
     setRecordAmount('0'); setCalcStr('0'); setRecordDate(homeFilterDate || getLocalTodayStr()); setRecordFrequency('一次'); setRecordFrequencyDays([]); 
     setRecordFrequencyInterval(''); setRecordFrequencyCustomText(''); setRecordPayer([]); setRecordCategory(''); setSelectedItem('');
-    setRecordMerchant(''); setRecordMethod(''); setRecordSubMethod('');
+    setRecordMerchant(''); setRecordMethod(''); setRecordSubMethod(''); 
     setTransferToMethod(''); setTransferToSubMethod('');
-    setRecordNote(''); setRecordPhoto(null); setEditRecordId(null);
+    setRecordNote(''); setRecordPhoto(null); setEditRecordId(null); setExcludeFromBalance(false);
   };
 
   const openEditForm = (record) => {
@@ -778,6 +791,7 @@ export default function App() {
     setRecordMethod(record.method === '未指定' ? '' : record.method);
     setRecordSubMethod(record.subMethod || ''); 
     setRecordPhoto(record.photoBase64 || null);
+    setExcludeFromBalance(record.excludeFromBalance || false);
     if (record.type === 'expense' || !record.type) { setSelectedItem(record.title); setRecordMerchant(record.merchant === '未指定' ? '' : record.merchant); } 
     else if (record.type === 'transfer') { 
       setTransferToMethod(record.transferToMethod === '未指定' ? '' : record.transferToMethod); 
@@ -795,6 +809,7 @@ export default function App() {
     setRecordMethod(record.method === '未指定' ? '' : record.method);
     setRecordSubMethod(record.subMethod || ''); 
     setRecordPhoto(record.photoBase64 || null);
+    setExcludeFromBalance(record.excludeFromBalance || false);
     if (record.type === 'expense' || !record.type) { setSelectedItem(record.title); setRecordMerchant(record.merchant === '未指定' ? '' : record.merchant); } 
     else if (record.type === 'transfer') { 
       setTransferToMethod(record.transferToMethod === '未指定' ? '' : record.transferToMethod); 
@@ -936,7 +951,6 @@ export default function App() {
 
   const getAccKey = (method, subMethod) => {
     if (method === '現金') return '現金';
-    // 行動支付與信用卡視為相同帳戶
     if (['信用卡 / 行動支付', '信用卡', '行動支付'].includes(method)) return `cc_${subMethod}`;
     if (['銀行 / 電子票證', '銀行 / 儲值卡', '銀行 / 卡片', '銀行'].includes(method)) return `bank_${subMethod}`;
     if (method === '電子票證') return `et_${subMethod}`;
@@ -952,6 +966,8 @@ export default function App() {
     (currentRoom?.creditCards || []).forEach(c => balances[`cc_${c}`] = initial[`cc_${c}`] !== undefined ? initial[`cc_${c}`] : (initial[c] || 0));
     records.forEach(r => {
       if (r.date > getLocalTodayStr()) return;
+      if (r.excludeFromBalance) return; // 排除不計入
+      
       const amt = Number(r.amount) || 0;
       if (r.type === 'expense' || !r.type) { const key = getAccKey(r.method, r.subMethod); if (key) balances[key] = (balances[key] || 0) + (key.startsWith('cc_') ? amt : -amt); } 
       else if (r.type === 'income') { const key = getAccKey(r.method, r.subMethod); if (key) balances[key] = (balances[key] || 0) + (key.startsWith('cc_') ? -amt : amt); } 
@@ -1038,16 +1054,16 @@ export default function App() {
          updates[`categoryItems.${oldItem}`] = deleteField();
       }
       
-      // 處理行動支付綁定的信用卡連動 (如果是修改或刪除信用卡)
+      // 處理行動支付綁定的信用卡連動
       if (field === 'creditCards') {
-          if (oldItem && newItem && oldItem !== newItem) { // 修改
+          if (oldItem && newItem && oldItem !== newItem) {
               let newMobilePayCards = [...(currentRoom.mobilePayCards || [])];
               const idx = newMobilePayCards.indexOf(oldItem);
               if (idx > -1) {
                   newMobilePayCards[idx] = newItem;
                   updates.mobilePayCards = newMobilePayCards;
               }
-          } else if (oldItem && !newItem) { // 刪除
+          } else if (oldItem && !newItem) {
               let newMobilePayCards = (currentRoom.mobilePayCards || []).filter(c => c !== oldItem);
               updates.mobilePayCards = newMobilePayCards;
           }
@@ -1264,8 +1280,8 @@ export default function App() {
     };
 
     return (
-      <div className="mb-4 z-10 w-full">
-        {label && <label className="flex items-center gap-1.5 text-[14px] font-bold text-gray-500 mb-2 ml-1"><IconComponent size={16} className="text-gray-400" /> {label}</label>}
+      <div className="mb-3 z-10 w-full">
+        {label && <label className="flex items-center gap-1.5 text-[14px] font-bold text-gray-500 mb-1.5 ml-1"><IconComponent size={16} className="text-gray-400" /> {label}</label>}
         <div className="flex flex-wrap bg-gray-50 rounded-xl p-1 border border-gray-100 mb-1 shadow-inner gap-1">
           {(currentRoom?.paymentMethods || []).map(opt => {
             const style = getMethodStyle(opt);
@@ -1281,7 +1297,7 @@ export default function App() {
                     else if (opt === '電子票證') setSubMethod(currentRoom?.electronicTickets?.[0] || '');
                     else setSubMethod('');
                 }} 
-                className={`flex-1 min-w-[28%] sm:min-w-[60px] py-2 px-1 rounded-[1rem] text-[13px] sm:text-[14px] font-black transition-all duration-200 flex items-center justify-center truncate border-2 shadow-sm ${isSel ? `${style.bg} text-white ${style.borderSel} transform -translate-y-0.5 z-10` : `bg-white ${style.text} border-transparent hover:border-gray-300 hover:bg-white`}`}
+                className={`flex-1 min-w-[28%] sm:min-w-[60px] py-1.5 px-1 rounded-[1rem] text-[13px] sm:text-[14px] font-black transition-all duration-200 flex items-center justify-center truncate border-2 shadow-sm ${isSel ? `${style.bg} text-white ${style.borderSel} transform -translate-y-0.5 z-10` : `bg-white ${style.text} border-transparent hover:border-gray-300 hover:bg-white`}`}
               >
                 {opt}
               </button>
@@ -1291,13 +1307,13 @@ export default function App() {
 
         {/* 依據選擇是行動支付或信用卡，決定顯示的清單 (行動支付只顯示設定中勾選的卡片) */}
         {['信用卡', '行動支付', '信用卡 / 行動支付'].includes(method) && (
-          <div className="bg-orange-50/60 border border-orange-100 rounded-[1rem] p-2 shadow-inner mb-2 animate-in fade-in slide-in-from-top-1 duration-200">
+          <div className="bg-orange-50/60 border border-orange-100 rounded-xl p-1.5 shadow-inner mb-1.5 animate-in fade-in slide-in-from-top-1 duration-200">
             <div className="flex flex-wrap gap-1.5">
               {(() => {
                 const cardList = method === '行動支付' ? (currentRoom?.mobilePayCards || currentRoom?.creditCards || []) : (currentRoom?.creditCards || []);
                 if (cardList.length === 0) return <span className="text-gray-400 text-[13px] font-bold py-1 px-2">無可用信用卡</span>;
                 return cardList.map(sub => (
-                  <button key={sub} type="button" onClick={() => setSubMethod(sub)} className={`px-3 py-1.5 rounded-xl text-[13px] font-bold transition-all border-2 shadow-sm ${subMethod === sub ? 'bg-orange-500 text-white border-orange-600 transform -translate-y-0.5' : 'bg-white text-gray-500 border-gray-100 hover:border-gray-200'}`}>{sub}</button>
+                  <button key={sub} type="button" onClick={() => setSubMethod(sub)} className={`px-2.5 py-1 rounded-lg text-[13px] font-bold transition-all border-2 shadow-sm ${subMethod === sub ? 'bg-orange-500 text-white border-orange-600 transform -translate-y-0.5' : 'bg-white text-gray-500 border-gray-100 hover:border-gray-200'}`}>{sub}</button>
                 ));
               })()}
             </div>
@@ -1305,20 +1321,20 @@ export default function App() {
         )}
 
         {['銀行', '銀行 / 電子票證'].includes(method) && currentRoom?.bankAccounts?.length > 0 && (
-          <div className="bg-blue-50/60 border border-blue-100 rounded-[1rem] p-2 shadow-inner mb-2 animate-in fade-in slide-in-from-top-1 duration-200">
+          <div className="bg-blue-50/60 border border-blue-100 rounded-xl p-1.5 shadow-inner mb-1.5 animate-in fade-in slide-in-from-top-1 duration-200">
             <div className="flex flex-wrap gap-1.5">
               {currentRoom.bankAccounts.map(sub => (
-                <button key={sub} type="button" onClick={() => setSubMethod(sub)} className={`px-3 py-1.5 rounded-xl text-[13px] font-bold transition-all border-2 shadow-sm ${subMethod === sub ? 'bg-blue-500 text-white border-blue-600 transform -translate-y-0.5' : 'bg-white text-gray-500 border-gray-100 hover:border-gray-200'}`}>{sub}</button>
+                <button key={sub} type="button" onClick={() => setSubMethod(sub)} className={`px-2.5 py-1 rounded-lg text-[13px] font-bold transition-all border-2 shadow-sm ${subMethod === sub ? 'bg-blue-500 text-white border-blue-600 transform -translate-y-0.5' : 'bg-white text-gray-500 border-gray-100 hover:border-gray-200'}`}>{sub}</button>
               ))}
             </div>
           </div>
         )}
 
         {method === '電子票證' && currentRoom?.electronicTickets?.length > 0 && (
-          <div className="bg-teal-50/60 border border-teal-100 rounded-[1rem] p-2 shadow-inner mb-2 animate-in fade-in slide-in-from-top-1 duration-200">
+          <div className="bg-teal-50/60 border border-teal-100 rounded-xl p-1.5 shadow-inner mb-1.5 animate-in fade-in slide-in-from-top-1 duration-200">
             <div className="flex flex-wrap gap-1.5">
               {currentRoom.electronicTickets.map(sub => (
-                <button key={sub} type="button" onClick={() => setSubMethod(sub)} className={`px-3 py-1.5 rounded-xl text-[13px] font-bold transition-all border-2 shadow-sm ${subMethod === sub ? 'bg-teal-500 text-white border-teal-600 transform -translate-y-0.5' : 'bg-white text-gray-500 border-gray-100 hover:border-gray-200'}`}>{sub}</button>
+                <button key={sub} type="button" onClick={() => setSubMethod(sub)} className={`px-2.5 py-1 rounded-lg text-[13px] font-bold transition-all border-2 shadow-sm ${subMethod === sub ? 'bg-teal-500 text-white border-teal-600 transform -translate-y-0.5' : 'bg-white text-gray-500 border-gray-100 hover:border-gray-200'}`}>{sub}</button>
               ))}
             </div>
           </div>
@@ -1379,8 +1395,8 @@ export default function App() {
     const splitIndex = Math.ceil(options.length / 2);
 
     return (
-      <div className="mb-4 w-full">
-        {label && <label className="flex items-center gap-1.5 text-[14px] font-bold text-gray-500 mb-2 ml-1">{Icon && <Icon size={14} className="text-gray-400" />} {label}</label>}
+      <div className="mb-3 w-full">
+        {label && <label className="flex items-center gap-1.5 text-[14px] font-bold text-gray-500 mb-1 ml-1">{Icon && <Icon size={14} className="text-gray-400" />} {label}</label>}
         {needsTwoRows ? (
           <div className="flex flex-col gap-1.5">
             {renderButtonRow(options.slice(0, splitIndex), 0)}
@@ -1420,11 +1436,14 @@ export default function App() {
     });
   }
 
-  const totalIncome = displayRecords.filter(r => r.type === 'income').reduce((sum, r) => sum + r.amount, 0);
-  const totalExpense = displayRecords.filter(r => r.type === 'expense' || !r.type).reduce((sum, r) => sum + r.amount, 0);
+  // 首頁總計 (排除「不計入帳戶」的紀錄)
+  const totalIncome = displayRecords.filter(r => r.type === 'income' && !r.excludeFromBalance).reduce((sum, r) => sum + r.amount, 0);
+  const totalExpense = displayRecords.filter(r => (r.type === 'expense' || !r.type) && !r.excludeFromBalance).reduce((sum, r) => sum + r.amount, 0);
   const netBalance = totalIncome - totalExpense;
 
   const analysisFilteredRecords = records.filter(r => {
+    if (r.excludeFromBalance) return false; // 分析排除「不計入帳戶」的紀錄
+    
     const rType = r.type || 'expense';
     if (rType !== analysisType) return false; 
     if (analysisStartDate && r.date < analysisStartDate) return false;
@@ -1497,34 +1516,28 @@ export default function App() {
   }
 
   // ==========================================
-  // Render Guard
-  // ==========================================
-  if (!user) {
-    return (
-      <div className={globalWrapperStyle}>
-        <div className={`${phoneContainerStyle} justify-center items-center p-6`}>
-          {errorMsg ? (
-            <div className="bg-red-50 text-red-500 font-bold p-6 rounded-[1.5rem] flex flex-col items-center gap-4 border border-red-100 shadow-sm text-center w-full">
-              <AlertCircle size={40} />
-              <p className="text-[17px] leading-relaxed whitespace-pre-line">{errorMsg}</p>
-              <button onClick={() => window.location.reload()} className="mt-2 bg-white text-red-500 px-6 py-2.5 rounded-xl text-[17px] shadow-sm border border-red-100 transition hover:bg-red-50">重新整理</button>
-            </div>
-          ) : (
-            <div className="text-gray-500 font-extrabold text-[22px] flex items-center bg-white p-5 rounded-[1.5rem] shadow-sm border border-gray-100">
-              <Sparkles className="animate-bounce mr-3 text-yellow-400" size={28}/> 魔法連線中...
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  }
-
-  // ==========================================
   // Main View Content Generation
   // ==========================================
   let content = null;
 
-  if (view === 'login') {
+  if (!user) {
+    content = (
+      <div className="flex flex-col items-center justify-center h-full p-6">
+        {errorMsg ? (
+          <div className="bg-red-50 text-red-500 font-bold p-6 rounded-[1.5rem] flex flex-col items-center gap-4 border border-red-100 shadow-sm text-center w-full">
+            <AlertCircle size={40} />
+            <p className="text-[17px] leading-relaxed whitespace-pre-line">{errorMsg}</p>
+            <button onClick={() => window.location.reload()} className="mt-2 bg-white text-red-500 px-6 py-2.5 rounded-xl text-[17px] shadow-sm border border-red-100 transition hover:bg-red-50">重新整理</button>
+          </div>
+        ) : (
+          <div className="text-gray-500 font-extrabold text-[22px] flex items-center bg-white p-5 rounded-[1.5rem] shadow-sm border border-gray-100">
+            <Sparkles className="animate-bounce mr-3 text-yellow-400" size={28}/> 魔法連線中...
+          </div>
+        )}
+      </div>
+    );
+  }
+  else if (view === 'login') {
     content = (
       <div className="scroll-container flex flex-col items-center justify-center flex-1 p-4 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
         <div className="flex flex-col items-center mb-6 w-full mt-2">
@@ -1628,13 +1641,13 @@ export default function App() {
 
     content = (
       <>
-        <header className="bg-gradient-to-r from-indigo-500 to-purple-500 px-5 py-5 shadow-md shrink-0 z-10 rounded-b-[1.5rem] border-b-4 border-white/20">
+        <header className="bg-gradient-to-r from-indigo-500 to-purple-500 px-4 py-3.5 shadow-md shrink-0 z-10 rounded-b-[1.5rem] border-b-4 border-white/20">
           <div className="flex justify-between items-center">
-            <h1 className="text-xl font-black text-white flex items-center gap-2 drop-shadow-md"><Landmark size={24} className="text-white/80"/> 帳戶總覽</h1>
+            <h1 className="text-[20px] font-black text-white flex items-center gap-2 drop-shadow-md"><Landmark size={22} className="text-white/80"/> 帳戶總覽</h1>
             <div className="flex gap-2">
-              <button onClick={() => setView('room')} className="px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-xl transition text-[15px] font-bold">返回</button>
+              <button onClick={() => setView('room')} className="px-3 py-1.5 bg-white/20 hover:bg-white/30 text-white rounded-lg transition text-[14px] font-bold">返回</button>
               {isEditingBalances ? (
-                <button onClick={handleSaveBalances} className="px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-xl transition text-[15px] font-bold">儲存</button>
+                <button onClick={handleSaveBalances} className="px-3 py-1.5 bg-white/20 hover:bg-white/30 text-white rounded-lg transition text-[14px] font-bold">儲存</button>
               ) : (
                 <button onClick={() => { 
                    const initBal = currentRoom?.initialBalances || {};
@@ -1643,35 +1656,35 @@ export default function App() {
                    (currentRoom?.electronicTickets || []).forEach(e => temp[`et_${e}`] = initBal[`et_${e}`] !== undefined ? initBal[`et_${e}`] : (initBal[e] !== undefined ? initBal[e] : 0));
                    (currentRoom?.creditCards || []).forEach(c => temp[`cc_${c}`] = initBal[`cc_${c}`] !== undefined ? initBal[`cc_${c}`] : (initBal[c] !== undefined ? initBal[c] : 0));
                    setTempBalances(temp); setIsEditingBalances(true); 
-                }} className="px-3 py-2 bg-white/20 hover:bg-white/30 text-white rounded-xl transition text-[14px] font-bold">初始餘額</button>
+                }} className="px-3 py-1.5 bg-white/20 hover:bg-white/30 text-white rounded-lg transition text-[14px] font-bold">初始餘額</button>
               )}
             </div>
           </div>
         </header>
 
-        <main className="scroll-container px-4 py-4 space-y-4 flex-1 overflow-y-auto pb-[100px] [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-          <div className="bg-white py-3 px-5 rounded-[1.5rem] border-2 border-indigo-100 text-center shadow-sm relative overflow-hidden">
+        <main className="scroll-container px-3 py-3 space-y-3 flex-1 overflow-y-auto pb-[90px] [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+          <div className="bg-white py-3 px-4 rounded-2xl border-2 border-indigo-100 text-center shadow-sm relative overflow-hidden">
              <div className="absolute -right-6 -top-6 bg-indigo-50 w-24 h-24 rounded-full opacity-50"></div>
              <p className="text-indigo-400 font-extrabold text-[14px] relative z-10">💎 淨資產</p>
-             <p className={`text-[38px] leading-tight font-black relative z-10 ${netWorth < 0 ? 'text-red-500' : 'text-indigo-700'}`}>${netWorth.toLocaleString()}</p>
-             <div className="flex justify-center gap-5 mt-2 relative z-10 border-t border-indigo-50 pt-2">
+             <p className={`text-[36px] leading-tight font-black relative z-10 ${netWorth < 0 ? 'text-red-500' : 'text-indigo-700'}`}>${netWorth.toLocaleString()}</p>
+             <div className="flex justify-center gap-4 mt-1.5 relative z-10 border-t border-indigo-50 pt-1.5">
                  <div className="flex flex-col">
                      <span className="text-gray-400 text-[11px] font-bold">💰 總資產 (現金+銀行)</span>
                      <span className="text-indigo-500 font-black text-[15px]">${totalAssets.toLocaleString()}</span>
                  </div>
-                 <div className="flex flex-col border-l border-indigo-50 pl-5">
+                 <div className="flex flex-col border-l border-indigo-50 pl-4">
                      <span className="text-gray-400 text-[11px] font-bold">💳 總負債 (信用卡)</span>
                      <span className="text-orange-500 font-black text-[15px]">${totalLiabilities.toLocaleString()}</span>
                  </div>
              </div>
           </div>
 
-          <div className="bg-white p-5 rounded-[1.5rem] shadow-sm border border-emerald-50">
-             <h2 className="font-bold text-[18px] text-gray-700 mb-4 flex items-center gap-1.5"><Wallet size={20} className="text-emerald-500"/> 現金餘額</h2>
-             <div onClick={() => !isEditingBalances && setViewingAccountHistory('現金')} className={`flex justify-between items-center bg-gray-50 p-3 rounded-xl border border-gray-100 ${!isEditingBalances ? 'cursor-pointer hover:bg-emerald-50 hover:border-emerald-200 transition' : ''}`}>
-                <span className="font-bold text-gray-600 text-[17px]">現金</span>
+          <div className="bg-white p-4 rounded-2xl shadow-sm border border-emerald-50">
+             <h2 className="font-bold text-[17px] text-gray-700 mb-3 flex items-center gap-1.5"><Wallet size={18} className="text-emerald-500"/> 現金餘額</h2>
+             <div onClick={() => !isEditingBalances && setViewingAccountHistory('現金')} className={`flex justify-between items-center bg-gray-50 p-2.5 rounded-xl border border-gray-100 ${!isEditingBalances ? 'cursor-pointer hover:bg-emerald-50 hover:border-emerald-200 transition' : ''}`}>
+                <span className="font-bold text-gray-600 text-[16px]">現金</span>
                 {isEditingBalances ? (
-                   <input type="text" inputMode="numeric" className="w-24 text-right border border-emerald-200 focus:border-emerald-400 p-1.5 rounded-lg font-bold text-[17px] outline-none transition" 
+                   <input type="text" inputMode="numeric" className="w-24 text-right border border-emerald-200 focus:border-emerald-400 p-1 rounded-lg font-bold text-[16px] outline-none transition" 
                      value={tempBalances['現金'] === '-' ? '-' : (tempBalances['現金'] === undefined || tempBalances['現金'] === '' ? '' : Number(tempBalances['現金']).toLocaleString())} 
                      onChange={e => {
                         let val = e.target.value.replace(/,/g, ''); if (val === '') val = '0';
@@ -1679,29 +1692,29 @@ export default function App() {
                         if (!isNaN(val)) setTempBalances({...tempBalances, '現金': val});
                      }} onFocus={e => e.target.select()} placeholder="0" />
                 ) : (
-                   <span className={`font-black text-[22px] ${cashBal < 0 ? 'text-red-500' : 'text-gray-800'}`}>${cashBal.toLocaleString()}</span>
+                   <span className={`font-black text-[20px] ${cashBal < 0 ? 'text-red-500' : 'text-gray-800'}`}>${cashBal.toLocaleString()}</span>
                 )}
              </div>
           </div>
 
-          <div className="bg-white p-5 rounded-[1.5rem] shadow-sm border border-blue-50">
-             <div className="flex justify-between items-end mb-4 flex-nowrap">
-               <h2 className="font-bold text-[18px] text-gray-700 flex items-center gap-1.5 min-w-0 shrink">
-                 <Landmark size={20} className="text-blue-500 shrink-0"/> 
-                 <span className="truncate">銀行/電子票證餘額</span>
+          <div className="bg-white p-4 rounded-2xl shadow-sm border border-blue-50">
+             <div className="flex justify-between items-end mb-3 flex-nowrap">
+               <h2 className="font-bold text-[17px] text-gray-700 flex items-center gap-1.5 min-w-0 shrink">
+                 <Landmark size={18} className="text-blue-500 shrink-0"/> 
+                 <span className="truncate">銀行/電子票證</span>
                </h2>
-               <span className="text-[15px] font-extrabold text-blue-500 bg-blue-50 px-2.5 py-1 rounded-lg shrink-0 ml-2 whitespace-nowrap">小計: ${bankTotal.toLocaleString()}</span>
+               <span className="text-[14px] font-extrabold text-blue-500 bg-blue-50 px-2 py-1 rounded-lg shrink-0 ml-2 whitespace-nowrap">小計: ${bankTotal.toLocaleString()}</span>
              </div>
-             <div className="space-y-2.5">
-               {banks.length === 0 && eTickets.length === 0 && <p className="text-gray-400 text-[15px] font-bold text-center py-4 bg-gray-50 rounded-xl">無銀行與電子票證，請至設定新增</p>}
+             <div className="space-y-2">
+               {banks.length === 0 && eTickets.length === 0 && <p className="text-gray-400 text-[14px] font-bold text-center py-3 bg-gray-50 rounded-xl">無銀行與電子票證，請至設定新增</p>}
                
                {banks.map(b => {
                  const bal = balances[`bank_${b}`] || 0;
                  return (
-                   <div key={`bank_${b}`} onClick={() => !isEditingBalances && setViewingAccountHistory(b)} className={`flex justify-between items-center bg-gray-50 p-3 rounded-xl border border-gray-100 ${!isEditingBalances ? 'cursor-pointer hover:bg-blue-50 hover:border-blue-200 transition' : ''}`}>
-                      <span className="font-bold text-gray-600 text-[17px] truncate pr-2">🏦 {b}</span>
+                   <div key={`bank_${b}`} onClick={() => !isEditingBalances && setViewingAccountHistory(b)} className={`flex justify-between items-center bg-gray-50 p-2.5 rounded-xl border border-gray-100 ${!isEditingBalances ? 'cursor-pointer hover:bg-blue-50 hover:border-blue-200 transition' : ''}`}>
+                      <span className="font-bold text-gray-600 text-[16px] truncate pr-2">🏦 {b}</span>
                       {isEditingBalances ? (
-                         <input type="text" inputMode="numeric" className="w-24 text-right border border-blue-200 focus:border-blue-400 p-1.5 rounded-lg font-bold text-[17px] outline-none transition" 
+                         <input type="text" inputMode="numeric" className="w-24 text-right border border-blue-200 focus:border-blue-400 p-1 rounded-lg font-bold text-[16px] outline-none transition" 
                            value={tempBalances[`bank_${b}`] === '-' ? '-' : (tempBalances[`bank_${b}`] === undefined || tempBalances[`bank_${b}`] === '' ? '' : Number(tempBalances[`bank_${b}`]).toLocaleString())} 
                            onChange={e => {
                               let val = e.target.value.replace(/,/g, ''); if (val === '') val = '0';
@@ -1709,7 +1722,7 @@ export default function App() {
                               if (!isNaN(val)) setTempBalances({...tempBalances, [`bank_${b}`]: val});
                            }} onFocus={e => e.target.select()} placeholder="0" />
                       ) : (
-                         <span className={`font-black text-[20px] shrink-0 ${bal < 0 ? 'text-red-500' : 'text-gray-800'}`}>${bal.toLocaleString()}</span>
+                         <span className={`font-black text-[18px] shrink-0 ${bal < 0 ? 'text-red-500' : 'text-gray-800'}`}>${bal.toLocaleString()}</span>
                       )}
                    </div>
                  )
@@ -1718,10 +1731,10 @@ export default function App() {
                {eTickets.map(eItem => {
                  const bal = balances[`et_${eItem}`] || 0;
                  return (
-                   <div key={`et_${eItem}`} onClick={() => !isEditingBalances && setViewingAccountHistory(eItem)} className={`flex justify-between items-center bg-gray-50 p-3 rounded-xl border border-gray-100 ${!isEditingBalances ? 'cursor-pointer hover:bg-teal-50 hover:border-teal-200 transition' : ''}`}>
-                      <span className="font-bold text-gray-600 text-[17px] truncate pr-2">🎟️ {eItem}</span>
+                   <div key={`et_${eItem}`} onClick={() => !isEditingBalances && setViewingAccountHistory(eItem)} className={`flex justify-between items-center bg-gray-50 p-2.5 rounded-xl border border-gray-100 ${!isEditingBalances ? 'cursor-pointer hover:bg-teal-50 hover:border-teal-200 transition' : ''}`}>
+                      <span className="font-bold text-gray-600 text-[16px] truncate pr-2">🎟️ {eItem}</span>
                       {isEditingBalances ? (
-                         <input type="text" inputMode="numeric" className="w-24 text-right border border-teal-200 focus:border-teal-400 p-1.5 rounded-lg font-bold text-[17px] outline-none transition" 
+                         <input type="text" inputMode="numeric" className="w-24 text-right border border-teal-200 focus:border-teal-400 p-1 rounded-lg font-bold text-[16px] outline-none transition" 
                            value={tempBalances[`et_${eItem}`] === '-' ? '-' : (tempBalances[`et_${eItem}`] === undefined || tempBalances[`et_${eItem}`] === '' ? '' : Number(tempBalances[`et_${eItem}`]).toLocaleString())} 
                            onChange={e => {
                               let val = e.target.value.replace(/,/g, ''); if (val === '') val = '0';
@@ -1729,7 +1742,7 @@ export default function App() {
                               if (!isNaN(val)) setTempBalances({...tempBalances, [`et_${eItem}`]: val});
                            }} onFocus={e => e.target.select()} placeholder="0" />
                       ) : (
-                         <span className={`font-black text-[20px] shrink-0 ${bal < 0 ? 'text-red-500' : 'text-gray-800'}`}>${bal.toLocaleString()}</span>
+                         <span className={`font-black text-[18px] shrink-0 ${bal < 0 ? 'text-red-500' : 'text-gray-800'}`}>${bal.toLocaleString()}</span>
                       )}
                    </div>
                  )
@@ -1737,23 +1750,23 @@ export default function App() {
              </div>
           </div>
 
-          <div className="bg-white p-5 rounded-[1.5rem] shadow-sm border border-orange-50">
-             <div className="flex justify-between items-end mb-4 flex-nowrap">
-               <h2 className="font-bold text-[18px] text-gray-700 flex items-center gap-1.5 min-w-0 shrink">
-                 <CreditCard size={20} className="text-orange-500 shrink-0"/> 
-                 <span className="truncate">信用卡刷卡金額</span>
+          <div className="bg-white p-4 rounded-2xl shadow-sm border border-orange-50">
+             <div className="flex justify-between items-end mb-3 flex-nowrap">
+               <h2 className="font-bold text-[17px] text-gray-700 flex items-center gap-1.5 min-w-0 shrink">
+                 <CreditCard size={18} className="text-orange-500 shrink-0"/> 
+                 <span className="truncate">信用卡刷卡</span>
                </h2>
-               <span className="text-[15px] font-extrabold text-orange-500 bg-orange-50 px-2.5 py-1 rounded-lg shrink-0 ml-2 whitespace-nowrap">小計: ${ccTotal.toLocaleString()}</span>
+               <span className="text-[14px] font-extrabold text-orange-500 bg-orange-50 px-2 py-1 rounded-lg shrink-0 ml-2 whitespace-nowrap">小計: ${ccTotal.toLocaleString()}</span>
              </div>
-             <div className="space-y-2.5">
-               {ccs.length === 0 && <p className="text-gray-400 text-[15px] font-bold text-center py-4 bg-gray-50 rounded-xl">無信用卡，請至設定新增</p>}
+             <div className="space-y-2">
+               {ccs.length === 0 && <p className="text-gray-400 text-[14px] font-bold text-center py-3 bg-gray-50 rounded-xl">無信用卡，請至設定新增</p>}
                {ccs.map(c => {
                  const bal = balances[`cc_${c}`] || 0;
                  return (
-                   <div key={c} onClick={() => !isEditingBalances && setViewingAccountHistory(c)} className={`flex justify-between items-center bg-gray-50 p-3 rounded-xl border border-gray-100 ${!isEditingBalances ? 'cursor-pointer hover:bg-orange-50 hover:border-orange-200 transition' : ''}`}>
-                      <span className="font-bold text-gray-600 text-[17px] truncate pr-2">💳 {c}</span>
+                   <div key={c} onClick={() => !isEditingBalances && setViewingAccountHistory(c)} className={`flex justify-between items-center bg-gray-50 p-2.5 rounded-xl border border-gray-100 ${!isEditingBalances ? 'cursor-pointer hover:bg-orange-50 hover:border-orange-200 transition' : ''}`}>
+                      <span className="font-bold text-gray-600 text-[16px] truncate pr-2">💳 {c}</span>
                       {isEditingBalances ? (
-                         <input type="text" inputMode="numeric" className="w-24 text-right border border-orange-200 focus:border-orange-400 p-1.5 rounded-lg font-bold text-[17px] outline-none transition" 
+                         <input type="text" inputMode="numeric" className="w-24 text-right border border-orange-200 focus:border-orange-400 p-1 rounded-lg font-bold text-[17px] outline-none transition" 
                            value={tempBalances[`cc_${c}`] === '-' ? '-' : (tempBalances[`cc_${c}`] === undefined || tempBalances[`cc_${c}`] === '' ? '' : Number(tempBalances[`cc_${c}`]).toLocaleString())} 
                            onChange={e => {
                               let val = e.target.value.replace(/,/g, ''); if (val === '') val = '0';
@@ -1761,13 +1774,13 @@ export default function App() {
                               if (!isNaN(val)) setTempBalances({...tempBalances, [`cc_${c}`]: val});
                            }} onFocus={e => e.target.select()} placeholder="0" />
                       ) : (
-                         <span className={`font-black text-[20px] shrink-0 ${bal > 0 ? 'text-orange-500' : 'text-gray-800'}`}>${bal.toLocaleString()}</span>
+                         <span className={`font-black text-[18px] shrink-0 ${bal > 0 ? 'text-orange-500' : 'text-gray-800'}`}>${bal.toLocaleString()}</span>
                       )}
                    </div>
                  )
                })}
              </div>
-             <p className="text-[12px] font-bold text-orange-400 mt-4 bg-orange-50 p-3 rounded-xl text-center leading-relaxed">* 行動支付與信用卡金額代表「累積應繳卡費（負債）」。刷卡會增加金額，透過轉帳繳費後金額會減少。</p>
+             <p className="text-[11px] font-bold text-orange-400 mt-3 bg-orange-50 p-2.5 rounded-xl text-center leading-relaxed">* 行動支付與信用卡金額代表「累積應繳卡費（負債）」。刷卡會增加金額，透過轉帳繳費後金額會減少。</p>
           </div>
         </main>
       </>
@@ -1776,100 +1789,97 @@ export default function App() {
   else if (view === 'room' && !showAddForm) {
     content = (
       <>
-        <header className="bg-gradient-to-r from-pink-400 to-orange-400 px-4 py-3 shadow-md shrink-0 z-10 rounded-b-[1.5rem] border-b-4 border-white/20">
-          <div className="flex justify-between items-center mb-2">
+        <header className="bg-gradient-to-r from-pink-400 to-orange-400 px-3 py-2.5 shadow-md shrink-0 z-10 rounded-b-[1.5rem] border-b-4 border-white/20">
+          <div className="flex justify-between items-center mb-1.5">
             <div className="flex flex-col">
-              <h1 className="text-[24px] font-black text-white drop-shadow-md mb-0.5">{currentRoom?.name || '共同記帳本'}</h1>
-              <p className="text-white/90 text-[16px] font-extrabold flex items-center gap-1.5 drop-shadow-sm">
+              <h1 className="text-[22px] font-black text-white drop-shadow-md mb-0.5 leading-tight">{currentRoom?.name || '共同記帳本'}</h1>
+              <p className="text-white/90 text-[14px] font-extrabold flex items-center gap-1.5 drop-shadow-sm">
                 <span className="w-2 h-2 rounded-full bg-green-300 inline-block shadow-sm"></span> {currentUserRole}
               </p>
             </div>
             <div className="flex items-center gap-1.5">
-              <button onClick={() => fileInputRef.current?.click()} className="p-2 bg-white/20 hover:bg-white/30 text-white rounded-xl transition backdrop-blur-sm" title="匯入資料"><Upload size={20} /></button>
-              <button onClick={handleBackup} className="p-2 bg-white/20 hover:bg-white/30 text-white rounded-xl transition backdrop-blur-sm" title="備份雲端資料"><Download size={20} /></button>
-              <button onClick={() => { setSettingsTab('expense'); setView('settings'); }} className="p-2 bg-white/20 hover:bg-white/30 text-white rounded-xl transition backdrop-blur-sm" title="設定"><Settings size={20} /></button>
-              <button onClick={() => { setActiveRoomId(null); setView('login'); setRoomCode(''); setRoomPin(''); setCurrentUserRole(''); setRoomName(''); setHomeFilterDate(getLocalTodayStr()); }} className="p-2 bg-white/20 hover:bg-white/30 text-white rounded-xl transition backdrop-blur-sm" title="登出"><LogOut size={20} /></button>
+              <button onClick={() => fileInputRef.current?.click()} className="p-1.5 bg-white/20 hover:bg-white/30 text-white rounded-lg transition backdrop-blur-sm" title="匯入資料"><Upload size={18} /></button>
+              <button onClick={handleBackup} className="p-1.5 bg-white/20 hover:bg-white/30 text-white rounded-lg transition backdrop-blur-sm" title="備份雲端資料"><Download size={18} /></button>
+              <button onClick={() => { setSettingsTab('expense'); setView('settings'); }} className="p-1.5 bg-white/20 hover:bg-white/30 text-white rounded-lg transition backdrop-blur-sm" title="設定"><Settings size={18} /></button>
+              <button onClick={() => { setActiveRoomId(null); setView('login'); setRoomCode(''); setRoomPin(''); setCurrentUserRole(''); setRoomName(''); setHomeFilterDate(getLocalTodayStr()); }} className="p-1.5 bg-white/20 hover:bg-white/30 text-white rounded-lg transition backdrop-blur-sm" title="登出"><LogOut size={18} /></button>
             </div>
           </div>
           
-          <div className="mb-2">
+          <div className="mb-1.5">
             <div className="flex items-center gap-1.5 w-full">
-              <div className="relative bg-white/20 backdrop-blur-md rounded-xl shadow-sm border border-white/30 px-2 py-1.5 flex items-center overflow-hidden hover:bg-white/30 transition shrink-0">
+              <div className="relative bg-white/20 backdrop-blur-md rounded-lg shadow-sm border border-white/30 px-2 py-1 flex items-center overflow-hidden hover:bg-white/30 transition shrink-0">
                 <input type="date" value={homeFilterDate} onChange={(e) => setHomeFilterDate(e.target.value)} className="absolute inset-0 w-full h-full opacity-0 z-10 cursor-pointer" />
-                <Calendar size={14} className="text-white mr-1 shrink-0 z-0"/>
-                <span className="text-white text-[13px] font-black drop-shadow-sm z-0 whitespace-nowrap">{homeFilterDate ? toROCShortStr(homeFilterDate) : '全部日期'}</span>
+                <Calendar size={13} className="text-white mr-1 shrink-0 z-0"/>
+                <span className="text-white text-[12px] font-black drop-shadow-sm z-0 whitespace-nowrap">{homeFilterDate ? toROCShortStr(homeFilterDate) : '全部日期'}</span>
               </div>
               <button 
                 onClick={() => setHomeFilterDate(getLocalTodayStr())} 
-                className={`shrink-0 px-2.5 py-1.5 rounded-xl transition-all duration-300 font-black text-[13px] shadow-sm backdrop-blur-sm whitespace-nowrap ${homeFilterDate === getLocalTodayStr() ? 'bg-white text-orange-500 scale-105 shadow-md' : 'bg-white/20 hover:bg-white/30 text-white'}`}
+                className={`shrink-0 px-2 py-1 rounded-lg transition-all duration-300 font-black text-[12px] shadow-sm backdrop-blur-sm whitespace-nowrap ${homeFilterDate === getLocalTodayStr() ? 'bg-white text-orange-500 scale-105 shadow-md' : 'bg-white/20 hover:bg-white/30 text-white'}`}
               >
                 今天
               </button>
-              <div className="relative bg-white/20 backdrop-blur-md rounded-xl shadow-sm border border-white/30 px-2 py-1.5 flex items-center overflow-hidden transition flex-1 min-w-0">
-                 <Search size={14} className="text-white mr-1.5 shrink-0 z-0" />
-                 <input type="text" placeholder="搜尋明細..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-full bg-transparent outline-none text-white text-[13px] font-black placeholder-white/70 z-0 min-w-0" />
-                 {searchQuery && <button onClick={() => setSearchQuery('')} className="text-white/70 hover:text-white shrink-0 z-10 p-0.5 ml-1"><X size={14}/></button>}
+              <div className="relative bg-white/20 backdrop-blur-md rounded-lg shadow-sm border border-white/30 px-2 py-1 flex items-center overflow-hidden transition flex-1 min-w-0">
+                 <Search size={13} className="text-white mr-1.5 shrink-0 z-0" />
+                 <input type="text" placeholder="搜尋明細..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-full bg-transparent outline-none text-white text-[12px] font-black placeholder-white/70 z-0 min-w-0" />
+                 {searchQuery && <button onClick={() => setSearchQuery('')} className="text-white/70 hover:text-white shrink-0 z-10 p-0.5 ml-1"><X size={13}/></button>}
               </div>
             </div>
           </div>
 
-          <div className="flex justify-between items-end bg-white/95 backdrop-blur-xl p-3 rounded-[1rem] shadow-sm">
-             <div className="flex flex-col"><span className="text-gray-400 text-[14px] font-bold mb-0.5">總支出</span><span className="text-pink-500 font-black text-[20px]"> ${totalExpense.toLocaleString()}</span></div>
-             <div className="flex flex-col items-center"><span className="text-gray-400 text-[14px] font-bold mb-0.5">總收入</span><span className="text-green-500 font-black text-[20px]"> ${totalIncome.toLocaleString()}</span></div>
-             <div className="flex flex-col items-end"><span className="text-gray-400 text-[14px] font-bold mb-0.5">總結餘</span><span className={`font-black text-[26px] leading-none ${netBalance < 0 ? 'text-red-500' : 'text-gray-800'}`}>${netBalance.toLocaleString()}</span></div>
+          <div className="flex justify-between items-end bg-white/95 backdrop-blur-xl p-2.5 rounded-[1rem] shadow-sm">
+             <div className="flex flex-col"><span className="text-gray-400 text-[12px] font-bold mb-0.5">總支出</span><span className="text-pink-500 font-black text-[18px] leading-none"> ${totalExpense.toLocaleString()}</span></div>
+             <div className="flex flex-col items-center"><span className="text-gray-400 text-[12px] font-bold mb-0.5">總收入</span><span className="text-green-500 font-black text-[18px] leading-none"> ${totalIncome.toLocaleString()}</span></div>
+             <div className="flex flex-col items-end"><span className="text-gray-400 text-[12px] font-bold mb-0.5">總結餘</span><span className={`font-black text-[22px] leading-none ${netBalance < 0 ? 'text-red-500' : 'text-gray-800'}`}>${netBalance.toLocaleString()}</span></div>
           </div>
         </header>
 
-        <main className="scroll-container px-4 py-4 flex-1 overflow-y-auto pb-[120px] [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]" onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}>
+        <main className="scroll-container px-3 py-3 flex-1 overflow-y-auto pb-[90px] [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]" onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}>
           <div>
-            <h3 className="font-bold text-gray-400 mb-3 ml-1 flex items-center gap-1.5 text-[18px]">📜 記帳明細</h3>
+            <h3 className="font-bold text-gray-400 mb-2 ml-1 flex items-center gap-1.5 text-[16px]">📜 記帳明細</h3>
             {displayRecords.length === 0 ? (
-              <div className="text-center py-12 bg-white rounded-[1.5rem] border border-dashed border-gray-200 text-gray-400 font-bold text-[15px]">
-                <div className="bg-orange-50 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4"><PiggyBank size={28} className="text-orange-400" /></div>
+              <div className="text-center py-10 bg-white rounded-2xl border border-dashed border-gray-200 text-gray-400 font-bold text-[14px]">
+                <div className="bg-orange-50 w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-3"><PiggyBank size={24} className="text-orange-400" /></div>
                 <p>目前還沒有紀錄，快使用下方 ＋ 號開始記帳吧！</p>
               </div>
             ) : (
-              <div className="space-y-2.5">
+              <div className="space-y-2">
                 {displayRecords.map((exp, idx) => {
                   const isIncome = exp.type === 'income'; const isTransfer = exp.type === 'transfer';
                   const payerStr = Array.isArray(exp.payer) ? exp.payer.join(', ') : exp.payer;
                   const isSortable = !searchQuery && homeFilterDate;
                   let freqDisplay = exp.frequency === '區間' ? (exp.frequencyInterval === '自訂' ? exp.frequencyCustomText : exp.frequencyInterval) : exp.frequency;
                   
-                  // 權限判斷：是否為該筆紀錄建立者 (若無建立者紀錄則為了相容舊資料預設放行)
                   const canModify = !exp.addedByRole || currentUserRole === exp.addedByRole;
                   
                   return (
-                    <div key={exp.id} onClick={() => setViewingRecord(exp)} className="bg-white p-3 rounded-xl shadow-sm border border-gray-100 flex justify-between items-start group relative hover:shadow-md transition duration-300 cursor-pointer">
+                    <div key={exp.id} onClick={() => setViewingRecord(exp)} className={`bg-white p-2.5 rounded-2xl shadow-sm border ${exp.excludeFromBalance ? 'border-gray-200 opacity-80' : 'border-gray-100'} flex justify-between items-start group relative hover:shadow-md transition duration-300 cursor-pointer`}>
                       <div className={`absolute left-0 top-1/2 -translate-y-1/2 h-1/2 w-1 rounded-r-md ${isIncome ? 'bg-green-400' : isTransfer ? 'bg-blue-400' : 'bg-orange-400'}`}></div>
-                      <div className="flex-1 pl-2.5 pr-2 overflow-hidden flex flex-col justify-center py-1.5">
-                        <div className="flex flex-wrap items-center gap-1.5 mb-1.5">
-                          <div className="text-[12px] font-bold text-gray-400">建檔: {toROCYearStr(exp.timestamp)} {new Date(exp.timestamp).toLocaleTimeString('zh-TW', { hour12: false, hour: '2-digit', minute: '2-digit' })}</div>
-                          {exp.addedByRole && <span className={`${getRoleColorStyle(exp.addedByRole).lightBg} ${getRoleColorStyle(exp.addedByRole).text} border ${getRoleColorStyle(exp.addedByRole).lightBorder} px-1.5 py-0.5 rounded text-[12px] font-bold tracking-wide shrink-0`}>{exp.addedByRole}</span>}
-                          <span className="bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded text-[12px] font-bold tracking-wide shrink-0">{freqDisplay || '一次'}</span>
+                      <div className="flex-1 pl-2.5 pr-2 overflow-hidden flex flex-col justify-center py-1">
+                        <div className="flex flex-wrap items-center gap-1.5 mb-1">
+                          <div className="text-[11px] font-bold text-gray-400">{toROCYearStr(exp.timestamp)} {new Date(exp.timestamp).toLocaleTimeString('zh-TW', { hour12: false, hour: '2-digit', minute: '2-digit' })}</div>
+                          {exp.addedByRole && <span className={`${getRoleColorStyle(exp.addedByRole).lightBg} ${getRoleColorStyle(exp.addedByRole).text} border ${getRoleColorStyle(exp.addedByRole).lightBorder} px-1.5 py-0.5 rounded text-[11px] font-bold tracking-wide shrink-0`}>{exp.addedByRole}</span>}
+                          <span className="bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded text-[11px] font-bold tracking-wide shrink-0">{freqDisplay || '一次'}</span>
+                          {exp.excludeFromBalance && <span className="bg-gray-200 text-gray-500 px-1.5 py-0.5 rounded text-[11px] font-bold tracking-wide shrink-0">不計入</span>}
                         </div>
                         <div className="flex flex-wrap items-center gap-1.5">
-                          {!isTransfer && <span className={`font-bold text-[14px] px-1.5 py-0.5 rounded whitespace-nowrap border shrink-0 ${isIncome ? 'bg-green-50 text-green-600 border-green-100' : 'bg-orange-50 text-orange-600 border-orange-100'}`}>{exp.category}</span>}
-                          <span className="font-black text-gray-800 text-[18px] shrink-0 mr-1 flex items-center gap-1.5">
+                          {!isTransfer && <span className={`font-bold text-[13px] px-1.5 py-0.5 rounded whitespace-nowrap border shrink-0 ${isIncome ? 'bg-green-50 text-green-600 border-green-100' : 'bg-orange-50 text-orange-600 border-orange-100'}`}>{exp.category}</span>}
+                          <span className={`font-black text-[16px] shrink-0 mr-1 flex items-center gap-1.5 ${exp.excludeFromBalance ? 'text-gray-500 line-through decoration-gray-300' : 'text-gray-800'}`}>
                             {isTransfer ? `轉帳: ${renderMethodText(exp.method, exp.subMethod)} ➜ ${renderMethodText(exp.transferToMethod, exp.transferToSubMethod)}` : exp.title}
                           </span>
-                          {payerStr && payerStr !== '未指定' && <span className="text-gray-500 text-[13px] font-bold bg-gray-50 px-1.5 py-0.5 rounded border border-gray-200">👤 {payerStr}</span>}
-                          {!isTransfer && exp.method && exp.method !== '未指定' && <span className="text-gray-500 text-[13px] font-bold bg-gray-50 px-1.5 py-0.5 rounded border border-gray-200">💳 {renderMethodText(exp.method, exp.subMethod)}</span>}
-                          {exp.merchant && exp.merchant !== '未指定' && <span className="text-gray-500 text-[13px] font-bold bg-gray-50 px-1.5 py-0.5 rounded border border-gray-200">🏪 {exp.merchant}</span>}
-                          {exp.photoBase64 && <span className="shrink-0 w-[24px] h-[24px] rounded-md overflow-hidden shadow-sm inline-block border border-gray-200 mt-0.5" title="此紀錄附有照片"><img src={exp.photoBase64} alt="圖" className="w-full h-full object-cover" /></span>}
-                          {exp.note && <span className="text-gray-500 text-[13px] font-bold bg-[#FFFDF9] px-1.5 py-0.5 rounded border border-[#F2EFE9] max-w-full truncate mt-0.5">📝 {exp.note}</span>}
+                          {payerStr && payerStr !== '未指定' && <span className="text-gray-500 text-[12px] font-bold bg-gray-50 px-1.5 py-0.5 rounded border border-gray-200">👤 {payerStr}</span>}
+                          {!isTransfer && exp.method && exp.method !== '未指定' && <span className="text-gray-500 text-[12px] font-bold bg-gray-50 px-1.5 py-0.5 rounded border border-gray-200">💳 {renderMethodText(exp.method, exp.subMethod)}</span>}
+                          {exp.merchant && exp.merchant !== '未指定' && <span className="text-gray-500 text-[12px] font-bold bg-gray-50 px-1.5 py-0.5 rounded border border-gray-200">🏪 {exp.merchant}</span>}
+                          {exp.photoBase64 && <span className="shrink-0 w-[20px] h-[20px] rounded-md overflow-hidden shadow-sm inline-block border border-gray-200 mt-0.5" title="此紀錄附有照片"><img src={exp.photoBase64} alt="圖" className="w-full h-full object-cover" /></span>}
+                          {exp.note && <span className="text-gray-500 text-[12px] font-bold bg-[#FFFDF9] px-1.5 py-0.5 rounded border border-[#F2EFE9] max-w-full truncate mt-0.5">📝 {exp.note}</span>}
                         </div>
                       </div>
                       <div className="flex flex-col items-end shrink-0 pt-0.5">
-                        <span className={`font-black text-[22px] sm:text-[24px] ${isIncome ? 'text-green-500' : isTransfer ? 'text-blue-500' : 'text-gray-800'}`}>{isIncome ? '+' : isTransfer ? '⇆' : '-'}${exp.amount.toLocaleString()}</span>
-                        <div className="grid grid-cols-2 gap-1 mt-1.5 w-[72px] relative z-20">
-                          <button onClick={(e) => { e.stopPropagation(); handleMoveRecord(idx, -1); }} disabled={idx === 0 || !isSortable} className={`text-gray-400 hover:text-blue-500 font-bold p-1.5 transition bg-gray-50 hover:bg-blue-50 rounded-md shadow-sm flex items-center justify-center disabled:opacity-30 ${!isSortable ? 'cursor-not-allowed' : ''}`}><ArrowUp size={15} /></button>
-                          
-                          <button onClick={(e) => { e.stopPropagation(); openEditForm(exp); }} disabled={!canModify} className={`font-bold p-1.5 transition bg-gray-50 rounded-md shadow-sm flex items-center justify-center ${canModify ? 'text-gray-400 hover:text-blue-500 hover:bg-blue-50' : 'text-gray-300 opacity-40 cursor-not-allowed'}`}><Pencil size={15} /></button>
-                          
-                          <button onClick={(e) => { e.stopPropagation(); handleMoveRecord(idx, 1); }} disabled={idx === displayRecords.length - 1 || !isSortable} className={`text-gray-400 hover:text-blue-500 font-bold p-1.5 transition bg-gray-50 hover:bg-blue-50 rounded-md shadow-sm flex items-center justify-center disabled:opacity-30 ${!isSortable ? 'cursor-not-allowed' : ''}`}><ArrowDown size={15} /></button>
-                          
-                          <button onClick={(e) => { e.stopPropagation(); setCrossRoomRecord(exp); }} disabled={!canModify} className={`font-bold p-1.5 transition bg-gray-50 rounded-md shadow-sm flex items-center justify-center ${canModify ? 'text-gray-400 hover:text-orange-500 hover:bg-orange-50' : 'text-gray-300 opacity-40 cursor-not-allowed'}`}><Send size={15} /></button>
+                        <span className={`font-black text-[20px] sm:text-[22px] ${exp.excludeFromBalance ? 'text-gray-400 line-through decoration-gray-300' : isIncome ? 'text-green-500' : isTransfer ? 'text-blue-500' : 'text-gray-800'}`}>{isIncome ? '+' : isTransfer ? '⇆' : '-'}${exp.amount.toLocaleString()}</span>
+                        <div className="grid grid-cols-2 gap-1 mt-1 w-[64px] relative z-20">
+                          <button onClick={(e) => { e.stopPropagation(); handleMoveRecord(idx, -1); }} disabled={idx === 0 || !isSortable} className={`text-gray-400 hover:text-blue-500 font-bold p-1 transition bg-gray-50 hover:bg-blue-50 rounded shadow-sm flex items-center justify-center disabled:opacity-30 ${!isSortable ? 'cursor-not-allowed' : ''}`}><ArrowUp size={14} /></button>
+                          <button onClick={(e) => { e.stopPropagation(); openEditForm(exp); }} disabled={!canModify} className={`font-bold p-1 transition bg-gray-50 rounded shadow-sm flex items-center justify-center ${canModify ? 'text-gray-400 hover:text-blue-500 hover:bg-blue-50' : 'text-gray-300 opacity-40 cursor-not-allowed'}`}><Pencil size={14} /></button>
+                          <button onClick={(e) => { e.stopPropagation(); handleMoveRecord(idx, 1); }} disabled={idx === displayRecords.length - 1 || !isSortable} className={`text-gray-400 hover:text-blue-500 font-bold p-1 transition bg-gray-50 hover:bg-blue-50 rounded shadow-sm flex items-center justify-center disabled:opacity-30 ${!isSortable ? 'cursor-not-allowed' : ''}`}><ArrowDown size={14} /></button>
+                          <button onClick={(e) => { e.stopPropagation(); setCrossRoomRecord(exp); }} disabled={!canModify} className={`font-bold p-1 transition bg-gray-50 rounded shadow-sm flex items-center justify-center ${canModify ? 'text-gray-400 hover:text-orange-500 hover:bg-orange-50' : 'text-gray-300 opacity-40 cursor-not-allowed'}`}><Send size={14} /></button>
                         </div>
                       </div>
                     </div>
@@ -1893,47 +1903,47 @@ export default function App() {
     
     content = (
       <>
-        <header className={`${themeBg} text-white px-5 py-4 shadow-md shrink-0 z-10 border-b-4 border-white/20 rounded-b-[1.5rem] transition-colors duration-300`}>
-          <div className="flex justify-between items-center mb-3">
-            <h1 className="text-2xl font-black flex items-center gap-2 drop-shadow-md">{editRecordId ? '✏️ 編輯紀錄' : '✨ 新增紀錄'} {titleEmoji}</h1>
-            <button onClick={() => { setShowAddForm(false); resetForm(); }} className="bg-white/20 hover:bg-white/30 text-white rounded-full p-1.5 transition shadow-inner"><X size={22} strokeWidth={3} /></button>
+        <header className={`${themeBg} text-white px-4 py-3 shadow-md shrink-0 z-10 border-b-4 border-white/20 rounded-b-[1.5rem] transition-colors duration-300`}>
+          <div className="flex justify-between items-center mb-2.5">
+            <h1 className="text-xl font-black flex items-center gap-2 drop-shadow-md">{editRecordId ? '✏️ 編輯紀錄' : '✨ 新增紀錄'} {titleEmoji}</h1>
+            <button onClick={() => { setShowAddForm(false); resetForm(); }} className="bg-white/20 hover:bg-white/30 text-white rounded-full p-1.5 transition shadow-inner"><X size={20} strokeWidth={3} /></button>
           </div>
           {!editRecordId && (
             <div className="flex bg-white/20 p-1 rounded-xl shadow-inner mb-1">
-               <button type="button" onClick={() => setRecordType('expense')} className={`flex-1 py-2 rounded-lg font-bold text-[17px] text-center transition-all ${recordType === 'expense' ? 'bg-white text-orange-500 shadow-sm transform scale-100' : 'text-white hover:bg-white/10 scale-95'}`}>支出</button>
-               <button type="button" onClick={() => setRecordType('income')} className={`flex-1 py-2 rounded-lg font-bold text-[17px] text-center transition-all ${recordType === 'income' ? 'bg-white text-green-500 shadow-sm transform scale-100' : 'text-white hover:bg-white/10 scale-95'}`}>收入</button>
-               <button type="button" onClick={() => setRecordType('transfer')} className={`flex-1 py-2 rounded-lg font-bold text-[17px] text-center transition-all ${recordType === 'transfer' ? 'bg-white text-blue-500 shadow-sm transform scale-100' : 'text-white hover:bg-white/10 scale-95'}`}>轉帳</button>
+               <button type="button" onClick={() => setRecordType('expense')} className={`flex-1 py-1.5 rounded-lg font-bold text-[15px] text-center transition-all ${recordType === 'expense' ? 'bg-white text-orange-500 shadow-sm transform scale-100' : 'text-white hover:bg-white/10 scale-95'}`}>支出</button>
+               <button type="button" onClick={() => setRecordType('income')} className={`flex-1 py-1.5 rounded-lg font-bold text-[15px] text-center transition-all ${recordType === 'income' ? 'bg-white text-green-500 shadow-sm transform scale-100' : 'text-white hover:bg-white/10 scale-95'}`}>收入</button>
+               <button type="button" onClick={() => setRecordType('transfer')} className={`flex-1 py-1.5 rounded-lg font-bold text-[15px] text-center transition-all ${recordType === 'transfer' ? 'bg-white text-blue-500 shadow-sm transform scale-100' : 'text-white hover:bg-white/10 scale-95'}`}>轉帳</button>
             </div>
           )}
         </header>
 
-        <main className="scroll-container px-4 py-4 space-y-4 flex-1 overflow-y-auto pb-[90px] [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-          <form onSubmit={handleSaveRecord} className="space-y-4">
+        <main className="scroll-container px-3 py-3 space-y-3 flex-1 overflow-y-auto pb-[80px] [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+          <form onSubmit={handleSaveRecord} className="space-y-3">
             
             <div 
               role="button" 
               tabIndex={0} 
-              className={`w-full block bg-white rounded-[1.5rem] pt-3 pb-2 px-5 shadow-sm border-2 ${themeBorder} text-center relative overflow-hidden cursor-pointer active:scale-[0.98] transition-transform select-none`} 
+              className={`w-full block bg-white rounded-2xl pt-2.5 pb-2 px-4 shadow-sm border-2 ${themeBorder} text-center relative overflow-hidden cursor-pointer active:scale-[0.98] transition-transform select-none`} 
               onClick={(e) => { e.preventDefault(); e.stopPropagation(); setCalcStr(String(recordAmount || '0')); setShowCalc(true); }}
             >
                <div className={`absolute top-0 left-0 w-full h-1.5 ${themeBg} opacity-20`}></div>
                <p className={`${themeText} font-extrabold text-[13px] mb-1 flex items-center justify-center gap-1.5`}>輸入金額 💰 <span className="bg-gray-50 border border-gray-100 px-2 py-0.5 rounded text-[10px] text-gray-400 flex items-center gap-1"><Calculator size={12}/> 點擊計算</span></p>
-               <div className={`text-center text-[40px] leading-none font-black w-full text-gray-800 py-1 tracking-tight`}> 
+               <div className={`text-center text-[36px] leading-none font-black w-full text-gray-800 py-1 tracking-tight`}> 
                  {recordAmount === '' || recordAmount === '0' ? '0' : Number(String(recordAmount).replace(/,/g, '')).toLocaleString()}
                </div>
             </div>
 
-            <div className={`bg-white rounded-[1.5rem] p-5 shadow-sm border-2 ${themeBorder}`}>
-              <div className="grid grid-cols-2 gap-3 mb-5 z-40">
+            <div className={`bg-white rounded-2xl p-4 shadow-sm border-2 ${themeBorder}`}>
+              <div className="grid grid-cols-2 gap-2 mb-3.5 z-40">
                 <div>
-                  <label className="flex items-center justify-between text-[15px] font-bold text-gray-500 mb-2.5 ml-1 w-full pr-1">
-                    <span className="flex items-center gap-1.5"><Calendar size={18} className="text-gray-400" /> 日期 🗓️</span>
-                    <button type="button" onClick={() => setRecordDate(getLocalTodayStr())} className={`px-3 py-1 rounded-lg text-[13px] font-bold transition-all duration-300 shadow-sm ${recordDate === getLocalTodayStr() ? `${themeBg} text-white scale-105 shadow-md` : 'bg-gray-200 hover:bg-gray-300 text-gray-700'}`}>今天</button>
+                  <label className="flex items-center justify-between text-[14px] font-bold text-gray-500 mb-2 ml-1 w-full pr-1">
+                    <span className="flex items-center gap-1.5"><Calendar size={16} className="text-gray-400" /> 日期 🗓️</span>
+                    <button type="button" onClick={() => setRecordDate(getLocalTodayStr())} className={`px-2 py-1 rounded text-[12px] font-bold transition-all duration-300 shadow-sm ${recordDate === getLocalTodayStr() ? `${themeBg} text-white scale-105 shadow-md` : 'bg-gray-200 hover:bg-gray-300 text-gray-700'}`}>今天</button>
                   </label>
-                  <div className="relative w-full bg-gray-50 border border-gray-100 p-4 rounded-[1.2rem] flex items-center shadow-sm cursor-pointer hover:bg-white transition overflow-hidden" onClick={() => { if (recordDateInputRef.current) { try { recordDateInputRef.current.showPicker(); } catch (e) { recordDateInputRef.current.focus(); } } }}>
+                  <div className="relative w-full bg-gray-50 border border-gray-100 p-2.5 rounded-xl flex items-center shadow-sm cursor-pointer hover:bg-white transition overflow-hidden" onClick={() => { if (recordDateInputRef.current) { try { recordDateInputRef.current.showPicker(); } catch (e) { recordDateInputRef.current.focus(); } } }}>
                     <input ref={recordDateInputRef} type="date" required className="absolute inset-0 w-full h-full opacity-0 z-10 cursor-pointer" value={recordDate} onChange={(e) => setRecordDate(e.target.value)} />
-                    <span className="font-bold text-gray-700 text-[17px] z-0 pointer-events-none">{recordDate ? toROCYearStr(recordDate) : '選擇日期'}</span>
-                    <span className="absolute right-3 text-gray-400 text-[14px] z-0 pointer-events-none">▼</span>
+                    <span className="font-bold text-gray-700 text-[15px] z-0 pointer-events-none">{recordDate ? toROCYearStr(recordDate) : '選擇日期'}</span>
+                    <span className="absolute right-2 text-gray-400 text-[12px] z-0 pointer-events-none">▼</span>
                   </div>
                 </div>
                 <div className="z-40">
@@ -1942,37 +1952,37 @@ export default function App() {
               </div>
 
               {recordFrequency === '每週' && (
-                <div className="mb-5 bg-gray-50 p-4 rounded-xl border border-gray-100 shadow-sm">
-                  <label className="text-[15px] font-bold text-gray-500 mb-3 block">請選擇星期 (可複選)</label>
-                  <div className="flex flex-wrap gap-2">
+                <div className="mb-3.5 bg-gray-50 p-3 rounded-xl border border-gray-100 shadow-sm">
+                  <label className="text-[14px] font-bold text-gray-500 mb-2 block">請選擇星期 (可複選)</label>
+                  <div className="flex flex-wrap gap-1.5">
                     {daysOfWeek.map(d => (
-                      <button key={d} type="button" onClick={() => toggleFrequencyDay(d)} className={`px-3 py-2 rounded-lg text-[15px] font-bold transition-all ${recordFrequencyDays.includes(d) ? 'bg-[#FFE28A] text-gray-800 shadow-sm border-2 border-[#FCD34D] transform -translate-y-0.5' : 'bg-white text-gray-500 border border-gray-100'}`}>{d}</button>
+                      <button key={d} type="button" onClick={() => toggleFrequencyDay(d)} className={`px-2.5 py-1.5 rounded-lg text-[13px] font-bold transition-all ${recordFrequencyDays.includes(d) ? 'bg-[#FFE28A] text-gray-800 shadow-sm border-2 border-[#FCD34D] transform -translate-y-0.5' : 'bg-white text-gray-500 border border-gray-100'}`}>{d}</button>
                     ))}
                   </div>
                 </div>
               )}
               {recordFrequency === '每月' && (
-                <div className="mb-5 bg-blue-50 p-4 rounded-xl border border-blue-100 shadow-sm">
-                  <label className="text-[15px] font-bold text-blue-700 mb-1 flex items-center gap-1.5">💡 每月定期產生</label>
-                  <p className="text-[13.5px] text-blue-600 font-medium leading-relaxed">系統將依據您上方的「消費日期」，自動於未來的每個月同一天產生此紀錄。</p>
+                <div className="mb-3.5 bg-blue-50 p-3 rounded-xl border border-blue-100 shadow-sm">
+                  <label className="text-[14px] font-bold text-blue-700 mb-1 flex items-center gap-1.5">💡 每月定期產生</label>
+                  <p className="text-[12px] text-blue-600 font-medium leading-relaxed">系統將依據您上方的「消費日期」，自動於未來的每個月同一天產生此紀錄。</p>
                 </div>
               )}
               {recordFrequency === '區間' && (
-                <div className="mb-5 bg-gray-50 p-4 rounded-xl border border-gray-100 shadow-sm">
-                  <label className="text-[15px] font-bold text-gray-500 mb-3 block">請選擇時間區間</label>
-                  <div className="flex flex-wrap gap-2 mb-3">
+                <div className="mb-3.5 bg-gray-50 p-3 rounded-xl border border-gray-100 shadow-sm">
+                  <label className="text-[14px] font-bold text-gray-500 mb-2 block">請選擇時間區間</label>
+                  <div className="flex flex-wrap gap-1.5 mb-2">
                       {intervalOptions.map(opt => (
-                          <button key={opt} type="button" onClick={() => setRecordFrequencyInterval(opt)} className={`px-3 py-2 rounded-lg text-[15px] font-bold transition-all ${recordFrequencyInterval === opt ? 'bg-[#FFE28A] text-gray-800 shadow-sm border-2 border-[#FCD34D] transform -translate-y-0.5' : 'bg-white text-gray-500 border border-gray-100'}`}>{opt}</button>
+                          <button key={opt} type="button" onClick={() => setRecordFrequencyInterval(opt)} className={`px-2.5 py-1.5 rounded-lg text-[13px] font-bold transition-all ${recordFrequencyInterval === opt ? 'bg-[#FFE28A] text-gray-800 shadow-sm border-2 border-[#FCD34D] transform -translate-y-0.5' : 'bg-white text-gray-500 border border-gray-100'}`}>{opt}</button>
                       ))}
                   </div>
-                  {recordFrequencyInterval === '自訂' && <input type="text" placeholder="自行填寫區間 (例如: 30天)" value={recordFrequencyCustomText} onChange={e => setRecordFrequencyCustomText(e.target.value)} className="w-full bg-white border border-gray-100 p-3 rounded-lg font-bold text-[16px] outline-none focus:border-[#FCD34D] transition shadow-sm" />}
-                  {recordFrequencyInterval !== '自訂' && recordFrequencyInterval !== '' && <p className="text-[13px] text-gray-500 font-bold mt-2">💡 系統將依據消費日期自動推算下次紀錄日</p>}
+                  {recordFrequencyInterval === '自訂' && <input type="text" placeholder="自行填寫區間 (例如: 30天)" value={recordFrequencyCustomText} onChange={e => setRecordFrequencyCustomText(e.target.value)} className="w-full bg-white border border-gray-100 p-2.5 rounded-lg font-bold text-[14px] outline-none focus:border-[#FCD34D] transition shadow-sm" />}
+                  {recordFrequencyInterval !== '自訂' && recordFrequencyInterval !== '' && <p className="text-[12px] text-gray-500 font-bold mt-1.5">💡 系統將依據消費日期推算下次紀錄日</p>}
                 </div>
               )}
 
               {recordType === 'expense' && (
                 <>
-                  <div className="grid grid-cols-2 gap-3 z-30 mb-5">
+                  <div className="grid grid-cols-2 gap-2 z-30 mb-3.5">
                     <CustomDropdown label="主分類 📂" options={currentRoom?.categories || []} value={recordCategory} onChange={(val) => { 
                         setRecordCategory(val); setSelectedItem(''); 
                     }} placeholder="選擇分類..." />
@@ -1980,10 +1990,21 @@ export default function App() {
                         setSelectedItem(val);
                     }} placeholder="選擇項目..." />
                   </div>
-                  <div className="flex flex-col gap-3 mb-5 z-20">
-                     <CustomDropdown label="商家 🏪" icon={Store} options={currentRoom?.merchants || []} value={recordMerchant} onChange={(val) => {
-                         setRecordMerchant(val);
-                     }} placeholder="選擇商家..." />
+                  
+                  {/* 不計入帳戶在商家右側 */}
+                  <div className="flex items-end gap-2 mb-3.5 z-20 w-full">
+                     <div className="flex-1 min-w-0">
+                       <CustomDropdown label="商家 🏪" icon={Store} options={currentRoom?.merchants || []} value={recordMerchant} onChange={(val) => {
+                           setRecordMerchant(val);
+                       }} placeholder="選擇商家..." />
+                     </div>
+                     <label className="shrink-0 flex items-center justify-center gap-1.5 h-[44px] px-3 bg-gray-50 border border-gray-100 rounded-xl cursor-pointer hover:bg-gray-200 transition shadow-sm">
+                       <input type="checkbox" checked={excludeFromBalance} onChange={e => setExcludeFromBalance(e.target.checked)} className="w-4 h-4 rounded border-gray-300 text-orange-500 focus:ring-orange-500" />
+                       <span className="font-bold text-[13px] text-gray-500">不計入帳戶</span>
+                     </label>
+                  </div>
+                  
+                  <div className="flex flex-col gap-3 mb-3.5 z-10">
                      <PillGroupMulti label="花費對象 (可複選) 👥" icon={User} options={currentRoom?.payers || []} values={recordPayer} onChange={setRecordPayer} isPayer={true} />
                   </div>
                   <MethodSelector label="付款方式 💳" icon={CreditCard} method={recordMethod} subMethod={recordSubMethod} setMethod={setRecordMethod} setSubMethod={setRecordSubMethod} currentRoom={currentRoom} />
@@ -1992,8 +2013,14 @@ export default function App() {
 
               {recordType === 'income' && (
                 <>
-                  <div className="z-30 mb-5">
-                    <CustomDropdown label="收入分類 📈" icon={Tag} options={currentRoom?.incomeCategories || []} value={recordCategory} onChange={setRecordCategory} placeholder="選擇收入分類..." />
+                  <div className="z-30 mb-3.5 flex items-end gap-2 w-full">
+                    <div className="flex-1 min-w-0">
+                      <CustomDropdown label="收入分類 📈" icon={Tag} options={currentRoom?.incomeCategories || []} value={recordCategory} onChange={setRecordCategory} placeholder="選擇收入分類..." />
+                    </div>
+                    <label className="shrink-0 flex items-center justify-center gap-1.5 h-[44px] px-3 bg-gray-50 border border-gray-100 rounded-xl cursor-pointer hover:bg-gray-200 transition shadow-sm">
+                      <input type="checkbox" checked={excludeFromBalance} onChange={e => setExcludeFromBalance(e.target.checked)} className="w-4 h-4 rounded border-gray-300 text-green-500 focus:ring-green-500" />
+                      <span className="font-bold text-[13px] text-gray-500">不計入帳戶</span>
+                    </label>
                   </div>
                   <PillGroupMulti label="對象 (可複選) 👥" icon={User} options={currentRoom?.payers || []} values={recordPayer} onChange={setRecordPayer} isPayer={true} />
                   <MethodSelector label="存入帳戶 🏦" icon={Wallet} method={recordMethod} subMethod={recordSubMethod} setMethod={setRecordMethod} setSubMethod={setRecordSubMethod} currentRoom={currentRoom} />
@@ -2002,7 +2029,7 @@ export default function App() {
 
               {recordType === 'transfer' && (
                 <>
-                  <div className="z-40 mb-5">
+                  <div className="z-40 mb-3.5">
                     <CustomDropdown label="轉帳分類 🔄" icon={Tag} options={currentRoom?.transferCategories || []} value={recordCategory} onChange={setRecordCategory} placeholder="選擇轉帳分類..." />
                   </div>
                   <PillGroupMulti label="對象 (可複選) 👥" icon={User} options={currentRoom?.payers || []} values={recordPayer} onChange={setRecordPayer} isPayer={true} />
@@ -2011,27 +2038,27 @@ export default function App() {
                 </>
               )}
 
-              <div className="mt-5 pt-5 border-t border-gray-100 flex gap-2 items-start">
+              <div className="mt-3.5 pt-3.5 border-t border-gray-100 flex gap-2 items-start">
                 <div className="flex-1 w-full min-w-0">
-                  <label className="flex items-center gap-1.5 text-[15px] font-bold text-gray-500 mb-1.5 ml-1">📝 備註 (選填)</label>
-                  <input type="text" placeholder="輸入額外備註..." className="bg-gray-50 border border-gray-100 rounded-xl p-3 focus:bg-white focus:border-blue-400 outline-none w-full text-gray-700 font-bold text-[17px] transition shadow-sm" value={recordNote} onChange={(e) => setRecordNote(e.target.value)} />
+                  <label className="flex items-center gap-1.5 text-[14px] font-bold text-gray-500 mb-1.5 ml-1">📝 備註 (選填)</label>
+                  <input type="text" placeholder="輸入額外備註..." className="bg-gray-50 border border-gray-100 rounded-xl p-2.5 focus:bg-white focus:border-blue-400 outline-none w-full text-gray-700 font-bold text-[15px] transition shadow-sm" value={recordNote} onChange={(e) => setRecordNote(e.target.value)} />
                 </div>
-                <div className="shrink-0 w-[72px]">
-                   <label className="flex items-center justify-center gap-1.5 text-[15px] font-bold text-gray-500 mb-1.5 w-full text-center">📷 照片</label>
-                   <div className="relative w-[72px] h-[52px] bg-gray-50 border border-gray-100 rounded-xl shadow-sm hover:bg-gray-100 transition flex items-center justify-center cursor-pointer overflow-hidden group">
+                <div className="shrink-0 w-[64px]">
+                   <label className="flex items-center justify-center gap-1.5 text-[14px] font-bold text-gray-500 mb-1.5 w-full text-center">📷 照片</label>
+                   <div className="relative w-[64px] h-[46px] bg-gray-50 border border-gray-100 rounded-xl shadow-sm hover:bg-gray-100 transition flex items-center justify-center cursor-pointer overflow-hidden group">
                      {recordPhoto ? (
                        <>
                          <img src={recordPhoto} alt="預覽" className="w-full h-full object-cover" />
-                         <div onClick={(e) => { e.stopPropagation(); setRecordPhoto(null); }} className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition"><Trash2 size={20} className="text-white" /></div>
+                         <div onClick={(e) => { e.stopPropagation(); setRecordPhoto(null); }} className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition"><Trash2 size={18} className="text-white" /></div>
                        </>
-                     ) : (<Camera size={24} className="text-gray-400" />)}
+                     ) : (<Camera size={20} className="text-gray-400" />)}
                      {!recordPhoto && <input type="file" accept="image/*" capture="environment" className="absolute inset-0 opacity-0 cursor-pointer" onChange={handlePhotoUpload} ref={photoInputRef} />}
                    </div>
                 </div>
               </div>
             </div>
 
-            <button type="submit" disabled={!isFormValid} className={`w-full font-extrabold text-[20px] py-4 mt-2 rounded-[1.2rem] transition-all duration-300 shadow-md ${isFormValid ? `${themeBg} text-white hover:opacity-90 transform hover:-translate-y-1 active:translate-y-0` : 'bg-gray-200 text-gray-400 cursor-not-allowed opacity-70 shadow-none'}`}>
+            <button type="submit" disabled={!isFormValid} className={`w-full font-extrabold text-[18px] py-3.5 mt-1 rounded-[1.2rem] transition-all duration-300 shadow-md ${isFormValid ? `${themeBg} text-white hover:opacity-90 transform hover:-translate-y-1 active:translate-y-0` : 'bg-gray-200 text-gray-400 cursor-not-allowed opacity-70 shadow-none'}`}>
               {isFormValid ? '儲存紀錄 ✨' : '請填寫完整資料'}
             </button>
           </form>
@@ -2080,7 +2107,7 @@ export default function App() {
             }
 
             return (
-              <button key={opt} type="button" onClick={() => handleToggle(opt)} className={`flex-1 min-w-0 py-2 px-0.5 rounded-[1.2rem] text-[12px] sm:text-[14px] font-black transition-all duration-200 border-2 shadow-sm flex items-center justify-center leading-tight truncate ${btnClass}`}>
+              <button key={opt} type="button" onClick={() => handleToggle(opt)} className={`flex-1 min-w-0 py-2 px-0.5 rounded-xl text-[12px] sm:text-[14px] font-black transition-all duration-200 border-2 shadow-sm flex items-center justify-center leading-tight truncate ${btnClass}`}>
                 {opt}
               </button>
             )
@@ -2092,8 +2119,8 @@ export default function App() {
       const splitIndex = Math.ceil(options.length / 2);
 
       return (
-        <div className="mb-4 w-full">
-          {label && <label className="flex items-center gap-1.5 text-[14px] font-bold text-gray-500 mb-2 ml-1">{Icon && <Icon size={14} className="text-gray-400" />} {label}</label>}
+        <div className="mb-3 w-full">
+          {label && <label className="flex items-center gap-1.5 text-[14px] font-bold text-gray-500 mb-1.5 ml-1">{Icon && <Icon size={14} className="text-gray-400" />} {label}</label>}
           {needsTwoRows ? (
             <div className="flex flex-col gap-1.5">
               {renderButtonRow(options.slice(0, splitIndex), 0)}
@@ -2108,46 +2135,46 @@ export default function App() {
 
     content = (
       <>
-        <header className="bg-gradient-to-r from-purple-400 to-pink-400 px-5 py-5 shadow-md shrink-0 z-10 rounded-b-[1.5rem] border-b-4 border-white/20">
+        <header className="bg-gradient-to-r from-purple-400 to-pink-400 px-4 py-3.5 shadow-md shrink-0 z-10 rounded-b-[1.5rem] border-b-4 border-white/20">
           <div className="flex justify-between items-center">
-            <h1 className="text-2xl font-black text-white flex items-center gap-2 drop-shadow-md"><Settings size={26} className="text-white/80"/> 選項設定</h1>
-            <button onClick={() => setView('room')} className="px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-xl transition text-[16px] font-bold">返回</button>
+            <h1 className="text-xl font-black text-white flex items-center gap-2 drop-shadow-md"><Settings size={22} className="text-white/80"/> 選項設定</h1>
+            <button onClick={() => setView('room')} className="px-3 py-1.5 bg-white/20 hover:bg-white/30 text-white rounded-lg transition text-[14px] font-bold">返回</button>
           </div>
         </header>
 
-        <main className="scroll-container px-4 py-4 space-y-4 flex-1 overflow-y-auto pb-[100px] [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-          <button onClick={() => setSyncSettingsModalOpen(true)} className="w-full bg-gradient-to-r from-indigo-500 to-blue-500 text-white p-3.5 rounded-[1.2rem] font-bold text-[18px] shadow-md hover:shadow-lg transition flex justify-center items-center gap-2 active:scale-95">
-             <RefreshCw size={20} /> 🔄 複製設定至其他房間
+        <main className="scroll-container px-3 py-3 space-y-3 flex-1 overflow-y-auto pb-[100px] [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+          <button onClick={() => setSyncSettingsModalOpen(true)} className="w-full bg-gradient-to-r from-indigo-500 to-blue-500 text-white p-2.5 rounded-xl font-bold text-[16px] shadow-sm hover:shadow-md transition flex justify-center items-center gap-2 active:scale-95">
+             <RefreshCw size={18} /> 🔄 複製設定至其他房間
           </button>
 
           <div className="flex bg-white rounded-xl p-1.5 border border-gray-100 shadow-sm">
-             <button onClick={() => setSettingsTab('expense')} className={`flex-1 py-2 px-1 rounded-lg text-[16px] font-extrabold transition-all duration-200 truncate ${settingsTab === 'expense' ? 'bg-orange-400 text-white shadow-sm' : 'text-gray-400 hover:text-gray-600 bg-gray-50'}`}>支出</button>
-             <button onClick={() => setSettingsTab('income')} className={`flex-1 py-2 px-1 rounded-lg text-[16px] font-extrabold transition-all duration-200 truncate ${settingsTab === 'income' ? 'bg-green-500 text-white shadow-sm' : 'text-gray-400 hover:text-gray-600 bg-gray-50'}`}>收入</button>
-             <button onClick={() => setSettingsTab('transfer')} className={`flex-1 py-2 px-1 rounded-lg text-[16px] font-extrabold transition-all duration-200 truncate ${settingsTab === 'transfer' ? 'bg-blue-500 text-white shadow-sm' : 'text-gray-400 hover:text-gray-600 bg-gray-50'}`}>轉帳</button>
-             <button onClick={() => setSettingsTab('other')} className={`flex-1 py-2 px-1 rounded-lg text-[16px] font-extrabold transition-all duration-200 truncate ${settingsTab === 'other' ? 'bg-purple-500 text-white shadow-sm' : 'text-gray-400 hover:text-gray-600 bg-gray-50'}`}>其他</button>
+             <button onClick={() => setSettingsTab('expense')} className={`flex-1 py-1.5 px-1 rounded-lg text-[15px] font-extrabold transition-all duration-200 truncate ${settingsTab === 'expense' ? 'bg-orange-400 text-white shadow-sm' : 'text-gray-400 hover:text-gray-600 bg-gray-50'}`}>支出</button>
+             <button onClick={() => setSettingsTab('income')} className={`flex-1 py-1.5 px-1 rounded-lg text-[15px] font-extrabold transition-all duration-200 truncate ${settingsTab === 'income' ? 'bg-green-500 text-white shadow-sm' : 'text-gray-400 hover:text-gray-600 bg-gray-50'}`}>收入</button>
+             <button onClick={() => setSettingsTab('transfer')} className={`flex-1 py-1.5 px-1 rounded-lg text-[15px] font-extrabold transition-all duration-200 truncate ${settingsTab === 'transfer' ? 'bg-blue-500 text-white shadow-sm' : 'text-gray-400 hover:text-gray-600 bg-gray-50'}`}>轉帳</button>
+             <button onClick={() => setSettingsTab('other')} className={`flex-1 py-1.5 px-1 rounded-lg text-[15px] font-extrabold transition-all duration-200 truncate ${settingsTab === 'other' ? 'bg-purple-500 text-white shadow-sm' : 'text-gray-400 hover:text-gray-600 bg-gray-50'}`}>其他</button>
           </div>
 
-          <div className="space-y-4">
+          <div className="space-y-3">
             {settingsTab === 'expense' && (
               <>
                 <SettingBlock title="🌸 支出主分類" items={currentRoom?.categories || []} onUpdate={(newList, oldItem, newItem) => updateSettingField('categories', newList, oldItem, newItem)} themeClass="border-pink-100" spanClass="text-pink-600" btnClass="bg-pink-400" placeholder="輸入新分類..." />
-                <div className={`p-4 sm:p-5 rounded-[1.5rem] border-2 border-pink-100 bg-white shadow-sm mb-4`}>
-                  <h3 className="font-bold text-gray-700 mb-4 text-[18px] flex items-center gap-2">📝 編輯「分類」專屬項目清單</h3>
-                  <select value={settingSelectedCategory} onChange={e => setSettingSelectedCategory(e.target.value)} className="w-full bg-pink-50 border border-pink-100 p-3 rounded-xl outline-none mb-1 font-bold text-[17px] text-pink-700 shadow-sm cursor-pointer appearance-none">
+                <div className={`p-3 sm:p-4 rounded-2xl border-2 border-pink-100 bg-white shadow-sm mb-3`}>
+                  <h3 className="font-bold text-gray-700 mb-3 text-[17px] flex items-center gap-2">📝 編輯「分類」專屬項目</h3>
+                  <select value={settingSelectedCategory} onChange={e => setSettingSelectedCategory(e.target.value)} className="w-full bg-pink-50 border border-pink-100 p-2.5 rounded-xl outline-none font-bold text-[15px] text-pink-700 shadow-sm cursor-pointer appearance-none">
                       <option value="">請先選擇一個主分類...</option>
                       {(currentRoom?.categories || []).map(c => <option key={c} value={c}>{c}</option>)}
                   </select>
                   {settingSelectedCategory && (
-                    <SettingBlock title={`[${settingSelectedCategory}] 的項目`} items={currentRoom?.categoryItems?.[settingSelectedCategory] || []} onUpdate={(newList, oldItem, newItem) => updateCategoryItemsField(settingSelectedCategory, newList, oldItem, newItem)} themeClass="border-pink-50 mt-3" spanClass="text-pink-600" btnClass="bg-pink-400" placeholder="新增項目..." />
+                    <SettingBlock title={`[${settingSelectedCategory}] 項目清單`} items={currentRoom?.categoryItems?.[settingSelectedCategory] || []} onUpdate={(newList, oldItem, newItem) => updateCategoryItemsField(settingSelectedCategory, newList, oldItem, newItem)} themeClass="border-pink-50 mt-3" spanClass="text-pink-600" btnClass="bg-pink-400" placeholder="新增項目..." />
                   )}
                 </div>
                 <SettingBlock title="🏪 常見商家" items={currentRoom?.merchants || []} onUpdate={(newList, oldItem, newItem) => updateSettingField('merchants', newList, oldItem, newItem)} themeClass="border-orange-100" spanClass="text-orange-600" btnClass="bg-orange-400" placeholder="輸入新商家..." />
                 
                 {/* 行動支付綁定信用卡 區塊 */}
-                <div className={`p-4 sm:p-5 rounded-[1.5rem] border-2 border-purple-100 bg-white shadow-sm mb-4`}>
-                  <h3 className="font-bold text-gray-700 mb-2 text-[18px] flex items-center gap-2">📱 行動支付綁定信用卡</h3>
-                  <p className="text-[13px] text-gray-500 font-bold mb-4 leading-relaxed">請勾選哪些信用卡可用於行動支付。記帳時選擇「行動支付」，將只顯示您勾選的信用卡。</p>
-                  <div className="flex flex-wrap gap-2">
+                <div className={`p-3 sm:p-4 rounded-2xl border-2 border-purple-100 bg-white shadow-sm mb-3`}>
+                  <h3 className="font-bold text-gray-700 mb-1.5 text-[17px] flex items-center gap-2">📱 行動支付綁定信用卡</h3>
+                  <p className="text-[12px] text-gray-500 font-bold mb-3 leading-relaxed">請勾選哪些信用卡可用於行動支付。記帳時選擇「行動支付」，將只顯示您勾選的信用卡。</p>
+                  <div className="flex flex-wrap gap-1.5">
                     {(currentRoom?.creditCards || []).map(card => {
                       const isChecked = (currentRoom?.mobilePayCards || []).includes(card);
                       return (
@@ -2159,14 +2186,14 @@ export default function App() {
                             else newCards.push(card);
                             updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', activeRoomId), { mobilePayCards: newCards });
                           }}
-                          className={`px-3 py-2 rounded-xl text-[14px] font-bold transition-all border-2 shadow-sm flex items-center gap-1.5 ${isChecked ? 'bg-purple-500 text-white border-purple-600 transform -translate-y-0.5' : 'bg-white text-gray-500 border-gray-200 hover:bg-purple-50 hover:border-purple-200'}`}
+                          className={`px-2.5 py-1.5 rounded-lg text-[13px] font-bold transition-all border-2 shadow-sm flex items-center gap-1.5 ${isChecked ? 'bg-purple-500 text-white border-purple-600 transform -translate-y-0.5' : 'bg-white text-gray-500 border-gray-200 hover:bg-purple-50 hover:border-purple-200'}`}
                         >
-                          {isChecked ? <Check size={16} /> : <div className="w-4 h-4 rounded border border-gray-300"></div>}
+                          {isChecked ? <Check size={14} /> : <div className="w-3.5 h-3.5 rounded border border-gray-300"></div>}
                           {card}
                         </button>
                       )
                     })}
-                    {(!currentRoom?.creditCards || currentRoom.creditCards.length === 0) && <p className="text-[13px] text-gray-400 font-bold py-2">請先在下方新增信用卡。</p>}
+                    {(!currentRoom?.creditCards || currentRoom.creditCards.length === 0) && <p className="text-[12px] text-gray-400 font-bold py-1">請先在下方新增信用卡。</p>}
                   </div>
                 </div>
 
@@ -2182,23 +2209,23 @@ export default function App() {
             {settingsTab === 'other' && (
               <>
                 <SettingBlock title="🙋 登入人員 (付款人)" items={currentRoom?.loginUsers || ['老公', '老婆']} onUpdate={(newList, oldItem, newItem) => updateSettingField('loginUsers', newList, oldItem, newItem)} themeClass="border-purple-100" spanClass="text-purple-600" btnClass="bg-purple-400" placeholder="輸入登入者名稱..." />
-                <p className="text-[13px] font-bold text-purple-400 mt-1 mb-4 bg-purple-50 p-3 rounded-xl leading-relaxed">💡 在這裡新增的名稱，會自動變成登入畫面的按鈕喔！修改名稱也會連動更新歷史紀錄。</p>
+                <p className="text-[12px] font-bold text-purple-400 mt-1 mb-3 bg-purple-50 p-2.5 rounded-xl leading-relaxed">💡 在這裡新增的名稱，會自動變成登入畫面的按鈕喔！修改名稱也會連動更新歷史紀錄。</p>
                 
-                <div className="bg-white p-4 sm:p-5 rounded-[1.5rem] border-2 border-green-100 shadow-sm mb-4">
-                  <div className="flex justify-between items-center gap-4">
+                <div className="bg-white p-3 sm:p-4 rounded-2xl border-2 border-green-100 shadow-sm mb-3">
+                  <div className="flex justify-between items-center gap-3">
                     <div className="flex-1">
-                      <h3 className="font-bold text-gray-700 text-[16px] sm:text-[18px]">現金支出自動跨房間提示</h3>
-                      <p className="text-[12px] sm:text-[13px] text-gray-500 font-bold mt-1 leading-relaxed">開啟後，每次新增「現金」支出存檔時，會自動跳出傳送至其他房間的詢問視窗。</p>
+                      <h3 className="font-bold text-gray-700 text-[15px] sm:text-[16px]">現金支出自動跨房間提示</h3>
+                      <p className="text-[11px] sm:text-[12px] text-gray-500 font-bold mt-1 leading-relaxed">開啟後，每次新增「現金」支出存檔時，會自動跳出傳送至其他房間的詢問視窗。</p>
                     </div>
                     <button 
                       onClick={() => updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', activeRoomId), { promptCashSync: !currentRoom?.promptCashSync })}
-                      className={`w-14 h-8 rounded-full transition-colors relative shadow-inner shrink-0 ${currentRoom?.promptCashSync ? 'bg-green-500' : 'bg-gray-300'}`}
+                      className={`w-12 h-7 rounded-full transition-colors relative shadow-inner shrink-0 ${currentRoom?.promptCashSync ? 'bg-green-500' : 'bg-gray-300'}`}
                     >
-                      <div className={`w-6 h-6 bg-white rounded-full absolute top-1 transition-transform shadow-sm ${currentRoom?.promptCashSync ? 'translate-x-7' : 'translate-x-1'}`}></div>
+                      <div className={`w-5 h-5 bg-white rounded-full absolute top-1 transition-transform shadow-sm ${currentRoom?.promptCashSync ? 'translate-x-6' : 'translate-x-1'}`}></div>
                     </button>
                   </div>
                   {currentRoom?.promptCashSync && (
-                    <div className="mt-4 pt-4 border-t border-gray-100 animate-in fade-in duration-300">
+                    <div className="mt-3 pt-3 border-t border-gray-100 animate-in fade-in duration-300">
                        <PillGroupMulti 
                          label="⛔ 排除提示的花費對象 (選填)" 
                          icon={User} 
@@ -2207,65 +2234,65 @@ export default function App() {
                          onChange={(vals) => updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', activeRoomId), { excludedPromptPayers: vals })} 
                          isPayer={true} 
                        />
-                       <p className="text-[12px] text-gray-400 font-bold mt-2">💡 當現金支出的對象包含上方勾選的對象時，將「不會」跳出跨房間提示。</p>
+                       <p className="text-[11px] text-gray-400 font-bold mt-1.5">💡 當現金支出的對象包含上方勾選的對象時，將「不會」跳出跨房間提示。</p>
                     </div>
                   )}
                 </div>
 
                 <SettingBlock title="👥 花費對象" items={currentRoom?.payers || []} onUpdate={(newList, oldItem, newItem) => updateSettingField('payers', newList, oldItem, newItem)} themeClass="border-gray-200" spanClass="text-gray-700" btnClass="bg-gray-800" placeholder="輸入花費對象名稱..." />
 
-                <div className={`p-4 sm:p-5 rounded-[1.5rem] border-2 border-orange-100 bg-white shadow-sm mb-4`}>
-                  <h3 className="font-bold text-gray-700 mb-4 text-[18px] flex items-center gap-2">🤖 商家預設規則</h3>
-                  <div className="flex flex-col gap-2 mb-5">
+                <div className={`p-3 sm:p-4 rounded-2xl border-2 border-orange-100 bg-white shadow-sm mb-3`}>
+                  <h3 className="font-bold text-gray-700 mb-3 text-[17px] flex items-center gap-2">🤖 商家預設規則</h3>
+                  <div className="flex flex-col gap-2 mb-4">
                     {orderedAutoFillKeys.map((item, idx, arr) => (
-                      <div key={item} className="flex justify-between items-center bg-orange-50 p-2 sm:p-2.5 rounded-xl border border-orange-100 shadow-sm gap-2">
-                        <span className="text-[15px] font-bold text-orange-700 flex-1 min-w-0 truncate pl-1">[{item}] ➜ {currentRoom.autoFillRules[item]}</span>
+                      <div key={item} className="flex justify-between items-center bg-orange-50 p-2 rounded-xl border border-orange-100 shadow-sm gap-2">
+                        <span className="text-[14px] font-bold text-orange-700 flex-1 min-w-0 truncate pl-1">[{item}] ➜ {currentRoom.autoFillRules[item]}</span>
                         <div className="flex items-center gap-1 shrink-0 ml-1">
-                            <button onClick={()=>handleMoveRule(item, -1)} disabled={idx===0} className="w-8 h-8 flex items-center justify-center bg-white border border-gray-200 rounded-md text-gray-400 hover:bg-gray-100 hover:text-blue-500 disabled:opacity-30 transition font-black text-[14px]">↑</button>
-                            <button onClick={()=>handleMoveRule(item, 1)} disabled={idx===arr.length-1} className="w-8 h-8 flex items-center justify-center bg-white border border-gray-200 rounded-md text-gray-400 hover:bg-gray-100 hover:text-blue-500 disabled:opacity-30 transition font-black text-[14px]">↓</button>
-                            <button onClick={() => handleDeleteRule(item)} className="w-8 h-8 flex items-center justify-center bg-white border border-gray-200 rounded-md text-gray-400 hover:bg-gray-100 hover:text-red-500 transition"><Trash2 size={14}/></button>
+                            <button onClick={()=>handleMoveRule(item, -1)} disabled={idx===0} className="w-7 h-7 flex items-center justify-center bg-white border border-gray-200 rounded text-gray-400 hover:bg-gray-100 hover:text-blue-500 disabled:opacity-30 transition font-black text-[12px]">↑</button>
+                            <button onClick={()=>handleMoveRule(item, 1)} disabled={idx===arr.length-1} className="w-7 h-7 flex items-center justify-center bg-white border border-gray-200 rounded text-gray-400 hover:bg-gray-100 hover:text-blue-500 disabled:opacity-30 transition font-black text-[12px]">↓</button>
+                            <button onClick={() => handleDeleteRule(item)} className="w-7 h-7 flex items-center justify-center bg-white border border-gray-200 rounded text-gray-400 hover:bg-gray-100 hover:text-red-500 transition"><Trash2 size={12}/></button>
                         </div>
                       </div>
                     ))}
                   </div>
-                  <div className="flex flex-col gap-2 bg-gray-50 p-3 sm:p-4 rounded-xl border border-gray-100">
-                     <select value={newRuleItem} onChange={e=>setNewRuleItem(e.target.value)} className="w-full border border-orange-100 p-2.5 rounded-lg font-bold text-[16px] outline-none text-gray-600 shadow-sm cursor-pointer appearance-none bg-white">
+                  <div className="flex flex-col gap-2 bg-gray-50 p-2.5 rounded-xl border border-gray-100">
+                     <select value={newRuleItem} onChange={e=>setNewRuleItem(e.target.value)} className="w-full border border-orange-100 p-2 rounded-lg font-bold text-[14px] outline-none text-gray-600 shadow-sm cursor-pointer appearance-none bg-white">
                        <option value="">選擇觸發的項目...</option>
                        {Object.values(currentRoom?.categoryItems || {}).flat().map(i => <option key={i} value={i}>{i}</option>)}
                      </select>
-                     <div className="flex gap-2 mt-1">
-                       <select value={newRuleMerchant} onChange={e=>setNewRuleMerchant(e.target.value)} className="flex-1 border border-orange-100 p-2.5 rounded-lg font-bold text-[16px] outline-none text-gray-600 shadow-sm cursor-pointer appearance-none bg-white">
+                     <div className="flex gap-2">
+                       <select value={newRuleMerchant} onChange={e=>setNewRuleMerchant(e.target.value)} className="flex-1 border border-orange-100 p-2 rounded-lg font-bold text-[14px] outline-none text-gray-600 shadow-sm cursor-pointer appearance-none bg-white">
                          <option value="">選擇預設商家...</option>
                          {(currentRoom?.merchants || []).map(m => <option key={m} value={m}>{m}</option>)}
                        </select>
-                       <button onClick={handleAddRule} className="bg-orange-400 text-white px-4 py-2.5 rounded-lg text-[16px] font-bold shadow-md transition hover:scale-105 active:scale-95 shrink-0">新增</button>
+                       <button onClick={handleAddRule} className="bg-orange-400 text-white px-3 py-2 rounded-lg text-[14px] font-bold shadow-md transition hover:scale-105 active:scale-95 shrink-0">新增</button>
                      </div>
                   </div>
                 </div>
 
-                <div className={`p-4 sm:p-5 rounded-[1.5rem] border-2 border-blue-100 bg-white shadow-sm mb-4`}>
-                  <h3 className="font-bold text-gray-700 mb-4 text-[18px] flex items-center gap-2">🤖 付款方式預設規則</h3>
-                  <div className="flex flex-col gap-2 mb-5">
+                <div className={`p-3 sm:p-4 rounded-2xl border-2 border-blue-100 bg-white shadow-sm mb-3`}>
+                  <h3 className="font-bold text-gray-700 mb-3 text-[17px] flex items-center gap-2">🤖 付款方式預設規則</h3>
+                  <div className="flex flex-col gap-2 mb-4">
                     {orderedMethodKeys.map((merchant, idx, arr) => {
                       const rule = currentRoom.methodRules[merchant];
                       return (
-                        <div key={merchant} className="flex justify-between items-center bg-blue-50 p-2 sm:p-2.5 rounded-xl border border-blue-100 shadow-sm gap-2">
-                          <span className="text-[15px] font-bold text-blue-700 flex-1 min-w-0 truncate pl-1">[{merchant}] ➜ {rule.method} {rule.subMethod ? `(${rule.subMethod})` : ''}</span>
+                        <div key={merchant} className="flex justify-between items-center bg-blue-50 p-2 rounded-xl border border-blue-100 shadow-sm gap-2">
+                          <span className="text-[14px] font-bold text-blue-700 flex-1 min-w-0 truncate pl-1">[{merchant}] ➜ {rule.method} {rule.subMethod ? `(${rule.subMethod})` : ''}</span>
                           <div className="flex items-center gap-1 shrink-0 ml-1">
-                              <button onClick={()=>handleMoveMethodRule(merchant, -1)} disabled={idx===0} className="w-8 h-8 flex items-center justify-center bg-white border border-gray-200 rounded-md text-gray-400 hover:bg-gray-100 hover:text-blue-500 disabled:opacity-30 transition font-black text-[14px]">↑</button>
-                              <button onClick={()=>handleMoveMethodRule(merchant, 1)} disabled={idx===arr.length-1} className="w-8 h-8 flex items-center justify-center bg-white border border-gray-200 rounded-md text-gray-400 hover:bg-gray-100 hover:text-blue-500 disabled:opacity-30 transition font-black text-[14px]">↓</button>
-                              <button onClick={() => handleDeleteMethodRule(merchant)} className="w-8 h-8 flex items-center justify-center bg-white border border-gray-200 rounded-md text-gray-400 hover:bg-gray-100 hover:text-red-500 transition"><Trash2 size={14}/></button>
+                              <button onClick={()=>handleMoveMethodRule(merchant, -1)} disabled={idx===0} className="w-7 h-7 flex items-center justify-center bg-white border border-gray-200 rounded text-gray-400 hover:bg-gray-100 hover:text-blue-500 disabled:opacity-30 transition font-black text-[12px]">↑</button>
+                              <button onClick={()=>handleMoveMethodRule(merchant, 1)} disabled={idx===arr.length-1} className="w-7 h-7 flex items-center justify-center bg-white border border-gray-200 rounded text-gray-400 hover:bg-gray-100 hover:text-blue-500 disabled:opacity-30 transition font-black text-[12px]">↓</button>
+                              <button onClick={() => handleDeleteMethodRule(merchant)} className="w-7 h-7 flex items-center justify-center bg-white border border-gray-200 rounded text-gray-400 hover:bg-gray-100 hover:text-red-500 transition"><Trash2 size={12}/></button>
                           </div>
                         </div>
                       )
                     })}
                   </div>
-                  <div className="flex flex-col gap-2 bg-gray-50 p-3 sm:p-4 rounded-xl border border-gray-100">
-                     <select value={newMethodRuleMerchant} onChange={e=>setNewMethodRuleMerchant(e.target.value)} className="w-full border border-blue-100 p-2.5 rounded-lg font-bold text-[16px] outline-none text-gray-600 shadow-sm cursor-pointer appearance-none bg-white">
+                  <div className="flex flex-col gap-2 bg-gray-50 p-2.5 rounded-xl border border-gray-100">
+                     <select value={newMethodRuleMerchant} onChange={e=>setNewMethodRuleMerchant(e.target.value)} className="w-full border border-blue-100 p-2 rounded-lg font-bold text-[14px] outline-none text-gray-600 shadow-sm cursor-pointer appearance-none bg-white">
                        <option value="">選擇觸發的商家...</option>
                        {(currentRoom?.merchants || []).map(m => <option key={m} value={m}>{m}</option>)}
                      </select>
-                     <div className="flex flex-col gap-2 mt-1">
+                     <div className="flex flex-col gap-2">
                        <select value={newMethodRuleMethod} onChange={e=>{
                            setNewMethodRuleMethod(e.target.value);
                            if (e.target.value === '行動支付') {
@@ -2283,14 +2310,14 @@ export default function App() {
                            else {
                                setNewMethodRuleSubMethod('');
                            }
-                         }} className="w-full border border-blue-100 p-2.5 rounded-lg font-bold text-[16px] outline-none text-gray-600 shadow-sm cursor-pointer appearance-none bg-white">
+                         }} className="w-full border border-blue-100 p-2 rounded-lg font-bold text-[14px] outline-none text-gray-600 shadow-sm cursor-pointer appearance-none bg-white">
                          <option value="">預設付款方式...</option>
                          {(currentRoom?.paymentMethods || []).map(m => <option key={m} value={m}>{m}</option>)}
                        </select>
 
                        <div className="flex gap-2">
                          {['行動支付', '信用卡', '信用卡 / 行動支付'].includes(newMethodRuleMethod) && (
-                           <select value={newMethodRuleSubMethod} onChange={e=>setNewMethodRuleSubMethod(e.target.value)} className="flex-1 border border-blue-100 p-2.5 rounded-lg font-bold text-[16px] outline-none text-gray-600 shadow-sm cursor-pointer appearance-none bg-white">
+                           <select value={newMethodRuleSubMethod} onChange={e=>setNewMethodRuleSubMethod(e.target.value)} className="flex-1 border border-blue-100 p-2 rounded-lg font-bold text-[14px] outline-none text-gray-600 shadow-sm cursor-pointer appearance-none bg-white">
                              <option value="">{newMethodRuleMethod === '行動支付' ? '扣款信用卡...' : '選擇信用卡...'}</option>
                              {(() => {
                                const cardList = newMethodRuleMethod === '行動支付' ? (currentRoom?.mobilePayCards || currentRoom?.creditCards || []) : (currentRoom?.creditCards || []);
@@ -2299,18 +2326,18 @@ export default function App() {
                            </select>
                          )}
                          {['銀行', '銀行 / 電子票證'].includes(newMethodRuleMethod) && (
-                           <select value={newMethodRuleSubMethod} onChange={e=>setNewMethodRuleSubMethod(e.target.value)} className="flex-1 border border-blue-100 p-2.5 rounded-lg font-bold text-[16px] outline-none text-gray-600 shadow-sm cursor-pointer appearance-none bg-white">
+                           <select value={newMethodRuleSubMethod} onChange={e=>setNewMethodRuleSubMethod(e.target.value)} className="flex-1 border border-blue-100 p-2 rounded-lg font-bold text-[14px] outline-none text-gray-600 shadow-sm cursor-pointer appearance-none bg-white">
                              <option value="">選擇銀行...</option>
                              {(currentRoom?.bankAccounts || []).map(c => <option key={c} value={c}>{c}</option>)}
                            </select>
                          )}
                          {newMethodRuleMethod === '電子票證' && (
-                           <select value={newMethodRuleSubMethod} onChange={e=>setNewMethodRuleSubMethod(e.target.value)} className="flex-1 border border-blue-100 p-2.5 rounded-lg font-bold text-[16px] outline-none text-gray-600 shadow-sm cursor-pointer appearance-none bg-white">
+                           <select value={newMethodRuleSubMethod} onChange={e=>setNewMethodRuleSubMethod(e.target.value)} className="flex-1 border border-blue-100 p-2 rounded-lg font-bold text-[14px] outline-none text-gray-600 shadow-sm cursor-pointer appearance-none bg-white">
                              <option value="">選擇電子票證...</option>
                              {(currentRoom?.electronicTickets || []).map(c => <option key={c} value={c}>{c}</option>)}
                            </select>
                          )}
-                         <button onClick={handleAddMethodRule} className="bg-blue-400 text-white px-4 py-2.5 rounded-lg text-[16px] font-bold shadow-md transition hover:scale-105 active:scale-95 ml-auto shrink-0">新增</button>
+                         <button onClick={handleAddMethodRule} className="bg-blue-400 text-white px-3 py-2 rounded-lg text-[14px] font-bold shadow-md transition hover:scale-105 active:scale-95 ml-auto shrink-0">新增</button>
                        </div>
                      </div>
                   </div>
@@ -2330,74 +2357,74 @@ export default function App() {
 
     content = (
       <>
-        <header className="bg-gradient-to-r from-teal-400 to-emerald-400 px-5 py-5 shadow-md shrink-0 z-10 rounded-b-[1.5rem] border-b-4 border-white/20">
+        <header className="bg-gradient-to-r from-teal-400 to-emerald-400 px-4 py-3.5 shadow-md shrink-0 z-10 rounded-b-[1.5rem] border-b-4 border-white/20">
           <div className="flex justify-between items-center">
-            <h1 className="text-xl font-black text-white flex items-center gap-2 drop-shadow-md"><BarChart size={24} className="text-white/80"/> 統計分析</h1>
-            <button onClick={() => setView('room')} className="px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-xl transition text-[14px] font-bold backdrop-blur-sm">返回</button>
+            <h1 className="text-xl font-black text-white flex items-center gap-2 drop-shadow-md"><BarChart size={22} className="text-white/80"/> 統計分析</h1>
+            <button onClick={() => setView('room')} className="px-3 py-1.5 bg-white/20 hover:bg-white/30 text-white rounded-lg transition text-[14px] font-bold backdrop-blur-sm">返回</button>
           </div>
         </header>
 
-        <main className="scroll-container px-4 py-3 flex-1 overflow-y-auto pb-[100px] [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] space-y-3">
-          <div className="bg-white p-4 rounded-[1.5rem] shadow-sm border-2 border-teal-50">
-            <div className="mb-4">
-               <label className="block text-[14px] font-bold text-gray-500 mb-2 ml-1">付款人 (單選)</label>
-               <div className="flex flex-wrap gap-2">
+        <main className="scroll-container px-3 py-3 flex-1 overflow-y-auto pb-[90px] [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] space-y-3">
+          <div className="bg-white p-3.5 rounded-2xl shadow-sm border-2 border-teal-50">
+            <div className="mb-3">
+               <label className="block text-[13px] font-bold text-gray-500 mb-1.5 ml-1">付款人 (單選)</label>
+               <div className="flex flex-wrap gap-1.5">
                  {uniqueRoles.map(role => (
-                    <button key={role} onClick={() => setAnalysisRoleFilter(role)} className={`px-4 py-1.5 rounded-xl text-[14px] font-bold transition-all duration-200 ${analysisRoleFilter === role ? 'bg-teal-500 text-white shadow-md' : 'bg-white text-gray-500 border border-gray-200 hover:bg-gray-50'}`}>
+                    <button key={role} onClick={() => setAnalysisRoleFilter(role)} className={`px-3 py-1 rounded-lg text-[13px] font-bold transition-all duration-200 ${analysisRoleFilter === role ? 'bg-teal-500 text-white shadow-md' : 'bg-white text-gray-500 border border-gray-200 hover:bg-gray-50'}`}>
                       {role}
                     </button>
                  ))}
                </div>
             </div>
-            <div className="mb-4">
-               <label className="block text-[14px] font-bold text-gray-500 mb-2 ml-1">分析類型 (單選)</label>
+            <div className="mb-3">
+               <label className="block text-[13px] font-bold text-gray-500 mb-1.5 ml-1">分析類型 (單選)</label>
                <div className="flex bg-gray-50 rounded-xl p-1 border border-gray-100 shadow-inner">
                  {['expense', 'income', 'transfer'].map(type => (
-                    <button key={type} onClick={() => handleAnalysisTypeChange(type)} className={`flex-1 py-2 rounded-lg text-[15px] font-extrabold transition-all duration-200 ${analysisType === type ? `${type === 'expense' ? 'bg-orange-400' : type === 'income' ? 'bg-green-500' : 'bg-blue-500'} text-white shadow-md transform scale-100` : 'text-gray-400 hover:text-gray-600 scale-95'}`}>
+                    <button key={type} onClick={() => handleAnalysisTypeChange(type)} className={`flex-1 py-1.5 rounded-lg text-[14px] font-extrabold transition-all duration-200 ${analysisType === type ? `${type === 'expense' ? 'bg-orange-400' : type === 'income' ? 'bg-green-500' : 'bg-blue-500'} text-white shadow-md transform scale-100` : 'text-gray-400 hover:text-gray-600 scale-95'}`}>
                       {type === 'expense' ? '支出' : type === 'income' ? '收入' : '轉帳'}
                     </button>
                  ))}
                </div>
             </div>
-            <div className="grid grid-cols-2 gap-3 mb-4">
+            <div className="grid grid-cols-2 gap-2 mb-3">
               <div>
-                <div className="flex justify-between items-center mb-1.5 ml-1">
-                  <label className="block text-[13px] font-bold text-gray-500">開始日期</label>
+                <div className="flex justify-between items-center mb-1 ml-1">
+                  <label className="block text-[12px] font-bold text-gray-500">開始日期</label>
                   <button type="button" onClick={() => setAnalysisStartDate(getLocalTodayStr())} className="text-teal-600 bg-teal-50 hover:bg-teal-100 px-2 py-0.5 rounded text-[11px] font-bold transition">今天</button>
                 </div>
-                <input type="date" value={analysisStartDate} onChange={e => setAnalysisStartDate(e.target.value)} className="w-full bg-gray-50 border border-gray-100 p-3 rounded-xl outline-none font-bold text-gray-700 text-[14px] focus:bg-white focus:border-teal-300 transition shadow-sm" />
+                <input type="date" value={analysisStartDate} onChange={e => setAnalysisStartDate(e.target.value)} className="w-full bg-gray-50 border border-gray-100 p-2.5 rounded-xl outline-none font-bold text-gray-700 text-[13px] focus:bg-white focus:border-teal-300 transition shadow-sm" />
               </div>
               <div>
-                <div className="flex justify-between items-center mb-1.5 ml-1">
-                  <label className="block text-[13px] font-bold text-gray-500">結束日期</label>
+                <div className="flex justify-between items-center mb-1 ml-1">
+                  <label className="block text-[12px] font-bold text-gray-500">結束日期</label>
                   <button type="button" onClick={() => setAnalysisEndDate(getLocalTodayStr())} className="text-teal-600 bg-teal-50 hover:bg-teal-100 px-2 py-0.5 rounded text-[11px] font-bold transition">今天</button>
                 </div>
-                <input type="date" value={analysisEndDate} onChange={e => setAnalysisEndDate(e.target.value)} className="w-full bg-gray-50 border border-gray-100 p-3 rounded-xl outline-none font-bold text-gray-700 text-[14px] focus:bg-white focus:border-teal-300 transition shadow-sm" />
+                <input type="date" value={analysisEndDate} onChange={e => setAnalysisEndDate(e.target.value)} className="w-full bg-gray-50 border border-gray-100 p-2.5 rounded-xl outline-none font-bold text-gray-700 text-[13px] focus:bg-white focus:border-teal-300 transition shadow-sm" />
               </div>
             </div>
             <div className="mb-2">
-              <label className="block text-[14px] font-bold text-gray-500 mb-2 ml-1">分析選單 (可複選)</label>
-              <div className="flex flex-wrap gap-2">
+              <label className="block text-[13px] font-bold text-gray-500 mb-1.5 ml-1">分析選單 (可複選)</label>
+              <div className="flex flex-wrap gap-1.5">
                 {analysisOptions.map(opt => (
-                  <button key={opt.id} type="button" onClick={() => setAnalysisMenus(analysisMenus.includes(opt.id) ? analysisMenus.filter(d => d !== opt.id) : [...analysisMenus, opt.id])} className={`px-3 py-2 rounded-xl text-[14px] font-bold transition-all duration-200 ${analysisMenus.includes(opt.id) ? 'bg-[#A7F3D0] text-teal-800 border-2 border-[#34D399] shadow-sm transform -translate-y-0.5' : 'bg-white text-gray-500 border border-gray-100 hover:bg-gray-50 shadow-sm'}`}>
+                  <button key={opt.id} type="button" onClick={() => setAnalysisMenus(analysisMenus.includes(opt.id) ? analysisMenus.filter(d => d !== opt.id) : [...analysisMenus, opt.id])} className={`px-2.5 py-1.5 rounded-lg text-[13px] font-bold transition-all duration-200 ${analysisMenus.includes(opt.id) ? 'bg-[#A7F3D0] text-teal-800 border-2 border-[#34D399] shadow-sm transform -translate-y-0.5' : 'bg-white text-gray-500 border border-gray-100 hover:bg-gray-50 shadow-sm'}`}>
                     {opt.label}
                   </button>
                 ))}
               </div>
             </div>
             {analysisMenus.length > 0 && (
-              <div className="pt-4 border-t border-dashed border-gray-100 space-y-4">
-                <label className="block text-[12px] font-bold text-teal-600 bg-teal-50 px-3 py-1.5 rounded-lg inline-block leading-relaxed">💡 依選擇選單篩選細項 (不選代表全部分析)</label>
+              <div className="pt-3 border-t border-dashed border-gray-100 space-y-3 mt-2">
+                <label className="block text-[11px] font-bold text-teal-600 bg-teal-50 px-2.5 py-1.5 rounded-lg inline-block leading-relaxed">💡 依選擇選單篩選細項 (不選代表全部分析)</label>
                 {analysisMenus.includes('category') && <PillGroupMulti label={analysisType === 'income' ? '💰 收入主分類' : analysisType === 'transfer' ? '🔄 轉帳主分類' : '🌸 支出主分類'} options={analysisType === 'income' ? (currentRoom?.incomeCategories || []) : analysisType === 'transfer' ? (currentRoom?.transferCategories || []) : (currentRoom?.categories || [])} values={analysisSubSelections.category} onChange={(vals) => setAnalysisSubSelections({...analysisSubSelections, category: vals})} />}
                 {analysisType === 'expense' && analysisMenus.includes('title') && (
-                  <div className="mb-4 bg-gray-50 p-4 rounded-xl border border-gray-100 shadow-sm">
-                    <label className="block text-[13px] font-bold text-gray-500 mb-3 leading-relaxed">請先選擇上方的主分類篩選，這裡會列出對應的項目讓您勾選</label>
-                    <div className="flex flex-wrap gap-2">
+                  <div className="mb-3 bg-gray-50 p-3 rounded-xl border border-gray-100 shadow-sm">
+                    <label className="block text-[12px] font-bold text-gray-500 mb-2 leading-relaxed">請先選擇上方的主分類篩選，這裡會列出對應的項目讓您勾選</label>
+                    <div className="flex flex-wrap gap-1.5">
                       {(() => {
                         const targetCats = analysisSubSelections.category.length > 0 ? analysisSubSelections.category : Object.keys(currentRoom?.categoryItems || {});
                         const itemsToShow = [...new Set(targetCats.flatMap(c => currentRoom?.categoryItems?.[c] || []))];
                         return itemsToShow.map(item => (
-                          <button key={item} onClick={() => setAnalysisSubSelections({...analysisSubSelections, title: analysisSubSelections.title.includes(item) ? analysisSubSelections.title.filter(v => v !== item) : [...analysisSubSelections.title, item]})} className={`px-3 py-1.5 rounded-lg text-[13px] font-bold transition-all ${analysisSubSelections.title.includes(item) ? 'bg-[#A7F3D0] text-teal-800 border-2 border-[#34D399] shadow-sm' : 'bg-white text-gray-500 border border-gray-100'}`}>{item}</button>
+                          <button key={item} onClick={() => setAnalysisSubSelections({...analysisSubSelections, title: analysisSubSelections.title.includes(item) ? analysisSubSelections.title.filter(v => v !== item) : [...analysisSubSelections.title, item]})} className={`px-2.5 py-1 rounded-lg text-[12px] font-bold transition-all ${analysisSubSelections.title.includes(item) ? 'bg-[#A7F3D0] text-teal-800 border-2 border-[#34D399] shadow-sm' : 'bg-white text-gray-500 border border-gray-100'}`}>{item}</button>
                         ));
                       })()}
                     </div>
@@ -2418,29 +2445,41 @@ export default function App() {
               </div>
             )}
           </div>
-          <div className="bg-white p-3.5 sm:p-4 rounded-[1.5rem] shadow-sm border-2 border-teal-50">
-            <h2 className="font-bold text-teal-700 mb-0 text-[16px] flex items-center gap-2"><LucidePieChart size={18} className="text-teal-400"/> 統計結果</h2>
-            <div className="-my-2"><MyCustomPieChart data={chartData} colors={chartColors} /></div>
-            <div className="-mt-1 space-y-1.5">
-              {chartData.length === 0 ? <p className="text-center text-gray-400 font-bold text-[14px] bg-gray-50 py-3 rounded-xl">此條件沒有紀錄喔！</p> : chartData.map((d, idx) => (
-                <div key={d.label} onClick={() => setViewingAnalysisItem(d.label)} className="flex justify-between items-center bg-gray-50 py-2 px-3 rounded-xl border border-gray-100 hover:shadow-sm cursor-pointer hover:bg-teal-50 hover:border-teal-200 transition">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-3.5 h-3.5 rounded shadow-inner" style={{ backgroundColor: chartColors[idx % chartColors.length] }}></div>
-                    <span className="font-bold text-gray-700 text-[14px] truncate max-w-[150px]">{d.label}</span>
+          <div className="bg-white p-3.5 rounded-[1.5rem] shadow-sm border-2 border-teal-50">
+            <h2 className="font-bold text-teal-700 mb-1 text-[15px] flex items-center gap-2"><LucidePieChart size={16} className="text-teal-400"/> 統計結果</h2>
+            <div className="-my-1"><MyCustomPieChart data={chartData} colors={chartColors} /></div>
+            <div className="space-y-1.5 mt-1">
+              {chartData.length === 0 ? <p className="text-center text-gray-400 font-bold text-[13px] bg-gray-50 py-3 rounded-xl">此條件沒有紀錄喔！</p> : chartData.map((d, idx) => (
+                <div key={d.label} onClick={() => setViewingAnalysisItem(d.label)} className="flex justify-between items-center bg-gray-50 py-2 px-2.5 rounded-xl border border-gray-100 hover:shadow-sm cursor-pointer hover:bg-teal-50 hover:border-teal-200 transition">
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded shadow-inner" style={{ backgroundColor: chartColors[idx % chartColors.length] }}></div>
+                    <span className="font-bold text-gray-700 text-[13px] truncate max-w-[150px]">{d.label}</span>
                   </div>
-                  <span className="font-black text-gray-800 text-[15px]">${d.value.toLocaleString()}</span>
+                  <span className="font-black text-gray-800 text-[14px]">${d.value.toLocaleString()}</span>
                 </div>
               ))}
             </div>
             {chartData.length > 0 && (
-              <div className="bg-teal-50 rounded-xl py-2.5 px-3 mt-2.5 flex justify-between items-center border border-teal-100 shadow-inner">
-                 <span className="font-bold text-teal-700 text-[14px]">篩選總計</span><span className="font-black text-teal-600 text-[18px]">${totalAnalysisAmount.toLocaleString()}</span>
+              <div className="bg-teal-50 rounded-xl py-2 px-2.5 mt-2 flex justify-between items-center border border-teal-100 shadow-inner">
+                 <span className="font-bold text-teal-700 text-[13px]">篩選總計</span><span className="font-black text-teal-600 text-[16px]">${totalAnalysisAmount.toLocaleString()}</span>
               </div>
             )}
           </div>
         </main>
       </>
     );
+  }
+
+  // ==========================================
+  // Fallback 畫面 (避免空白)
+  // ==========================================
+  if (!content) {
+     content = (
+        <div className="flex flex-col items-center justify-center h-full text-gray-400">
+           <Sparkles className="animate-spin mb-4" size={32} />
+           <p>載入中...</p>
+        </div>
+     );
   }
 
   return (
@@ -2454,26 +2493,26 @@ export default function App() {
         {/* 0. 智慧計算機 Modal */}
         {showCalc && (
           <div className="fixed inset-0 z-[150] bg-black/60 flex flex-col justify-center items-center p-4 backdrop-blur-[2px] animate-in fade-in duration-200" onClick={() => { setRecordAmount(evaluateCalc(calcStr)); setShowCalc(false); }}>
-             <div className="bg-gray-50 w-full max-w-[340px] sm:max-w-[380px] rounded-3xl p-5 sm:p-6 shadow-2xl animate-in zoom-in-95 duration-200 border border-gray-200" onClick={e => e.stopPropagation()}>
+             <div className="bg-gray-50 w-full max-w-[320px] rounded-[2rem] p-5 shadow-2xl animate-in zoom-in-95 duration-200 border border-gray-200" onClick={e => e.stopPropagation()}>
                 <div className="flex justify-between items-center mb-3">
-                   <span className="text-gray-500 font-bold text-[15px] flex items-center gap-1.5"><Calculator size={18}/> 智慧計算機</span>
-                   <button onClick={() => { setRecordAmount(evaluateCalc(calcStr)); setShowCalc(false); }} className="text-gray-500 bg-gray-200 hover:bg-gray-300 rounded-full p-1.5 transition"><X size={18}/></button>
+                   <span className="text-gray-500 font-bold text-[14px] flex items-center gap-1.5"><Calculator size={16}/> 智慧計算機</span>
+                   <button onClick={() => { setRecordAmount(evaluateCalc(calcStr)); setShowCalc(false); }} className="text-gray-500 bg-gray-200 hover:bg-gray-300 rounded-full p-1.5 transition"><X size={16}/></button>
                 </div>
-                <div className="text-right text-[42px] font-black text-gray-800 mb-5 overflow-x-auto whitespace-nowrap pb-2 border-b-2 border-gray-200 tracking-wider">{calcStr}</div>
-                <div className="grid grid-cols-4 gap-2.5">
+                <div className="text-right text-[38px] font-black text-gray-800 mb-4 overflow-x-auto whitespace-nowrap pb-1.5 border-b-2 border-gray-200 tracking-wider">{calcStr}</div>
+                <div className="grid grid-cols-4 gap-2">
                    {calcKeys.map(k => (
                      <button key={k.label} onClick={() => {
                          if (k.label === 'C') setCalcStr('0');
                          else if (k.label === '⌫') setCalcStr(prev => prev.length > 1 ? prev.slice(0, -1) : '0');
                          else if (k.label === '=') setCalcStr(prev => evaluateCalc(prev));
                          else setCalcStr(prev => prev === '0' && !['+','-','×','÷','.'].includes(k.label) ? k.label : prev + k.label);
-                       }} className={`p-4 sm:py-5 rounded-2xl text-[22px] sm:text-[24px] active:scale-95 transition-transform flex items-center justify-center shadow-sm ${k.color}`}>
+                       }} className={`py-4 rounded-xl text-[20px] active:scale-95 transition-transform flex items-center justify-center shadow-sm ${k.color}`}>
                        {k.label}
                      </button>
                    ))}
                 </div>
-                <button onClick={() => { setRecordAmount(evaluateCalc(calcStr)); setShowCalc(false); }} className={`w-full mt-4 ${recordType === 'income' ? 'bg-green-500' : recordType === 'transfer' ? 'bg-blue-500' : 'bg-orange-500'} text-white py-4 rounded-xl font-black text-[20px] shadow-md active:scale-95 transition flex justify-center items-center gap-2`}>
-                  <Check size={24}/> 確認金額
+                <button onClick={() => { setRecordAmount(evaluateCalc(calcStr)); setShowCalc(false); }} className={`w-full mt-3 ${recordType === 'income' ? 'bg-green-500' : recordType === 'transfer' ? 'bg-blue-500' : 'bg-orange-500'} text-white py-3.5 rounded-xl font-black text-[18px] shadow-md active:scale-95 transition flex justify-center items-center gap-2`}>
+                  <Check size={20}/> 確認金額
                 </button>
              </div>
           </div>
@@ -2489,35 +2528,34 @@ export default function App() {
 
         {/* 2. 統計分析詳細明細 Modal */}
         {viewingAnalysisItem && (
-          <div className="fixed inset-0 bg-black/40 z-[100] flex justify-center items-center p-4 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setViewingAnalysisItem(null)}>
-            <div className="bg-white w-full max-w-md max-h-[85vh] flex flex-col rounded-[1.5rem] p-5 shadow-2xl relative" onClick={e => e.stopPropagation()}>
-              <button onClick={() => setViewingAnalysisItem(null)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 bg-gray-100 p-1.5 rounded-full transition"><X size={18}/></button>
-              <h3 className="font-black text-[20px] text-gray-800 mb-4 border-b border-gray-100 pb-3 flex items-center gap-1.5 pr-8"><BarChart size={20} className="text-teal-500 shrink-0" /> <span className="truncate">{viewingAnalysisItem} 明細</span></h3>
-              <div className="scroll-container flex-1 overflow-y-auto space-y-2 pr-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+          <div className="fixed inset-0 bg-black/40 z-[100] flex justify-center items-center p-3 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setViewingAnalysisItem(null)}>
+            <div className="bg-white w-full max-w-md max-h-[85vh] flex flex-col rounded-[1.5rem] p-4 shadow-2xl relative" onClick={e => e.stopPropagation()}>
+              <button onClick={() => setViewingAnalysisItem(null)} className="absolute top-3 right-3 text-gray-400 hover:text-gray-600 bg-gray-100 p-1.5 rounded-full transition"><X size={16}/></button>
+              <h3 className="font-black text-[18px] text-gray-800 mb-3 border-b border-gray-100 pb-2 flex items-center gap-1.5 pr-8"><BarChart size={18} className="text-teal-500 shrink-0" /> <span className="truncate">{viewingAnalysisItem} 明細</span></h3>
+              <div className="flex-1 overflow-y-auto space-y-1.5 pr-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
                 {(() => {
                   const analysisDetailRecords = analysisFilteredRecords.filter(r => getAnalysisKeyForRecord(r) === viewingAnalysisItem).sort((a, b) => (a.date !== b.date ? (a.date > b.date ? -1 : 1) : b.timestamp - a.timestamp)); 
-                  if (analysisDetailRecords.length === 0) return <p className="text-center text-gray-400 font-bold py-10 text-[15px]">查無明細</p>;
+                  if (analysisDetailRecords.length === 0) return <p className="text-center text-gray-400 font-bold py-10 text-[14px]">查無明細</p>;
                   return analysisDetailRecords.map(exp => {
                     const isIncome = exp.type === 'income', isTransfer = exp.type === 'transfer';
                     let freqDisplay = exp.frequency === '區間' ? (exp.frequencyInterval === '自訂' ? exp.frequencyCustomText : exp.frequencyInterval) : exp.frequency;
                     return (
-                      <div key={exp.id} onClick={() => setViewingRecord(exp)} className="bg-gray-50 p-3 rounded-xl border border-gray-100 flex justify-between items-center cursor-pointer hover:bg-gray-100 transition">
+                      <div key={exp.id} onClick={() => setViewingRecord(exp)} className="bg-gray-50 p-2.5 rounded-xl border border-gray-100 flex justify-between items-center cursor-pointer hover:bg-gray-100 transition">
                         <div className="overflow-hidden pr-2">
                            <div className="flex flex-wrap items-center gap-1.5 mb-1">
-                             <span className="text-[13px] font-bold text-gray-400">{toROCYearStr(exp.date)}</span>
-                             {exp.addedByRole && <span className={`${getRoleColorStyle(exp.addedByRole).lightBg} ${getRoleColorStyle(exp.addedByRole).text} border ${getRoleColorStyle(exp.addedByRole).lightBorder} px-1.5 py-0.5 rounded text-[11px] font-bold tracking-wide shrink-0`}>{exp.addedByRole}</span>}
-                             <span className="bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded text-[11px] font-bold tracking-wide">{freqDisplay || '一次'}</span>
-                             {exp.payer && <span className="bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded text-[11px] font-bold tracking-wide">{Array.isArray(exp.payer)?exp.payer.join(', '):exp.payer}</span>}
+                             <span className="text-[11px] font-bold text-gray-400">{toROCYearStr(exp.date)}</span>
+                             {exp.addedByRole && <span className={`${getRoleColorStyle(exp.addedByRole).lightBg} ${getRoleColorStyle(exp.addedByRole).text} border ${getRoleColorStyle(exp.addedByRole).lightBorder} px-1.5 py-0.5 rounded text-[10px] font-bold tracking-wide shrink-0`}>{exp.addedByRole}</span>}
+                             <span className="bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded text-[10px] font-bold tracking-wide">{freqDisplay || '一次'}</span>
+                             {exp.payer && <span className="bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded text-[10px] font-bold tracking-wide">{Array.isArray(exp.payer)?exp.payer.join(', '):exp.payer}</span>}
                            </div>
-                           <div className="font-black text-[16px] text-gray-700 truncate">{isTransfer ? `轉帳: ${renderMethodText(exp.method, exp.subMethod)}➜${renderMethodText(exp.transferToMethod, exp.transferToSubMethod)}` : exp.title}</div>
-                           <div className="flex flex-wrap items-center gap-1.5 mt-1">
-                             {!isTransfer && exp.method && exp.method !== '未指定' && <span className="text-gray-500 text-[12px] font-bold bg-gray-100 px-1.5 py-0.5 rounded border border-gray-200">💳 {renderMethodText(exp.method, exp.subMethod)}</span>}
-                             {exp.merchant && exp.merchant !== '未指定' && <span className="text-gray-500 text-[12px] font-bold bg-gray-100 px-1.5 py-0.5 rounded border border-gray-200">🏪 {exp.merchant}</span>}
-                             {exp.photoBase64 && <span className="shrink-0 w-[24px] h-[24px] rounded-md overflow-hidden shadow-sm inline-block border border-gray-200 mt-0.5" title="此紀錄附有照片"><img src={exp.photoBase64} alt="圖" className="w-full h-full object-cover" /></span>}
-                             {exp.note && <span className="text-gray-500 text-[13px] font-bold bg-[#FFFDF9] px-1.5 py-0.5 rounded border border-[#F2EFE9] max-w-full truncate mt-0.5">📝 {exp.note}</span>}
+                           <div className="font-black text-[14px] text-gray-700 truncate">{isTransfer ? `轉帳: ${renderMethodText(exp.method, exp.subMethod)}➜${renderMethodText(exp.transferToMethod, exp.transferToSubMethod)}` : exp.title}</div>
+                           <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
+                             {!isTransfer && exp.method && exp.method !== '未指定' && <span className="text-gray-500 text-[11px] font-bold bg-gray-100 px-1.5 py-0.5 rounded border border-gray-200">💳 {renderMethodText(exp.method, exp.subMethod)}</span>}
+                             {exp.merchant && exp.merchant !== '未指定' && <span className="text-gray-500 text-[11px] font-bold bg-gray-100 px-1.5 py-0.5 rounded border border-gray-200">🏪 {exp.merchant}</span>}
+                             {exp.photoBase64 && <span className="shrink-0 w-[18px] h-[18px] rounded-md overflow-hidden shadow-sm inline-block border border-gray-200 mt-0.5" title="此紀錄附有照片"><img src={exp.photoBase64} alt="圖" className="w-full h-full object-cover" /></span>}
                            </div>
                         </div>
-                        <div className={`font-black text-[19px] shrink-0 ${isIncome ? 'text-green-500' : isTransfer ? 'text-blue-500' : 'text-gray-800'}`}>{isIncome ? '+' : isTransfer ? '⇆' : '-'}${exp.amount.toLocaleString()}</div>
+                        <div className={`font-black text-[16px] shrink-0 ${isIncome ? 'text-green-500' : isTransfer ? 'text-blue-500' : 'text-gray-800'}`}>{isIncome ? '+' : isTransfer ? '⇆' : '-'}${exp.amount.toLocaleString()}</div>
                       </div>
                     )
                   });
@@ -2529,30 +2567,30 @@ export default function App() {
 
         {/* 3. 帳戶歷史明細 Modal */}
         {viewingAccountHistory && (
-          <div className="fixed inset-0 bg-black/40 z-[100] flex justify-center items-center p-4 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setViewingAccountHistory(null)}>
-            <div className="bg-white w-full max-w-md max-h-[85vh] flex flex-col rounded-[1.5rem] p-5 shadow-2xl relative" onClick={e => e.stopPropagation()}>
-              <button onClick={() => setViewingAccountHistory(null)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 bg-gray-100 p-1.5 rounded-full transition"><X size={18}/></button>
-              <h3 className="font-black text-[20px] text-gray-800 mb-4 border-b border-gray-100 pb-3 flex items-center gap-1.5">
-                <Wallet size={20} className="text-indigo-500" /> {viewingAccountHistory} 明細
+          <div className="fixed inset-0 bg-black/40 z-[100] flex justify-center items-center p-3 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setViewingAccountHistory(null)}>
+            <div className="bg-white w-full max-w-md max-h-[85vh] flex flex-col rounded-[1.5rem] p-4 shadow-2xl relative" onClick={e => e.stopPropagation()}>
+              <button onClick={() => setViewingAccountHistory(null)} className="absolute top-3 right-3 text-gray-400 hover:text-gray-600 bg-gray-100 p-1.5 rounded-full transition"><X size={16}/></button>
+              <h3 className="font-black text-[18px] text-gray-800 mb-3 border-b border-gray-100 pb-2 flex items-center gap-1.5">
+                <Wallet size={18} className="text-indigo-500" /> {viewingAccountHistory} 明細
               </h3>
               
-              <div className="grid grid-cols-2 gap-2 mb-4">
+              <div className="grid grid-cols-2 gap-2 mb-3">
                   <div>
-                    <label className="block text-[12px] font-bold text-gray-500 mb-1">開始日期</label>
-                    <input type="date" value={historyStartDate} onChange={e=>setHistoryStartDate(e.target.value)} className="w-full bg-gray-50 border border-gray-200 p-1.5 rounded-lg text-[14px] font-bold text-gray-700 outline-none focus:border-indigo-300 transition" />
+                    <label className="block text-[11px] font-bold text-gray-500 mb-1">開始日期</label>
+                    <input type="date" value={historyStartDate} onChange={e=>setHistoryStartDate(e.target.value)} className="w-full bg-gray-50 border border-gray-200 p-1.5 rounded-lg text-[13px] font-bold text-gray-700 outline-none focus:border-indigo-300 transition" />
                   </div>
                   <div>
-                    <label className="block text-[12px] font-bold text-gray-500 mb-1">結束日期</label>
-                    <input type="date" value={historyEndDate} onChange={e=>setHistoryEndDate(e.target.value)} className="w-full bg-gray-50 border border-gray-200 p-1.5 rounded-lg text-[14px] font-bold text-gray-700 outline-none focus:border-indigo-300 transition" />
+                    <label className="block text-[11px] font-bold text-gray-500 mb-1">結束日期</label>
+                    <input type="date" value={historyEndDate} onChange={e=>setHistoryEndDate(e.target.value)} className="w-full bg-gray-50 border border-gray-200 p-1.5 rounded-lg text-[13px] font-bold text-gray-700 outline-none focus:border-indigo-300 transition" />
                   </div>
               </div>
-
-              <div className="scroll-container flex-1 overflow-y-auto space-y-2 pr-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+              <div className="scroll-container flex-1 overflow-y-auto space-y-1.5 pr-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
                 {(() => {
                   const todayStr = getLocalTodayStr();
                   const accHistory = records.filter(r => {
                      if (r.date > historyEndDate || r.date < historyStartDate) return false;
                      if (r.date > todayStr) return false;
+                     // 移除「排除不計入」，讓不計入的項目也能顯示在帳戶明細清單中
                      const getAccName = (method, subMethod) => method === '現金' ? '現金' : subMethod;
                      const fromAcc = getAccName(r.method, r.subMethod);
                      const toAcc = getAccName(r.transferToMethod, r.transferToSubMethod);
@@ -2562,7 +2600,7 @@ export default function App() {
                       return b.timestamp - a.timestamp;
                   }); 
 
-                  if (accHistory.length === 0) return <p className="text-center text-gray-400 font-bold py-10 text-[15px]">此區間尚無明細</p>;
+                  if (accHistory.length === 0) return <p className="text-center text-gray-400 font-bold py-10 text-[14px]">此區間尚無明細</p>;
 
                   return accHistory.map(exp => {
                     const isIncome = exp.type === 'income';
@@ -2574,35 +2612,30 @@ export default function App() {
                     let freqDisplay = exp.frequency === '區間' ? (exp.frequencyInterval === '自訂' ? exp.frequencyCustomText : exp.frequencyInterval) : exp.frequency;
 
                     return (
-                      <div key={exp.id} onClick={() => { setViewingRecord(exp); }} className="bg-gray-50 p-3 rounded-xl border border-gray-100 flex justify-between items-center cursor-pointer hover:bg-gray-100 transition">
+                      <div key={exp.id} onClick={() => { setViewingRecord(exp); }} className={`bg-gray-50 p-2.5 rounded-xl border ${exp.excludeFromBalance ? 'border-gray-200 opacity-80' : 'border-gray-100'} flex justify-between items-center cursor-pointer hover:bg-gray-100 transition`}>
                         <div className="overflow-hidden pr-2">
                            <div className="flex flex-wrap items-center gap-1.5 mb-1">
-                             <span className="text-[13px] font-bold text-gray-400">{toROCYearStr(exp.date)}</span>
-                             {exp.addedByRole && <span className={`${getRoleColorStyle(exp.addedByRole).lightBg} ${getRoleColorStyle(exp.addedByRole).text} border ${getRoleColorStyle(exp.addedByRole).lightBorder} px-1.5 py-0.5 rounded text-[11px] font-bold tracking-wide shrink-0`}>{exp.addedByRole}</span>}
-                             <span className="bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded text-[11px] font-bold tracking-wide">{freqDisplay || '一次'}</span>
-                             {exp.payer && <span className="bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded text-[11px] font-bold tracking-wide">{Array.isArray(exp.payer)?exp.payer.join(', '):exp.payer}</span>}
+                             <span className="text-[11px] font-bold text-gray-400">{toROCYearStr(exp.date)}</span>
+                             {exp.addedByRole && <span className={`${getRoleColorStyle(exp.addedByRole).lightBg} ${getRoleColorStyle(exp.addedByRole).text} border ${getRoleColorStyle(exp.addedByRole).lightBorder} px-1.5 py-0.5 rounded text-[10px] font-bold tracking-wide shrink-0`}>{exp.addedByRole}</span>}
+                             <span className="bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded text-[10px] font-bold tracking-wide">{freqDisplay || '一次'}</span>
+                             {exp.excludeFromBalance && <span className="bg-gray-200 text-gray-500 px-1.5 py-0.5 rounded text-[10px] font-bold tracking-wide shrink-0">不計入</span>}
+                             {exp.payer && <span className="bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded text-[10px] font-bold tracking-wide">{Array.isArray(exp.payer)?exp.payer.join(', '):exp.payer}</span>}
                            </div>
-                           <div className="font-black text-[16px] text-gray-700 truncate">
+                           <div className={`font-black text-[14px] ${exp.excludeFromBalance ? 'text-gray-500 line-through decoration-gray-300' : 'text-gray-700'} truncate`}>
                               {isTransfer ? `轉帳: ${renderMethodText(exp.method, exp.subMethod)}➜${renderMethodText(exp.transferToMethod, exp.transferToSubMethod)}` : exp.title}
                            </div>
-                           <div className="flex flex-wrap items-center gap-1.5 mt-1">
-                             {!isTransfer && exp.method && exp.method !== '未指定' && <span className="text-gray-500 text-[12px] font-bold bg-gray-100 px-1.5 py-0.5 rounded border border-gray-200">💳 {renderMethodText(exp.method, exp.subMethod)}</span>}
-                             {exp.merchant && exp.merchant !== '未指定' && <span className="text-gray-500 text-[12px] font-bold bg-gray-100 px-1.5 py-0.5 rounded border border-gray-200">🏪 {exp.merchant}</span>}
+                           <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
+                             {!isTransfer && exp.method && exp.method !== '未指定' && <span className="text-gray-500 text-[11px] font-bold bg-gray-100 px-1.5 py-0.5 rounded border border-gray-200">💳 {renderMethodText(exp.method, exp.subMethod)}</span>}
+                             {exp.merchant && exp.merchant !== '未指定' && <span className="text-gray-500 text-[11px] font-bold bg-gray-100 px-1.5 py-0.5 rounded border border-gray-200">🏪 {exp.merchant}</span>}
                              
                              {exp.photoBase64 && (
-                               <span className="shrink-0 w-[22px] h-[22px] rounded-md overflow-hidden shadow-sm inline-block border border-gray-200" title="有照片">
+                               <span className="shrink-0 w-[18px] h-[18px] rounded-md overflow-hidden shadow-sm inline-block border border-gray-200" title="有照片">
                                  <img src={exp.photoBase64} alt="圖" className="w-full h-full object-cover" />
-                               </span>
-                             )}
-                             
-                             {exp.note && (
-                               <span className="text-gray-500 text-[12px] font-bold bg-white px-1.5 py-0.5 rounded border border-gray-200 max-w-[120px] truncate">
-                                 📝 {exp.note}
                                </span>
                              )}
                            </div>
                         </div>
-                        <div className={`font-black text-[19px] shrink-0 ${isPositive ? 'text-green-500' : 'text-gray-800'}`}>
+                        <div className={`font-black text-[16px] shrink-0 ${exp.excludeFromBalance ? 'text-gray-400 line-through decoration-gray-300' : isPositive ? 'text-green-500' : 'text-gray-800'}`}>
                            {isPositive ? '+' : '-'}${exp.amount.toLocaleString()}
                         </div>
                       </div>
@@ -2618,13 +2651,13 @@ export default function App() {
         {viewingRecord && (
           <div className="fixed inset-0 bg-black/40 z-[110] flex justify-center items-center p-4 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setViewingRecord(null)}>
             <div className="bg-white w-full max-w-sm rounded-[1.5rem] p-5 shadow-2xl relative" onClick={e => e.stopPropagation()}>
-              <button onClick={() => setViewingRecord(null)} className="absolute top-3 right-3 text-gray-400 hover:text-gray-600 bg-gray-100 p-1.5 rounded-full transition"><X size={22}/></button>
-              <h3 className="font-black text-2xl text-gray-800 mb-3 border-b border-gray-100 pb-2">詳細紀錄</h3>
-              <div className="scroll-container space-y-2.5 text-[16px] text-gray-600 font-bold max-h-[65vh] overflow-y-auto pr-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-                <div className="flex justify-between items-center bg-gray-50 p-2.5 rounded-xl border border-gray-100"><span className="text-gray-400">類型</span><span className={`${viewingRecord.type === 'income' ? 'text-green-500' : viewingRecord.type === 'transfer' ? 'text-blue-500' : 'text-orange-500'} font-black text-[17px]`}>{viewingRecord.type === 'income' ? '收入' : viewingRecord.type === 'transfer' ? '轉帳' : '支出'}</span></div>
-                <div className="flex justify-between items-center bg-gray-50 p-2.5 rounded-xl border border-gray-100"><span className="text-gray-400">金額</span><span className="text-[26px] text-gray-800 font-black">${viewingRecord.amount.toLocaleString()}</span></div>
+              <button onClick={() => setViewingRecord(null)} className="absolute top-3 right-3 text-gray-400 hover:text-gray-600 bg-gray-100 p-1.5 rounded-full transition"><X size={20}/></button>
+              <h3 className="font-black text-xl text-gray-800 mb-3 border-b border-gray-100 pb-2">詳細紀錄</h3>
+              <div className="space-y-2 text-[15px] text-gray-600 font-bold max-h-[65vh] overflow-y-auto pr-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+                <div className="flex justify-between items-center bg-gray-50 p-2.5 rounded-xl border border-gray-100"><span className="text-gray-400">類型</span><span className={`${viewingRecord.type === 'income' ? 'text-green-500' : viewingRecord.type === 'transfer' ? 'text-blue-500' : 'text-orange-500'} font-black text-[16px]`}>{viewingRecord.type === 'income' ? '收入' : viewingRecord.type === 'transfer' ? '轉帳' : '支出'}</span></div>
+                <div className="flex justify-between items-center bg-gray-50 p-2.5 rounded-xl border border-gray-100"><span className="text-gray-400">金額</span><span className={`text-[24px] font-black ${viewingRecord.excludeFromBalance ? 'text-gray-500 line-through decoration-gray-300' : 'text-gray-800'}`}>${viewingRecord.amount.toLocaleString()}</span></div>
                 <div className="flex justify-between items-center border-b border-gray-100 pb-1.5 pt-1"><span className="text-gray-400">消費日期</span><span className="text-gray-800">{toROCYearStr(viewingRecord.date)}</span></div>
-                <div className="flex justify-between items-center border-b border-gray-100 pb-1.5"><span className="text-gray-400">建檔時間</span><span className="text-gray-800 text-[14px]">{toROCYearStr(viewingRecord.timestamp)} {new Date(viewingRecord.timestamp).toLocaleTimeString('zh-TW', {hour12: false, hour: '2-digit', minute:'2-digit'})}</span></div>
+                <div className="flex justify-between items-center border-b border-gray-100 pb-1.5"><span className="text-gray-400">建檔時間</span><span className="text-gray-800 text-[13px]">{toROCYearStr(viewingRecord.timestamp)} {new Date(viewingRecord.timestamp).toLocaleTimeString('zh-TW', {hour12: false, hour: '2-digit', minute:'2-digit'})}</span></div>
                 <div className="flex justify-between items-center border-b border-gray-100 pb-1.5"><span className="text-gray-400">分類</span><span className="text-gray-800">{viewingRecord.category}</span></div>
                 {viewingRecord.type !== 'transfer' && <div className="flex justify-between items-center border-b border-gray-100 pb-1.5"><span className="text-gray-400">項目</span><span className="text-gray-800">{viewingRecord.title}</span></div>}
                 {viewingRecord.merchant && viewingRecord.merchant !== '未指定' && <div className="flex justify-between items-center border-b border-gray-100 pb-1.5"><span className="text-gray-400">商家</span><span className="text-gray-800">{viewingRecord.merchant}</span></div>}
@@ -2632,18 +2665,18 @@ export default function App() {
                 {viewingRecord.method && viewingRecord.method !== '未指定' && <div className="flex justify-between items-center border-b border-gray-100 pb-1.5"><span className="text-gray-400">{viewingRecord.type === 'transfer' ? '轉出帳戶' : '付款方式'}</span><span className="text-gray-800">{renderMethodText(viewingRecord.method, viewingRecord.subMethod)}</span></div>}
                 {viewingRecord.transferToMethod && <div className="flex justify-between items-center border-b border-gray-100 pb-1.5"><span className="text-gray-400">轉入帳戶</span><span className="text-gray-800">{renderMethodText(viewingRecord.transferToMethod, viewingRecord.transferToSubMethod)}</span></div>}
                 <div className="flex justify-between items-center border-b border-gray-100 pb-1.5"><span className="text-gray-400">頻率</span><span className="text-gray-800">{viewingRecord.frequency === '每週' && viewingRecord.frequencyDays?.length > 0 ? `每週 (${viewingRecord.frequencyDays.join('、')})` : viewingRecord.frequency === '每月' && viewingRecord.frequencyDays?.length > 0 ? `每月 (${viewingRecord.frequencyDays.join('、')}號)` : viewingRecord.frequency === '區間' ? (viewingRecord.frequencyInterval === '自訂' ? viewingRecord.frequencyCustomText : viewingRecord.frequencyInterval) : viewingRecord.frequency}</span></div>
-                <div className="flex justify-between items-center border-b border-gray-100 pb-1.5"><span className="text-gray-400">付款人</span><span className={`${getRoleColorStyle(viewingRecord.addedByRole).lightBg} ${getRoleColorStyle(viewingRecord.addedByRole).text} border ${getRoleColorStyle(viewingRecord.addedByRole).lightBorder} px-2 py-0.5 rounded-md text-[14px] font-bold`}>{viewingRecord.addedByRole}</span></div>
-                {viewingRecord.note && <div className="pt-1.5"><span className="text-gray-400 block mb-1">備註</span><span className="text-gray-800 block bg-gray-50 p-2.5 rounded-xl border border-gray-100">{viewingRecord.note}</span></div>}
+                <div className="flex justify-between items-center border-b border-gray-100 pb-1.5"><span className="text-gray-400">付款人</span><span className={`${getRoleColorStyle(viewingRecord.addedByRole).lightBg} ${getRoleColorStyle(viewingRecord.addedByRole).text} border ${getRoleColorStyle(viewingRecord.addedByRole).lightBorder} px-2 py-0.5 rounded-md text-[13px] font-bold`}>{viewingRecord.addedByRole}</span></div>
+                {viewingRecord.note && <div className="pt-1.5"><span className="text-gray-400 block mb-1">備註</span><span className="text-gray-800 block bg-gray-50 p-2.5 rounded-xl border border-gray-100 text-[14px]">{viewingRecord.note}</span></div>}
                 {viewingRecord.photoBase64 && (
                   <div className="pt-2">
                      <span className="text-gray-400 block mb-1">附加照片 (點擊放大)</span>
-                     <div className="w-full h-32 bg-gray-50 rounded-xl border border-gray-200 overflow-hidden cursor-pointer shadow-sm hover:opacity-90 transition" onClick={() => setEnlargedPhoto(viewingRecord.photoBase64)}><img src={viewingRecord.photoBase64} alt="附加照片" className="w-full h-full object-cover" /></div>
+                     <div className="w-full h-28 bg-gray-50 rounded-xl border border-gray-200 overflow-hidden cursor-pointer shadow-sm hover:opacity-90 transition" onClick={() => setEnlargedPhoto(viewingRecord.photoBase64)}><img src={viewingRecord.photoBase64} alt="附加照片" className="w-full h-full object-cover" /></div>
                   </div>
                 )}
               </div>
-              <div className="flex gap-3 mt-4 pt-4 border-t border-gray-100">
-                 <button onClick={() => { handleCopyRecord(viewingRecord); setViewingRecord(null); setViewingAnalysisItem(null); }} disabled={!(!viewingRecord.addedByRole || currentUserRole === viewingRecord.addedByRole)} className={`flex-1 font-bold py-3 rounded-xl flex items-center justify-center gap-2 transition ${(!viewingRecord.addedByRole || currentUserRole === viewingRecord.addedByRole) ? 'bg-green-50 text-green-600 hover:bg-green-100 active:scale-95' : 'bg-gray-100 text-gray-400 opacity-40 cursor-not-allowed'}`}><Copy size={16}/> 複製此筆</button>
-                 <button onClick={() => { handleDeleteRecord(viewingRecord); setViewingRecord(null); }} disabled={!(!viewingRecord.addedByRole || currentUserRole === viewingRecord.addedByRole)} className={`flex-1 font-bold py-3 rounded-xl flex items-center justify-center gap-2 transition ${(!viewingRecord.addedByRole || currentUserRole === viewingRecord.addedByRole) ? 'bg-red-50 text-red-500 hover:bg-red-100 active:scale-95' : 'bg-gray-100 text-gray-400 opacity-40 cursor-not-allowed'}`}><Trash2 size={16}/> 刪除此筆</button>
+              <div className="flex gap-2.5 mt-4 pt-3 border-t border-gray-100">
+                 <button onClick={() => { handleCopyRecord(viewingRecord); setViewingRecord(null); setViewingAnalysisItem(null); }} disabled={!(!viewingRecord.addedByRole || currentUserRole === viewingRecord.addedByRole)} className={`flex-1 font-bold py-2.5 rounded-xl flex items-center justify-center gap-1.5 transition ${(!viewingRecord.addedByRole || currentUserRole === viewingRecord.addedByRole) ? 'bg-green-50 text-green-600 hover:bg-green-100 active:scale-95' : 'bg-gray-100 text-gray-400 opacity-40 cursor-not-allowed'}`}><Copy size={15}/> 複製此筆</button>
+                 <button onClick={() => { handleDeleteRecord(viewingRecord); setViewingRecord(null); }} disabled={!(!viewingRecord.addedByRole || currentUserRole === viewingRecord.addedByRole)} className={`flex-1 font-bold py-2.5 rounded-xl flex items-center justify-center gap-1.5 transition ${(!viewingRecord.addedByRole || currentUserRole === viewingRecord.addedByRole) ? 'bg-red-50 text-red-500 hover:bg-red-100 active:scale-95' : 'bg-gray-100 text-gray-400 opacity-40 cursor-not-allowed'}`}><Trash2 size={15}/> 刪除此筆</button>
               </div>
             </div>
           </div>
@@ -2656,28 +2689,28 @@ export default function App() {
                <h3 className="font-black text-xl text-gray-800 mb-3 flex items-center gap-2"><Send size={22} className="text-blue-500"/> 傳送至其他房間</h3>
                {!selectedTransferRoom ? (
                  <>
-                     <p className="text-[16px] font-bold text-gray-500 mb-4 leading-relaxed">將此筆 <span className="text-gray-800">[{crossRoomRecord.title || crossRoomRecord.category}] ${crossRoomRecord.amount}</span> 複製傳送到：</p>
+                     <p className="text-[15px] font-bold text-gray-500 mb-4 leading-relaxed">將此筆 <span className="text-gray-800">[{crossRoomRecord.title || crossRoomRecord.category}] ${crossRoomRecord.amount}</span> 複製傳送到：</p>
                      <div className="space-y-2.5 mb-5 max-h-56 overflow-y-auto pr-1">
                        {savedRooms.filter(r => r.id !== activeRoomId).length === 0 ? (
-                         <p className="text-red-400 font-bold text-[15px] bg-red-50 p-3 rounded-xl leading-relaxed">您目前沒有儲存其他房間，請先登入過其他房間再使用此功能。</p>
+                         <p className="text-red-400 font-bold text-[14px] bg-red-50 p-3 rounded-xl leading-relaxed">您目前沒有儲存其他房間，請先登入過其他房間再使用此功能。</p>
                        ) : (
                          savedRooms.filter(r => r.id !== activeRoomId).map(r => (
-                           <button key={r.id} onClick={() => { if (crossRoomRecord.frequency !== '一次') setSelectedTransferRoom(r); else handleSendToOtherRoom(r.id, false); }} className="w-full text-left bg-gray-50 hover:bg-blue-50 border border-gray-100 hover:border-blue-200 p-3 rounded-xl font-black text-gray-700 text-[17px] transition flex items-center shadow-sm">
-                             🏠 {r.name} <span className="text-[13px] font-bold text-gray-400 ml-auto">({r.id})</span>
+                           <button key={r.id} onClick={() => { if (crossRoomRecord.frequency !== '一次') setSelectedTransferRoom(r); else handleSendToOtherRoom(r.id, false); }} className="w-full text-left bg-gray-50 hover:bg-blue-50 border border-gray-100 hover:border-blue-200 p-3 rounded-xl font-black text-gray-700 text-[16px] transition flex items-center shadow-sm">
+                             🏠 {r.name} <span className="text-[12px] font-bold text-gray-400 ml-auto">({r.id})</span>
                            </button>
                          ))
                        )}
                      </div>
-                     <button onClick={() => { setCrossRoomRecord(null); setSelectedTransferRoom(null); }} className="w-full bg-gray-100 hover:bg-gray-200 text-gray-600 font-extrabold text-[17px] py-3 rounded-xl transition">取消</button>
+                     <button onClick={() => { setCrossRoomRecord(null); setSelectedTransferRoom(null); }} className="w-full bg-gray-100 hover:bg-gray-200 text-gray-600 font-extrabold text-[16px] py-3 rounded-xl transition">取消</button>
                  </>
                ) : (
                  <div className="animate-in slide-in-from-right-8 duration-200">
-                     <p className="text-[16px] font-bold text-gray-600 mb-4 leading-relaxed">目標房間：<span className="text-blue-600 font-black">{selectedTransferRoom.name}</span><br/><br/>這是一筆<span className="text-orange-500">週期性紀錄</span>，請問您要如何傳送？</p>
+                     <p className="text-[15px] font-bold text-gray-600 mb-4 leading-relaxed">目標房間：<span className="text-blue-600 font-black">{selectedTransferRoom.name}</span><br/><br/>這是一筆<span className="text-orange-500">週期性紀錄</span>，請問您要如何傳送？</p>
                      <div className="space-y-3 mb-5">
-                       <button onClick={() => handleSendToOtherRoom(selectedTransferRoom.id, true)} className="w-full bg-blue-500 hover:bg-blue-600 text-white font-black text-[17px] py-3.5 rounded-xl transition shadow-md active:scale-95 flex items-center justify-center gap-2">🔄 完整傳送 (包含未來排程)</button>
-                       <button onClick={() => handleSendToOtherRoom(selectedTransferRoom.id, false)} className="w-full bg-orange-100 hover:bg-orange-200 text-orange-700 font-black text-[17px] py-3.5 rounded-xl transition shadow-sm active:scale-95 flex items-center justify-center gap-2">📌 僅傳送單次 (不含排程)</button>
+                       <button onClick={() => handleSendToOtherRoom(selectedTransferRoom.id, true)} className="w-full bg-blue-500 hover:bg-blue-600 text-white font-black text-[16px] py-3.5 rounded-xl transition shadow-md active:scale-95 flex items-center justify-center gap-2">🔄 完整傳送 (包含未來排程)</button>
+                       <button onClick={() => handleSendToOtherRoom(selectedTransferRoom.id, false)} className="w-full bg-orange-100 hover:bg-orange-200 text-orange-700 font-black text-[16px] py-3.5 rounded-xl transition shadow-sm active:scale-95 flex items-center justify-center gap-2">📌 僅傳送單次 (不含排程)</button>
                      </div>
-                     <button onClick={() => setSelectedTransferRoom(null)} className="w-full bg-gray-100 hover:bg-gray-200 text-gray-600 font-extrabold text-[17px] py-3 rounded-xl transition active:scale-95">返回重選</button>
+                     <button onClick={() => setSelectedTransferRoom(null)} className="w-full bg-gray-100 hover:bg-gray-200 text-gray-600 font-extrabold text-[16px] py-3 rounded-xl transition active:scale-95">返回重選</button>
                  </div>
                )}
             </div>
@@ -2689,19 +2722,19 @@ export default function App() {
           <div className="fixed inset-0 bg-black/40 z-[140] flex justify-center items-end sm:items-center p-0 sm:p-4 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setSyncSettingsModalOpen(false)}>
             <div className="bg-white w-full max-w-md rounded-t-[1.5rem] sm:rounded-[1.5rem] p-5 shadow-2xl relative animate-in slide-in-from-bottom-10" onClick={e => e.stopPropagation()}>
               <button onClick={() => setSyncSettingsModalOpen(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 bg-gray-100 p-1.5 rounded-full transition"><X size={20}/></button>
-              <h3 className="font-black text-[22px] text-gray-800 mb-2 flex items-center gap-1.5">🔄 複製設定至其他房間</h3>
-              <p className="text-[15px] text-gray-500 font-bold mb-4 leading-relaxed">選擇目標房間，並勾選想同步的具體設定項目。系統會將目前的設定與目標房間合併（不會刪除目標房間原有的設定）。</p>
+              <h3 className="font-black text-[20px] text-gray-800 mb-2 flex items-center gap-1.5">🔄 複製設定至其他房間</h3>
+              <p className="text-[14px] text-gray-500 font-bold mb-4 leading-relaxed">選擇目標房間，並勾選想同步的具體設定項目。系統會將目前的設定與目標房間合併（不會刪除目標房間原有的設定）。</p>
               
               <div className="space-y-4">
                 <div>
-                   <label className="block text-[16px] font-bold text-gray-500 mb-1.5 ml-1">選擇目標房間</label>
-                   <select value={syncTargetRoom} onChange={e => setSyncTargetRoom(e.target.value)} className="w-full border border-indigo-100 bg-indigo-50 text-indigo-700 p-3 rounded-xl font-bold text-[17px] outline-none shadow-sm cursor-pointer appearance-none">
+                   <label className="block text-[14px] font-bold text-gray-500 mb-1.5 ml-1">選擇目標房間</label>
+                   <select value={syncTargetRoom} onChange={e => setSyncTargetRoom(e.target.value)} className="w-full border border-indigo-100 bg-indigo-50 text-indigo-700 p-3 rounded-xl font-bold text-[15px] outline-none shadow-sm cursor-pointer appearance-none">
                      <option value="">請選擇要同步過去的房間...</option>
                      {savedRooms.filter(r => r.id !== activeRoomId).map(r => (
                         <option key={r.id} value={r.id}>{r.name} ({r.id})</option>
                      ))}
                    </select>
-                   {savedRooms.filter(r => r.id !== activeRoomId).length === 0 && <p className="text-red-400 text-sm mt-1.5 font-bold ml-1">無其他已儲存房間可選</p>}
+                   {savedRooms.filter(r => r.id !== activeRoomId).length === 0 && <p className="text-red-400 text-[12px] mt-1.5 font-bold ml-1">無其他已儲存房間可選</p>}
                 </div>
 
                 <div className="max-h-[35vh] overflow-y-auto pr-2 space-y-3">
@@ -2721,10 +2754,10 @@ export default function App() {
                      return (
                        <div key={fKey} className="bg-gray-50 border border-gray-200 rounded-xl overflow-hidden">
                          <div className="bg-gray-100 p-2.5 flex justify-between items-center border-b border-gray-200">
-                           <span className="font-bold text-[14px] text-gray-700">{fieldObj.label}</span>
+                           <span className="font-bold text-[13px] text-gray-700">{fieldObj.label}</span>
                            <button 
                              onClick={() => handleSelectAllSyncField(fKey, contentList)}
-                             className="text-[12px] font-bold bg-white border border-gray-200 px-2 py-1 rounded shadow-sm text-gray-600 active:scale-95 transition"
+                             className="text-[11px] font-bold bg-white border border-gray-200 px-2 py-1 rounded shadow-sm text-gray-600 active:scale-95 transition"
                            >
                              {isAllSelected ? '全不選' : '全選'}
                            </button>
@@ -2742,7 +2775,7 @@ export default function App() {
                                  <button 
                                    key={item}
                                    onClick={() => handleToggleSyncItem(fKey, item)}
-                                   className={`px-2.5 py-1 rounded-md text-[13px] font-bold border transition-colors ${isChecked ? 'bg-blue-100 border-blue-400 text-blue-800' : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'}`}
+                                   className={`px-2.5 py-1 rounded-md text-[12px] font-bold border transition-colors ${isChecked ? 'bg-blue-100 border-blue-400 text-blue-800' : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'}`}
                                  >
                                    {displayLabel}
                                  </button>
@@ -2757,7 +2790,7 @@ export default function App() {
                 <button 
                   onClick={handleSyncSettings}
                   disabled={!syncTargetRoom || Object.values(syncSelection).every(arr => arr.length === 0)}
-                  className="w-full bg-blue-500 text-white font-black text-[18px] py-3.5 rounded-xl transition-all hover:bg-blue-600 disabled:opacity-50 disabled:active:scale-100 active:scale-95 shadow-md mt-1"
+                  className="w-full bg-blue-500 text-white font-black text-[16px] py-3.5 rounded-xl transition-all hover:bg-blue-600 disabled:opacity-50 disabled:active:scale-100 active:scale-95 shadow-md mt-1"
                 >
                   確認同步所選項
                 </button>
@@ -2768,10 +2801,10 @@ export default function App() {
         
         {/* 底部導覽列 */}
         {user && view === 'room' && !showAddForm && (
-          <div className="absolute bottom-0 left-0 w-full bg-white/95 backdrop-blur-xl p-2 pb-6 sm:pb-4 rounded-t-[2rem] shadow-[0_-15px_40px_rgba(0,0,0,0.08)] flex justify-between items-center z-20 border-t border-gray-100 px-6">
-            <button onClick={() => setView('accounts')} className="flex flex-col items-center gap-1 text-gray-400 hover:text-indigo-500 transition px-4 py-2"><Wallet size={24} /><span className="font-extrabold text-[12px]">帳戶</span></button>
-            <button onClick={() => { resetForm(); setRecordType('expense'); setShowAddForm(true); }} className="absolute left-1/2 -translate-x-1/2 -top-6 bg-gradient-to-tr from-pink-400 to-orange-400 text-white w-[68px] h-[68px] rounded-full flex items-center justify-center shadow-[0_10px_20px_rgba(251,146,60,0.4)] border-[4px] border-[#FFFBF0] transform hover:scale-105 transition active:scale-95"><Plus size={38} strokeWidth={3} /></button>
-            <button onClick={() => { setAnalysisType('expense'); setAnalysisStartDate(getLocalMonthStartStr()); setAnalysisEndDate(getLocalTodayStr()); setAnalysisMenus([]); setAnalysisSubSelections({ category: [], title: [], merchant: [], method: [], subMethod: [], payer: [] }); setAnalysisRoleFilter('全部'); setView('analysis'); }} className="flex flex-col items-center gap-1 text-gray-400 hover:text-teal-500 transition px-4 py-2"><BarChart size={26} /><span className="font-extrabold text-[13px]">統計</span></button>
+          <div className="absolute bottom-0 left-0 w-full bg-white/95 backdrop-blur-xl p-2 pb-6 sm:pb-3 rounded-t-[1.5rem] shadow-[0_-15px_40px_rgba(0,0,0,0.08)] flex justify-between items-center z-20 border-t border-gray-100 px-6">
+            <button onClick={() => setView('accounts')} className="flex flex-col items-center gap-1 text-gray-400 hover:text-indigo-500 transition px-4 py-2"><Wallet size={22} /><span className="font-extrabold text-[11px]">帳戶</span></button>
+            <button onClick={() => { resetForm(); setRecordType('expense'); setShowAddForm(true); }} className="absolute left-1/2 -translate-x-1/2 -top-5 bg-gradient-to-tr from-pink-400 to-orange-400 text-white w-[60px] h-[60px] rounded-full flex items-center justify-center shadow-[0_10px_20px_rgba(251,146,60,0.4)] border-[3px] border-[#FFFBF0] transform hover:scale-105 transition active:scale-95"><Plus size={32} strokeWidth={3} /></button>
+            <button onClick={() => { setAnalysisType('expense'); setAnalysisStartDate(getLocalMonthStartStr()); setAnalysisEndDate(getLocalTodayStr()); setAnalysisMenus([]); setAnalysisSubSelections({ category: [], title: [], merchant: [], method: [], subMethod: [], payer: [] }); setAnalysisRoleFilter('全部'); setView('analysis'); }} className="flex flex-col items-center gap-1 text-gray-400 hover:text-teal-500 transition px-4 py-2"><BarChart size={24} /><span className="font-extrabold text-[11px]">統計</span></button>
           </div>
         )}
       </div>
