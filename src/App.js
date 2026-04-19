@@ -2052,7 +2052,7 @@ export default function App() {
                          <div onClick={(e) => { e.stopPropagation(); setRecordPhoto(null); }} className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition"><Trash2 size={18} className="text-white" /></div>
                        </>
                      ) : (<Camera size={20} className="text-gray-400" />)}
-                     {!recordPhoto && <input type="file" accept="image/*" capture="environment" className="absolute inset-0 opacity-0 cursor-pointer" onChange={handlePhotoUpload} ref={photoInputRef} />}
+                     {!recordPhoto && <input type="file" accept="image/*" className="absolute inset-0 opacity-0 cursor-pointer" onChange={handlePhotoUpload} ref={photoInputRef} />}
                    </div>
                 </div>
               </div>
