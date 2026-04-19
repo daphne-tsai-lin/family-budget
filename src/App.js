@@ -1,9 +1,9 @@
 /* eslint-disable */
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { LogOut, AlertCircle, Settings, Trash2, X, Sparkles, Home, Plus, Pencil, BarChart, Calendar, Store, Tag, User, CreditCard, RefreshCw, Wallet, PiggyBank, PieChart as LucidePieChart, Download, Upload, Copy, Send, Landmark, ArrowRightLeft, Check, ArrowUp, ArrowDown, Search, Camera, Calculator } from 'lucide-react';
+import { LogOut, AlertCircle, Settings, Trash2, X, Sparkles, Home, Plus, Pencil, BarChart, Calendar, Store, Tag, User, CreditCard, RefreshCw, Wallet, PiggyBank, PieChart as LucidePieChart, Download, Upload, Copy, Send, Landmark, Check, ArrowUp, ArrowDown, Search, Camera, Calculator, Image as ImageIcon } from 'lucide-react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'firebase/auth';
-import { getFirestore, collection, doc, setDoc, getDoc, updateDoc, onSnapshot, addDoc, deleteDoc, deleteField, writeBatch } from 'firebase/firestore';
+import { getFirestore, collection, doc, setDoc, getDoc, updateDoc, onSnapshot, deleteDoc, deleteField, writeBatch } from 'firebase/firestore';
 
 // ==========================================
 // 0. 自動載入 Tailwind CSS
@@ -358,7 +358,7 @@ export default function App() {
   const [recordSubMethod, setRecordSubMethod] = useState('');
   const [recordNote, setRecordNote] = useState('');
   const [recordPhoto, setRecordPhoto] = useState(null); 
-  const [excludeFromBalance, setExcludeFromBalance] = useState(false); // 不計入帳戶功能
+  const [excludeFromBalance, setExcludeFromBalance] = useState(false);
 
   const [showCalc, setShowCalc] = useState(false);
   const [calcStr, setCalcStr] = useState('0');
@@ -626,7 +626,7 @@ export default function App() {
         payers: ['全家', '老公', '老婆', '恩恩', '蔚蔚'],
         paymentMethods: ['現金', '行動支付', '信用卡', '銀行', '電子票證'],
         creditCards: ['玉山銀行', '國泰世華', '台北富邦', '元大銀行'],
-        mobilePayCards: ['玉山銀行', '國泰世華', '台北富邦', '元大銀行'],
+        mobilePayCards: ['玉山銀行', '國泰世華', '台北富邦', '元大銀行'], // 新增行動支付信用卡清單
         bankAccounts: ['台北富邦', '元大銀行', '中國信託'],
         electronicTickets: ['點點卡', '悠遊卡', '悠遊付錢包'],
         initialBalances: { '現金': 0 },
@@ -951,6 +951,7 @@ export default function App() {
 
   const getAccKey = (method, subMethod) => {
     if (method === '現金') return '現金';
+    // 行動支付與信用卡視為相同帳戶
     if (['信用卡 / 行動支付', '信用卡', '行動支付'].includes(method)) return `cc_${subMethod}`;
     if (['銀行 / 電子票證', '銀行 / 儲值卡', '銀行 / 卡片', '銀行'].includes(method)) return `bank_${subMethod}`;
     if (method === '電子票證') return `et_${subMethod}`;
@@ -1054,16 +1055,16 @@ export default function App() {
          updates[`categoryItems.${oldItem}`] = deleteField();
       }
       
-      // 處理行動支付綁定的信用卡連動
+      // 處理行動支付綁定的信用卡連動 (如果是修改或刪除信用卡)
       if (field === 'creditCards') {
-          if (oldItem && newItem && oldItem !== newItem) {
+          if (oldItem && newItem && oldItem !== newItem) { // 修改
               let newMobilePayCards = [...(currentRoom.mobilePayCards || [])];
               const idx = newMobilePayCards.indexOf(oldItem);
               if (idx > -1) {
                   newMobilePayCards[idx] = newItem;
                   updates.mobilePayCards = newMobilePayCards;
               }
-          } else if (oldItem && !newItem) {
+          } else if (oldItem && !newItem) { // 刪除
               let newMobilePayCards = (currentRoom.mobilePayCards || []).filter(c => c !== oldItem);
               updates.mobilePayCards = newMobilePayCards;
           }
@@ -1305,7 +1306,7 @@ export default function App() {
           })}
         </div>
 
-        {/* 依據選擇是行動支付或信用卡，決定顯示的清單 (行動支付只顯示設定中勾選的卡片) */}
+        {/* 依據選擇是行動支付或信用卡，決定顯示的清單 */}
         {['信用卡', '行動支付', '信用卡 / 行動支付'].includes(method) && (
           <div className="bg-orange-50/60 border border-orange-100 rounded-xl p-1.5 shadow-inner mb-1.5 animate-in fade-in slide-in-from-top-1 duration-200">
             <div className="flex flex-wrap gap-1.5">
@@ -1857,15 +1858,15 @@ export default function App() {
                       <div className="flex-1 pl-2.5 pr-2 overflow-hidden flex flex-col justify-center py-1">
                         <div className="flex flex-wrap items-center gap-1.5 mb-1">
                           <div className="text-[11px] font-bold text-gray-400">{toROCYearStr(exp.timestamp)} {new Date(exp.timestamp).toLocaleTimeString('zh-TW', { hour12: false, hour: '2-digit', minute: '2-digit' })}</div>
-                          {exp.addedByRole && <span className={`${getRoleColorStyle(exp.addedByRole).lightBg} ${getRoleColorStyle(exp.addedByRole).text} border ${getRoleColorStyle(exp.addedByRole).lightBorder} px-1.5 py-0.5 rounded text-[11px] font-bold tracking-wide shrink-0`}>{exp.addedByRole}</span>}
-                          <span className="bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded text-[11px] font-bold tracking-wide shrink-0">{freqDisplay || '一次'}</span>
-                          {exp.excludeFromBalance && <span className="bg-gray-200 text-gray-500 px-1.5 py-0.5 rounded text-[11px] font-bold tracking-wide shrink-0">不計入</span>}
+                          {exp.addedByRole && <span className={`${getRoleColorStyle(exp.addedByRole).lightBg} ${getRoleColorStyle(exp.addedByRole).text} border ${getRoleColorStyle(exp.addedByRole).lightBorder} px-1.5 py-0.5 rounded text-[10px] font-bold tracking-wide shrink-0`}>{exp.addedByRole}</span>}
+                          <span className="bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded text-[10px] font-bold tracking-wide">{freqDisplay || '一次'}</span>
+                          {exp.excludeFromBalance && <span className="bg-gray-200 text-gray-500 px-1.5 py-0.5 rounded text-[10px] font-bold tracking-wide shrink-0">不計入</span>}
                         </div>
-                        <div className="flex flex-wrap items-center gap-1.5">
+                        <div className={`font-black text-[14px] ${exp.excludeFromBalance ? 'text-gray-500 line-through decoration-gray-300' : 'text-gray-700'} truncate`}>
+                          {isTransfer ? `轉帳: ${renderMethodText(exp.method, exp.subMethod)} ➜ ${renderMethodText(exp.transferToMethod, exp.transferToSubMethod)}` : exp.title}
+                        </div>
+                        <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
                           {!isTransfer && <span className={`font-bold text-[13px] px-1.5 py-0.5 rounded whitespace-nowrap border shrink-0 ${isIncome ? 'bg-green-50 text-green-600 border-green-100' : 'bg-orange-50 text-orange-600 border-orange-100'}`}>{exp.category}</span>}
-                          <span className={`font-black text-[16px] shrink-0 mr-1 flex items-center gap-1.5 ${exp.excludeFromBalance ? 'text-gray-500 line-through decoration-gray-300' : 'text-gray-800'}`}>
-                            {isTransfer ? `轉帳: ${renderMethodText(exp.method, exp.subMethod)} ➜ ${renderMethodText(exp.transferToMethod, exp.transferToSubMethod)}` : exp.title}
-                          </span>
                           {payerStr && payerStr !== '未指定' && <span className="text-gray-500 text-[12px] font-bold bg-gray-50 px-1.5 py-0.5 rounded border border-gray-200">👤 {payerStr}</span>}
                           {!isTransfer && exp.method && exp.method !== '未指定' && <span className="text-gray-500 text-[12px] font-bold bg-gray-50 px-1.5 py-0.5 rounded border border-gray-200">💳 {renderMethodText(exp.method, exp.subMethod)}</span>}
                           {exp.merchant && exp.merchant !== '未指定' && <span className="text-gray-500 text-[12px] font-bold bg-gray-50 px-1.5 py-0.5 rounded border border-gray-200">🏪 {exp.merchant}</span>}
@@ -2043,16 +2044,26 @@ export default function App() {
                   <label className="flex items-center gap-1.5 text-[14px] font-bold text-gray-500 mb-1.5 ml-1">📝 備註 (選填)</label>
                   <input type="text" placeholder="輸入額外備註..." className="bg-gray-50 border border-gray-100 rounded-xl p-2.5 focus:bg-white focus:border-blue-400 outline-none w-full text-gray-700 font-bold text-[15px] transition shadow-sm" value={recordNote} onChange={(e) => setRecordNote(e.target.value)} />
                 </div>
-                <div className="shrink-0 w-[64px]">
+                <div className="shrink-0 w-[86px]">
                    <label className="flex items-center justify-center gap-1.5 text-[14px] font-bold text-gray-500 mb-1.5 w-full text-center">📷 照片</label>
-                   <div className="relative w-[64px] h-[46px] bg-gray-50 border border-gray-100 rounded-xl shadow-sm hover:bg-gray-100 transition flex items-center justify-center cursor-pointer overflow-hidden group">
+                   <div className="relative w-[86px] h-[46px] flex gap-1.5 group">
                      {recordPhoto ? (
-                       <>
+                       <div className="relative w-full h-full bg-gray-50 border border-gray-100 rounded-xl shadow-sm overflow-hidden cursor-pointer">
                          <img src={recordPhoto} alt="預覽" className="w-full h-full object-cover" />
-                         <div onClick={(e) => { e.stopPropagation(); setRecordPhoto(null); }} className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition"><Trash2 size={18} className="text-white" /></div>
+                         <div onClick={(e) => { e.stopPropagation(); setRecordPhoto(null); }} className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 hover:opacity-100 transition"><Trash2 size={18} className="text-white" /></div>
+                       </div>
+                     ) : (
+                       <>
+                         <div className="relative flex-1 bg-gray-50 border border-gray-100 rounded-xl shadow-sm hover:bg-gray-200 transition flex items-center justify-center cursor-pointer overflow-hidden" title="拍照">
+                           <Camera size={18} className="text-gray-500" />
+                           <input type="file" accept="image/*" capture="environment" className="absolute inset-0 opacity-0 cursor-pointer" onChange={handlePhotoUpload} ref={photoInputRef} />
+                         </div>
+                         <div className="relative flex-1 bg-gray-50 border border-gray-100 rounded-xl shadow-sm hover:bg-gray-200 transition flex items-center justify-center cursor-pointer overflow-hidden" title="相簿">
+                           <ImageIcon size={18} className="text-gray-500" />
+                           <input type="file" accept="image/*" className="absolute inset-0 opacity-0 cursor-pointer" onChange={handlePhotoUpload} />
+                         </div>
                        </>
-                     ) : (<Camera size={20} className="text-gray-400" />)}
-                     {!recordPhoto && <input type="file" accept="image/*" className="absolute inset-0 opacity-0 cursor-pointer" onChange={handlePhotoUpload} ref={photoInputRef} />}
+                     )}
                    </div>
                 </div>
               </div>
@@ -2486,6 +2497,8 @@ export default function App() {
     <div className={globalWrapperStyle}>
       <div className={phoneContainerStyle}>
         <input type="file" accept=".json" style={{display: 'none'}} ref={fileInputRef} onChange={handleImport} />
+        
+        {/* Render Only Once at the very bottom layout level */}
         {content}
 
         {/* 彈跳視窗群組 (置於頂層外框中) */}
@@ -2584,13 +2597,14 @@ export default function App() {
                     <input type="date" value={historyEndDate} onChange={e=>setHistoryEndDate(e.target.value)} className="w-full bg-gray-50 border border-gray-200 p-1.5 rounded-lg text-[13px] font-bold text-gray-700 outline-none focus:border-indigo-300 transition" />
                   </div>
               </div>
-              <div className="scroll-container flex-1 overflow-y-auto space-y-1.5 pr-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+
+              <div className="flex-1 overflow-y-auto space-y-1.5 pr-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
                 {(() => {
                   const todayStr = getLocalTodayStr();
                   const accHistory = records.filter(r => {
                      if (r.date > historyEndDate || r.date < historyStartDate) return false;
                      if (r.date > todayStr) return false;
-                     // 移除「排除不計入」，讓不計入的項目也能顯示在帳戶明細清單中
+                     
                      const getAccName = (method, subMethod) => method === '現金' ? '現金' : subMethod;
                      const fromAcc = getAccName(r.method, r.subMethod);
                      const toAcc = getAccName(r.transferToMethod, r.transferToSubMethod);
