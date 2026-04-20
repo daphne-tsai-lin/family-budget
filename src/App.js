@@ -1061,7 +1061,7 @@ export default function App() {
          updates[`categoryItems.${oldItem}`] = deleteField();
       }
       
-      // 處理行動支付綁定的信用卡連動
+      // 處理行動支付綁定的信用卡連動 (如果是修改或刪除信用卡)
       if (field === 'creditCards') {
           if (oldItem && newItem && oldItem !== newItem) { // 修改
               let newMobilePayCards = [...(currentRoom.mobilePayCards || [])];
@@ -1874,8 +1874,8 @@ export default function App() {
                         
                         <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 mt-0.5">
                           <span className={`font-black text-[14px] flex items-center gap-1 ${exp.excludeFromBalance ? 'text-gray-500 line-through decoration-gray-300' : 'text-gray-700'}`}>
-                            {!isTransfer && <span className={`font-bold text-[11px] px-1.5 py-0.5 rounded border shrink-0 ${exp.excludeFromBalance ? 'text-gray-500 line-through decoration-gray-300 bg-gray-50 border-gray-200' : isIncome ? 'bg-green-50 text-green-600 border-green-100' : 'bg-orange-50 text-orange-600 border-orange-100'}`}>{exp.category}</span>}
-                            {isTransfer ? `轉帳: ${renderMethodText(exp.method, exp.subMethod)} ➜ ${renderMethodText(exp.transferToMethod, exp.transferToSubMethod)}` : exp.title}
+                            {!isTransfer && <span className={`font-bold text-[11px] px-1.5 py-0.5 rounded border shrink-0 ${exp.excludeFromBalance ? 'text-gray-500 line-through decoration-gray-300 bg-gray-50 border-gray-200' : isIncome ? 'bg-green-50 text-green-600 border-green-100' : 'bg-orange-50 text-orange-600 border-orange-100'}`}>[{exp.category}] {exp.title}</span>}
+                            {isTransfer && <span className={`font-bold text-[11px] px-1.5 py-0.5 rounded border shrink-0 ${exp.excludeFromBalance ? 'text-gray-500 line-through decoration-gray-300 bg-gray-50 border-gray-200' : 'bg-blue-50 text-blue-600 border-blue-100'}`}>轉帳</span>}
                           </span>
                           {payerStr && payerStr !== '未指定' && <span className={`text-[11px] font-bold bg-white px-1.5 py-0.5 rounded border border-gray-200 ${exp.excludeFromBalance ? 'text-gray-400' : 'text-gray-500'}`}>👤 {payerStr}</span>}
                           
@@ -2582,7 +2582,7 @@ export default function App() {
                            </div>
                            <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 mt-0.5">
                              <span className={`font-black text-[14px] flex items-center gap-1 ${exp.excludeFromBalance ? 'text-gray-500 line-through decoration-gray-300' : 'text-gray-700'}`}>
-                               {!isTransfer && <span className={`font-bold text-[11px] px-1 py-0.5 rounded border shrink-0 ${isIncome ? 'bg-green-50 text-green-600 border-green-100' : 'bg-orange-50 text-orange-600 border-orange-100'}`}>{exp.category}</span>}
+                               {!isTransfer && <span className={`font-bold text-[11px] px-1 py-0.5 rounded border shrink-0 ${isIncome ? 'bg-green-50 text-green-600 border-green-100' : 'bg-orange-50 text-orange-600 border-orange-100'}`}>[{exp.category}] {exp.title}</span>}
                                {isTransfer ? `轉帳: ${renderMethodText(exp.method, exp.subMethod)}➜${renderMethodText(exp.transferToMethod, exp.transferToSubMethod)}` : exp.title}
                              </span>
                              {payerStr && payerStr !== '未指定' && <span className="text-gray-500 text-[11px] font-bold bg-white px-1.5 py-0.5 rounded border border-gray-200">👤 {payerStr}</span>}
@@ -2660,7 +2660,7 @@ export default function App() {
                            </div>
                            <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 mt-0.5">
                              <span className={`font-black text-[14px] flex items-center gap-1 ${exp.excludeFromBalance ? 'text-gray-500 line-through decoration-gray-300' : 'text-gray-700'}`}>
-                               {!isTransfer && <span className={`font-bold text-[11px] px-1 py-0.5 rounded border shrink-0 ${isIncome ? 'bg-green-50 text-green-600 border-green-100' : 'bg-orange-50 text-orange-600 border-orange-100'}`}>{exp.category}</span>}
+                               {!isTransfer && <span className={`font-bold text-[11px] px-1 py-0.5 rounded border shrink-0 ${isIncome ? 'bg-green-50 text-green-600 border-green-100' : 'bg-orange-50 text-orange-600 border-orange-100'}`}>[{exp.category}] {exp.title}</span>}
                                {isTransfer ? `轉帳: ${renderMethodText(exp.method, exp.subMethod)}➜${renderMethodText(exp.transferToMethod, exp.transferToSubMethod)}` : exp.title}
                              </span>
                              {payerStr && payerStr !== '未指定' && <span className="text-gray-500 text-[11px] font-bold bg-white px-1.5 py-0.5 rounded border border-gray-200">👤 {payerStr}</span>}
@@ -2705,7 +2705,7 @@ export default function App() {
                 {viewingRecord.transferToMethod && <div className="flex justify-between items-center border-b border-gray-100 pb-1.5"><span className="text-gray-400">轉入帳戶</span><span className="text-gray-800">{renderMethodText(viewingRecord.transferToMethod, viewingRecord.transferToSubMethod)}</span></div>}
                 <div className="flex justify-between items-center border-b border-gray-100 pb-1.5"><span className="text-gray-400">頻率</span><span className="text-gray-800">{viewingRecord.frequency === '每週' && viewingRecord.frequencyDays?.length > 0 ? `每週 (${viewingRecord.frequencyDays.join('、')})` : viewingRecord.frequency === '每月' && viewingRecord.frequencyDays?.length > 0 ? `每月 (${viewingRecord.frequencyDays.join('、')}號)` : viewingRecord.frequency === '區間' ? (viewingRecord.frequencyInterval === '自訂' ? viewingRecord.frequencyCustomText : viewingRecord.frequencyInterval) : viewingRecord.frequency}</span></div>
                 <div className="flex justify-between items-center border-b border-gray-100 pb-1.5"><span className="text-gray-400">付款人</span><span className={`${getRoleColorStyle(viewingRecord.addedByRole).lightBg} ${getRoleColorStyle(viewingRecord.addedByRole).text} border ${getRoleColorStyle(viewingRecord.addedByRole).lightBorder} px-2 py-0.5 rounded-md text-[13px] font-bold`}>{viewingRecord.addedByRole}</span></div>
-                <div className="flex justify-between items-center border-b border-gray-100 pb-1.5"><span className="text-gray-400">計入帳戶與收支</span><span className={viewingRecord.excludeFromBalance ? 'text-orange-500' : 'text-gray-800'}>{viewingRecord.excludeFromBalance ? '否 (不計入)' : '是'}</span></div>
+                
                 {viewingRecord.note && <div className="pt-1.5"><span className="text-gray-400 block mb-1">備註</span><span className="text-gray-800 block bg-gray-50 p-2.5 rounded-xl border border-gray-100 text-[14px]">{viewingRecord.note}</span></div>}
                 {viewingRecord.photoBase64 && (
                   <div className="pt-2">
