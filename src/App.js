@@ -108,7 +108,6 @@ const generateFutureDates = (startDateStr, freq, daysArr, intervalStr, customTex
           else if (intervalStr === '一年') { nextD.setFullYear(nextD.getFullYear() + 1); added = true; }
           else if (intervalStr === '自訂') {
               const days = parseInt(customText.replace(/\D/g, ''));
-              // 直接加上指定天數
               if(!isNaN(days) && days > 0) { nextD.setDate(nextD.getDate() + days); added = true; }
           }
           if (!added || nextD > endD) break;
@@ -403,7 +402,6 @@ export default function App() {
   const globalWrapperStyle = "min-h-screen bg-gray-100 sm:py-4 flex justify-center items-center font-sans text-[16px]";
   const phoneContainerStyle = `w-full ${view === 'login' || view === 'create' ? 'max-w-[400px]' : 'max-w-[460px]'} min-h-screen sm:min-h-0 sm:h-[800px] bg-[#FFFBF0] flex flex-col relative sm:rounded-[2.5rem] sm:border-[6px] sm:border-gray-800 shadow-2xl overflow-hidden transition-all duration-500`;
 
-  // 優化捲動重置邏輯：只在主要視圖或分頁切換時重置主要視窗的捲軸，不會被 Modal 影響
   useEffect(() => {
     const scrollContainers = document.querySelectorAll('main.scroll-container');
     scrollContainers.forEach(container => container.scrollTop = 0);
@@ -627,7 +625,7 @@ export default function App() {
         payers: ['全家', '老公', '老婆', '恩恩', '蔚蔚'],
         paymentMethods: ['現金', '行動支付', '信用卡', '銀行', '電子票證'],
         creditCards: ['玉山銀行', '國泰世華', '台北富邦', '元大銀行'],
-        mobilePayCards: ['玉山銀行', '國泰世華', '台北富邦', '元大銀行'], // 新增行動支付信用卡清單
+        mobilePayCards: ['玉山銀行', '國泰世華', '台北富邦', '元大銀行'],
         bankAccounts: ['台北富邦', '元大銀行', '中國信託'],
         electronicTickets: ['點點卡', '悠遊卡', '悠遊付錢包'],
         initialBalances: { '現金': 0 },
@@ -733,7 +731,6 @@ export default function App() {
           generateFutureDates(recordDate, recordFrequency, recordFrequencyDays, recordFrequencyInterval, recordFrequencyCustomText, 1).forEach(d => {
             if(opsCount >= 490) return;
             const futRef = doc(collection(db, 'artifacts', appId, 'public', 'data', 'expenses'));
-            // Safely parse date back to local time to avoid Safari ISO date bug
             const [y, m, day] = d.split('-').map(Number);
             const safeTs = new Date(y, m - 1, day, 7, 0, 0).getTime();
             batch.set(futRef, { ...baseData, date: d, timestamp: safeTs });
@@ -924,12 +921,6 @@ export default function App() {
     } catch (err) { alert('傳送失敗：請檢查網路連線或權限'); console.error(err); }
   };
 
-  const handleBackup = () => {
-    const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(records, null, 2)], { type: 'application/json' }));
-    a.download = `${currentRoom?.name}_記帳備份_${new Date().toISOString().split('T')[0]}.json`;
-    a.click(); alert('✅ 雲端備份檔已成功下載！');
-  };
-
   const handleImport = async (e) => {
     const file = e.target.files[0]; if (!file) return;
     const reader = new FileReader();
@@ -955,9 +946,20 @@ export default function App() {
     reader.readAsText(file);
   };
 
+  // 補上遺漏的 handleBackup 功能
+  const handleBackup = () => {
+    if (!records || records.length === 0) return alert('目前沒有資料可以備份喔！');
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(records));
+    const downloadAnchorNode = document.createElement('a');
+    downloadAnchorNode.setAttribute("href", dataStr);
+    downloadAnchorNode.setAttribute("download", `expense_backup_${getLocalTodayStr()}.json`);
+    document.body.appendChild(downloadAnchorNode);
+    downloadAnchorNode.click();
+    downloadAnchorNode.remove();
+  };
+
   const getAccKey = (method, subMethod) => {
     if (method === '現金') return '現金';
-    // 行動支付與信用卡視為相同帳戶
     if (['信用卡 / 行動支付', '信用卡', '行動支付'].includes(method)) return `cc_${subMethod}`;
     if (['銀行 / 電子票證', '銀行 / 儲值卡', '銀行 / 卡片', '銀行'].includes(method)) return `bank_${subMethod}`;
     if (method === '電子票證') return `et_${subMethod}`;
@@ -973,7 +975,7 @@ export default function App() {
     (currentRoom?.creditCards || []).forEach(c => balances[`cc_${c}`] = initial[`cc_${c}`] !== undefined ? initial[`cc_${c}`] : (initial[c] || 0));
     records.forEach(r => {
       if (r.date > getLocalTodayStr()) return;
-      if (r.excludeFromBalance) return; // 排除不計入
+      if (r.excludeFromBalance) return; 
       
       const amt = Number(r.amount) || 0;
       if (r.type === 'expense' || !r.type) { const key = getAccKey(r.method, r.subMethod); if (key) balances[key] = (balances[key] || 0) + (key.startsWith('cc_') ? amt : -amt); } 
@@ -1055,28 +1057,22 @@ export default function App() {
     try {
       const updates = { [field]: newList };
       
-      // 處理項目清單連動
       if (field === 'categories' && oldItem && newItem && currentRoom.categoryItems && currentRoom.categoryItems[oldItem]) {
          updates[`categoryItems.${newItem}`] = currentRoom.categoryItems[oldItem];
          updates[`categoryItems.${oldItem}`] = deleteField();
       }
       
-      // 處理行動支付綁定的信用卡連動 (如果是修改或刪除信用卡)
       if (field === 'creditCards') {
-          if (oldItem && newItem && oldItem !== newItem) { // 修改
+          if (oldItem && newItem && oldItem !== newItem) { 
               let newMobilePayCards = [...(currentRoom.mobilePayCards || [])];
               const idx = newMobilePayCards.indexOf(oldItem);
-              if (idx > -1) {
-                  newMobilePayCards[idx] = newItem;
-                  updates.mobilePayCards = newMobilePayCards;
-              }
-          } else if (oldItem && !newItem) { // 刪除
+              if (idx > -1) { newMobilePayCards[idx] = newItem; updates.mobilePayCards = newMobilePayCards; }
+          } else if (oldItem && !newItem) { 
               let newMobilePayCards = (currentRoom.mobilePayCards || []).filter(c => c !== oldItem);
               updates.mobilePayCards = newMobilePayCards;
           }
       }
 
-      // 處理規則連動
       if (oldItem && newItem && oldItem !== newItem) {
          let rulesChanged = false;
          let newAutoFill = { ...currentRoom.autoFillRules };
@@ -1162,10 +1158,7 @@ export default function App() {
     if (!newMethodRuleMerchant || !newMethodRuleMethod || !activeRoomId || !user) return;
     try {
       await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', activeRoomId), {
-        [`methodRules.${newMethodRuleMerchant}`]: { 
-          method: newMethodRuleMethod, 
-          subMethod: newMethodRuleSubMethod
-        },
+        [`methodRules.${newMethodRuleMerchant}`]: { method: newMethodRuleMethod, subMethod: newMethodRuleSubMethod },
         methodRuleOrder: [...orderedMethodKeys, newMethodRuleMerchant]
       });
       setNewMethodRuleMerchant(''); setNewMethodRuleMethod(''); setNewMethodRuleSubMethod(''); 
@@ -1449,7 +1442,7 @@ export default function App() {
   const netBalance = totalIncome - totalExpense;
 
   const analysisFilteredRecords = records.filter(r => {
-    if (r.excludeFromBalance) return false; // 分析排除「不計入帳戶」的紀錄
+    if (r.excludeFromBalance) return false; 
     
     const rType = r.type || 'expense';
     if (rType !== analysisType) return false; 
@@ -1521,6 +1514,66 @@ export default function App() {
       if (recordFrequency === '區間' && recordFrequencyInterval === '自訂' && !recordFrequencyCustomText) isFormValid = false;
     }
   }
+
+  // 共用的明細單列組件 (抽出可有效避免長度超限，並維持乾淨)
+  const RecordItem = ({ exp, idx, isSortable = false, hideActions = false, onRecordClick, handleMoveRecord, openEditForm, setCrossRoomRecord }) => {
+    const isIncome = exp.type === 'income', isTransfer = exp.type === 'transfer';
+    const payerStr = Array.isArray(exp.payer) ? exp.payer.join(', ') : exp.payer;
+    const freqDisplay = exp.frequency === '區間' ? (exp.frequencyInterval === '自訂' ? `${exp.frequencyCustomText}天` : exp.frequencyInterval) : exp.frequency;
+    const canModify = !exp.addedByRole || currentUserRole === exp.addedByRole;
+    
+    return (
+      <div key={exp.id} onClick={() => onRecordClick(exp)} className={`bg-white p-2.5 rounded-2xl shadow-sm border ${exp.excludeFromBalance ? 'border-gray-200 opacity-80' : 'border-gray-100'} flex justify-between items-start group relative hover:shadow-md transition duration-300 cursor-pointer`}>
+        <div className={`absolute left-0 top-1/2 -translate-y-1/2 h-1/2 w-1 rounded-r-md ${isIncome ? 'bg-green-400' : isTransfer ? 'bg-blue-400' : 'bg-orange-400'}`}></div>
+        <div className="flex-1 pl-2.5 pr-2 overflow-hidden flex flex-col justify-center py-1">
+          <div className="flex flex-wrap items-center gap-1.5 mb-0.5">
+            <span className="text-[11px] font-bold text-gray-400">{toROCYearStr(exp.timestamp)} {new Date(exp.timestamp).toLocaleTimeString('zh-TW', { hour12: false, hour: '2-digit', minute: '2-digit' })}</span>
+            {exp.addedByRole && <span className={`${getRoleColorStyle(exp.addedByRole).lightBg} ${getRoleColorStyle(exp.addedByRole).text} border ${getRoleColorStyle(exp.addedByRole).lightBorder} px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0`}>{exp.addedByRole}</span>}
+            <span className="bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0">{freqDisplay || '一次'}</span>
+            {exp.excludeFromBalance && <span className="bg-gray-200 text-gray-500 px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0">不計入</span>}
+          </div>
+          <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 mt-0.5">
+            {!isTransfer && (
+              <>
+                <span className={`font-bold text-[11px] px-1.5 py-0.5 rounded border shrink-0 ${exp.excludeFromBalance ? 'text-gray-500 bg-gray-50 border-gray-200' : isIncome ? 'bg-green-50 text-green-600 border-green-100' : 'bg-orange-50 text-orange-600 border-orange-100'}`}>
+                  {exp.category}
+                </span>
+                <span className={`font-black text-black text-[14px] sm:text-[15px] ${exp.excludeFromBalance ? 'text-gray-500 line-through decoration-gray-400' : ''}`}>
+                  {exp.title}
+                </span>
+              </>
+            )}
+            {isTransfer && (
+              <>
+                <span className={`font-bold text-[11px] px-1.5 py-0.5 rounded border shrink-0 ${exp.excludeFromBalance ? 'text-gray-500 bg-gray-50 border-gray-200' : 'bg-blue-50 text-blue-600 border-blue-100'}`}>
+                  轉帳
+                </span>
+                <span className={`font-black text-black text-[14px] sm:text-[15px] ${exp.excludeFromBalance ? 'text-gray-500 line-through decoration-gray-400' : ''}`}>
+                  {renderMethodText(exp.method, exp.subMethod)} ➜ {renderMethodText(exp.transferToMethod, exp.transferToSubMethod)}
+                </span>
+              </>
+            )}
+            {payerStr && payerStr !== '未指定' && <span className={`text-[11px] font-bold bg-white px-1.5 py-0.5 rounded border border-gray-200 ${exp.excludeFromBalance ? 'text-gray-400' : 'text-gray-500'}`}>👤 {payerStr}</span>}
+            {!isTransfer && exp.method && exp.method !== '未指定' && <span className={`text-[11px] font-bold bg-white px-1.5 py-0.5 rounded border border-gray-200 ${exp.excludeFromBalance ? 'text-gray-400' : 'text-gray-500'}`}>💳 {renderMethodText(exp.method, exp.subMethod)}</span>}
+            {exp.merchant && exp.merchant !== '未指定' && <span className={`text-[11px] font-bold bg-white px-1.5 py-0.5 rounded border border-gray-200 ${exp.excludeFromBalance ? 'text-gray-400' : 'text-gray-500'}`}>🏪 {exp.merchant}</span>}
+            {exp.photoBase64 && <span className="shrink-0 w-[18px] h-[18px] rounded overflow-hidden shadow-sm inline-block border border-gray-200" title="此紀錄附有照片"><img src={exp.photoBase64} alt="圖" className="w-full h-full object-cover" /></span>}
+            {exp.note && <span className={`text-[11px] font-bold bg-[#FFFDF9] px-1.5 py-0.5 rounded border border-[#F2EFE9] max-w-[120px] truncate ${exp.excludeFromBalance ? 'text-gray-400' : 'text-gray-500'}`}>📝 {exp.note}</span>}
+          </div>
+        </div>
+        <div className="flex flex-col items-end shrink-0 pt-0.5 pl-1">
+          <span className={`font-black text-[20px] sm:text-[22px] ${exp.excludeFromBalance ? 'text-gray-400 line-through decoration-gray-300' : isIncome ? 'text-green-500' : isTransfer ? 'text-blue-500' : 'text-gray-800'}`}>{isIncome ? '+' : isTransfer ? '⇆' : '-'}${exp.amount.toLocaleString()}</span>
+          {!hideActions && (
+            <div className="grid grid-cols-2 gap-1 mt-1 w-[64px] relative z-20">
+              <button onClick={(e) => { e.stopPropagation(); handleMoveRecord(idx, -1); }} disabled={idx === 0 || !isSortable} className={`text-gray-400 hover:text-blue-500 font-bold p-1 transition bg-gray-50 hover:bg-blue-50 rounded shadow-sm flex items-center justify-center disabled:opacity-30 ${!isSortable ? 'cursor-not-allowed' : ''}`}><ArrowUp size={14} /></button>
+              <button onClick={(e) => { e.stopPropagation(); openEditForm(exp); }} disabled={!canModify} className={`font-bold p-1 transition bg-gray-50 rounded shadow-sm flex items-center justify-center ${canModify ? 'text-gray-400 hover:text-blue-500 hover:bg-blue-50' : 'text-gray-300 opacity-40 cursor-not-allowed'}`}><Pencil size={14} /></button>
+              <button onClick={(e) => { e.stopPropagation(); handleMoveRecord(idx, 1); }} disabled={idx === displayRecords.length - 1 || !isSortable} className={`text-gray-400 hover:text-blue-500 font-bold p-1 transition bg-gray-50 hover:bg-blue-50 rounded shadow-sm flex items-center justify-center disabled:opacity-30 ${!isSortable ? 'cursor-not-allowed' : ''}`}><ArrowDown size={14} /></button>
+              <button onClick={(e) => { e.stopPropagation(); setCrossRoomRecord(exp); }} disabled={!canModify} className={`font-bold p-1 transition bg-gray-50 rounded shadow-sm flex items-center justify-center ${canModify ? 'text-gray-400 hover:text-orange-500 hover:bg-orange-50' : 'text-gray-300 opacity-40 cursor-not-allowed'}`}><Send size={14} /></button>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
 
   // ==========================================
   // Main View Content Generation
@@ -1850,59 +1903,16 @@ export default function App() {
               </div>
             ) : (
               <div className="space-y-2">
-                {displayRecords.map((exp, idx) => {
-                  const isIncome = exp.type === 'income'; const isTransfer = exp.type === 'transfer';
-                  const payerStr = Array.isArray(exp.payer) ? exp.payer.join(', ') : exp.payer;
-                  const isSortable = !searchQuery && homeFilterDate;
-                  
-                  let freqDisplay = exp.frequency === '區間' 
-                     ? (exp.frequencyInterval === '自訂' ? `${exp.frequencyCustomText}天` : exp.frequencyInterval) 
-                     : exp.frequency;
-                     
-                  const canModify = !exp.addedByRole || currentUserRole === exp.addedByRole;
-                  
-                  return (
-                    <div key={exp.id} onClick={() => setViewingRecord(exp)} className={`bg-white p-2.5 rounded-2xl shadow-sm border ${exp.excludeFromBalance ? 'border-gray-200 opacity-80' : 'border-gray-100'} flex justify-between items-start group relative hover:shadow-md transition duration-300 cursor-pointer`}>
-                      <div className={`absolute left-0 top-1/2 -translate-y-1/2 h-1/2 w-1 rounded-r-md ${isIncome ? 'bg-green-400' : isTransfer ? 'bg-blue-400' : 'bg-orange-400'}`}></div>
-                      <div className="flex-1 pl-2.5 pr-2 overflow-hidden flex flex-col justify-center py-1">
-                        <div className="flex flex-wrap items-center gap-1.5 mb-0.5">
-                          <span className="text-[11px] font-bold text-gray-400">{toROCYearStr(exp.timestamp)} {new Date(exp.timestamp).toLocaleTimeString('zh-TW', { hour12: false, hour: '2-digit', minute: '2-digit' })}</span>
-                          {exp.addedByRole && <span className={`${getRoleColorStyle(exp.addedByRole).lightBg} ${getRoleColorStyle(exp.addedByRole).text} border ${getRoleColorStyle(exp.addedByRole).lightBorder} px-1 py-0.5 rounded text-[10px] font-bold shrink-0`}>{exp.addedByRole}</span>}
-                          <span className="bg-yellow-100 text-yellow-700 px-1 py-0.5 rounded text-[10px] font-bold shrink-0">{freqDisplay || '一次'}</span>
-                          {exp.excludeFromBalance && <span className="bg-gray-200 text-gray-500 px-1 py-0.5 rounded text-[10px] font-bold shrink-0">不計入</span>}
-                        </div>
-                        
-                        <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 mt-0.5">
-                          <span className={`font-black text-[14px] flex items-center gap-1 ${exp.excludeFromBalance ? 'text-gray-500 line-through decoration-gray-300' : 'text-gray-700'}`}>
-                            {!isTransfer && <span className={`font-bold text-[11px] px-1.5 py-0.5 rounded border shrink-0 ${exp.excludeFromBalance ? 'text-gray-500 line-through decoration-gray-300 bg-gray-50 border-gray-200' : isIncome ? 'bg-green-50 text-green-600 border-green-100' : 'bg-orange-50 text-orange-600 border-orange-100'}`}>[{exp.category}] {exp.title}</span>}
-                            {isTransfer && <span className={`font-bold text-[11px] px-1.5 py-0.5 rounded border shrink-0 ${exp.excludeFromBalance ? 'text-gray-500 line-through decoration-gray-300 bg-gray-50 border-gray-200' : 'bg-blue-50 text-blue-600 border-blue-100'}`}>轉帳</span>}
-                          </span>
-                          {payerStr && payerStr !== '未指定' && <span className={`text-[11px] font-bold bg-white px-1.5 py-0.5 rounded border border-gray-200 ${exp.excludeFromBalance ? 'text-gray-400' : 'text-gray-500'}`}>👤 {payerStr}</span>}
-                          
-                          {isTransfer 
-                            ? <span className={`text-[11px] font-bold bg-white px-1.5 py-0.5 rounded border border-gray-200 ${exp.excludeFromBalance ? 'text-gray-400 line-through decoration-gray-300' : 'text-gray-500'}`}>💳 {renderMethodText(exp.method, exp.subMethod)} ➜ {renderMethodText(exp.transferToMethod, exp.transferToSubMethod)}</span>
-                            : (exp.method && exp.method !== '未指定' && <span className={`text-[11px] font-bold bg-white px-1.5 py-0.5 rounded border border-gray-200 ${exp.excludeFromBalance ? 'text-gray-400' : 'text-gray-500'}`}>💳 {renderMethodText(exp.method, exp.subMethod)}</span>)
-                          }
-                          
-                          {!isTransfer && exp.merchant && exp.merchant !== '未指定' && <span className={`text-[11px] font-bold bg-white px-1.5 py-0.5 rounded border border-gray-200 ${exp.excludeFromBalance ? 'text-gray-400' : 'text-gray-500'}`}>🏪 {exp.merchant}</span>}
-                          
-                          {exp.photoBase64 && <span className="shrink-0 w-[18px] h-[18px] rounded overflow-hidden shadow-sm inline-block border border-gray-200" title="此紀錄附有照片"><img src={exp.photoBase64} alt="圖" className="w-full h-full object-cover" /></span>}
-                          
-                          {exp.note && <span className={`text-[11px] font-bold bg-[#FFFDF9] px-1.5 py-0.5 rounded border border-[#F2EFE9] max-w-[120px] truncate ${exp.excludeFromBalance ? 'text-gray-400' : 'text-gray-500'}`}>📝 {exp.note}</span>}
-                        </div>
-                      </div>
-                      <div className="flex flex-col items-end shrink-0 pt-0.5 pl-1">
-                        <span className={`font-black text-[20px] sm:text-[22px] ${exp.excludeFromBalance ? 'text-gray-400 line-through decoration-gray-300' : isIncome ? 'text-green-500' : isTransfer ? 'text-blue-500' : 'text-gray-800'}`}>{isIncome ? '+' : isTransfer ? '⇆' : '-'}${exp.amount.toLocaleString()}</span>
-                        <div className="grid grid-cols-2 gap-1 mt-1 w-[64px] relative z-20">
-                          <button onClick={(e) => { e.stopPropagation(); handleMoveRecord(idx, -1); }} disabled={idx === 0 || !isSortable} className={`text-gray-400 hover:text-blue-500 font-bold p-1 transition bg-gray-50 hover:bg-blue-50 rounded shadow-sm flex items-center justify-center disabled:opacity-30 ${!isSortable ? 'cursor-not-allowed' : ''}`}><ArrowUp size={14} /></button>
-                          <button onClick={(e) => { e.stopPropagation(); openEditForm(exp); }} disabled={!canModify} className={`font-bold p-1 transition bg-gray-50 rounded shadow-sm flex items-center justify-center ${canModify ? 'text-gray-400 hover:text-blue-500 hover:bg-blue-50' : 'text-gray-300 opacity-40 cursor-not-allowed'}`}><Pencil size={14} /></button>
-                          <button onClick={(e) => { e.stopPropagation(); handleMoveRecord(idx, 1); }} disabled={idx === displayRecords.length - 1 || !isSortable} className={`text-gray-400 hover:text-blue-500 font-bold p-1 transition bg-gray-50 hover:bg-blue-50 rounded shadow-sm flex items-center justify-center disabled:opacity-30 ${!isSortable ? 'cursor-not-allowed' : ''}`}><ArrowDown size={14} /></button>
-                          <button onClick={(e) => { e.stopPropagation(); setCrossRoomRecord(exp); }} disabled={!canModify} className={`font-bold p-1 transition bg-gray-50 rounded shadow-sm flex items-center justify-center ${canModify ? 'text-gray-400 hover:text-orange-500 hover:bg-orange-50' : 'text-gray-300 opacity-40 cursor-not-allowed'}`}><Send size={14} /></button>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
+                {displayRecords.map((exp, idx) => (
+                  <RecordItem 
+                    key={exp.id} exp={exp} idx={idx} 
+                    isSortable={!searchQuery && homeFilterDate} 
+                    onRecordClick={setViewingRecord}
+                    handleMoveRecord={handleMoveRecord}
+                    openEditForm={openEditForm}
+                    setCrossRoomRecord={setCrossRoomRecord}
+                  />
+                ))}
               </div>
             )}
           </div>
@@ -2136,7 +2146,7 @@ export default function App() {
             }
 
             return (
-              <button key={opt} type="button" onClick={() => handleToggle(opt)} className={`flex-1 min-w-0 py-2 px-0.5 rounded-xl text-[12px] sm:text-[14px] font-black transition-all duration-200 border-2 shadow-sm flex items-center justify-center leading-tight truncate ${btnClass}`}>
+              <button key={opt} type="button" onClick={() => handleToggle(opt)} className={`flex-1 min-w-0 py-2 px-0.5 rounded-[1.2rem] text-[12px] sm:text-[14px] font-black transition-all duration-200 border-2 shadow-sm flex items-center justify-center leading-tight truncate ${btnClass}`}>
                 {opt}
               </button>
             )
@@ -2511,6 +2521,17 @@ export default function App() {
      );
   }
 
+  // 統一渲染明細內容 Modal
+  const renderDetailRow = (label, value, extraClass = '') => {
+    if (!value) return null;
+    return (
+      <div className="flex justify-between items-center border-b border-gray-100 pb-1.5 pt-1">
+        <span className="text-gray-400 shrink-0 mr-4">{label}</span>
+        <span className={`text-gray-800 text-right ${extraClass}`}>{value}</span>
+      </div>
+    );
+  };
+
   return (
     <div className={globalWrapperStyle}>
       <div className={phoneContainerStyle}>
@@ -2567,34 +2588,38 @@ export default function App() {
                 {(() => {
                   const analysisDetailRecords = analysisFilteredRecords.filter(r => getAnalysisKeyForRecord(r) === viewingAnalysisItem).sort((a, b) => (a.date !== b.date ? (a.date > b.date ? -1 : 1) : b.timestamp - a.timestamp)); 
                   if (analysisDetailRecords.length === 0) return <p className="text-center text-gray-400 font-bold py-10 text-[14px]">查無明細</p>;
-                  return analysisDetailRecords.map(exp => {
-                    const isIncome = exp.type === 'income', isTransfer = exp.type === 'transfer';
-                    let freqDisplay = exp.frequency === '區間' ? (exp.frequencyInterval === '自訂' ? exp.frequencyCustomText : exp.frequencyInterval) : exp.frequency;
-                    const payerStr = Array.isArray(exp.payer) ? exp.payer.join(', ') : exp.payer;
-                    return (
-                      <div key={exp.id} onClick={() => setViewingRecord(exp)} className="bg-gray-50 p-2.5 rounded-xl border border-gray-100 flex justify-between items-center cursor-pointer hover:bg-gray-100 transition">
-                        <div className="flex-1 pr-2 overflow-hidden flex flex-col justify-center">
-                           <div className="flex flex-wrap items-center gap-1.5 mb-0.5">
-                             <span className="text-[11px] font-bold text-gray-400">{toROCYearStr(exp.date)}</span>
-                             {exp.addedByRole && <span className={`${getRoleColorStyle(exp.addedByRole).lightBg} ${getRoleColorStyle(exp.addedByRole).text} border ${getRoleColorStyle(exp.addedByRole).lightBorder} px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0`}>{exp.addedByRole}</span>}
-                             <span className="bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0">{freqDisplay || '一次'}</span>
-                             {exp.excludeFromBalance && <span className="bg-gray-200 text-gray-500 px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0">不計入</span>}
-                           </div>
-                           <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 mt-0.5">
-                             <span className={`font-black text-[14px] flex items-center gap-1 ${exp.excludeFromBalance ? 'text-gray-500 line-through decoration-gray-300' : 'text-gray-700'}`}>
-                               {!isTransfer && <span className={`font-bold text-[11px] px-1 py-0.5 rounded border shrink-0 ${isIncome ? 'bg-green-50 text-green-600 border-green-100' : 'bg-orange-50 text-orange-600 border-orange-100'}`}>[{exp.category}] {exp.title}</span>}
-                               {isTransfer ? `轉帳: ${renderMethodText(exp.method, exp.subMethod)}➜${renderMethodText(exp.transferToMethod, exp.transferToSubMethod)}` : exp.title}
-                             </span>
-                             {payerStr && payerStr !== '未指定' && <span className="text-gray-500 text-[11px] font-bold bg-white px-1.5 py-0.5 rounded border border-gray-200">👤 {payerStr}</span>}
-                             {!isTransfer && exp.method && exp.method !== '未指定' && <span className="text-gray-500 text-[11px] font-bold bg-white px-1.5 py-0.5 rounded border border-gray-200">💳 {renderMethodText(exp.method, exp.subMethod)}</span>}
-                             {exp.merchant && exp.merchant !== '未指定' && <span className="text-gray-500 text-[11px] font-bold bg-white px-1.5 py-0.5 rounded border border-gray-200">🏪 {exp.merchant}</span>}
-                             {exp.photoBase64 && <span className="shrink-0 w-[18px] h-[18px] rounded overflow-hidden shadow-sm inline-block border border-gray-200" title="有照片"><img src={exp.photoBase64} alt="圖" className="w-full h-full object-cover" /></span>}
-                           </div>
-                        </div>
-                        <div className={`font-black text-[16px] shrink-0 ${isIncome ? 'text-green-500' : isTransfer ? 'text-blue-500' : 'text-gray-800'}`}>{isIncome ? '+' : isTransfer ? '⇆' : '-'}${exp.amount.toLocaleString()}</div>
+                  return analysisDetailRecords.map(exp => (
+                    <div key={exp.id} onClick={() => setViewingRecord(exp)} className="bg-gray-50 p-2.5 rounded-xl border border-gray-100 flex justify-between items-center cursor-pointer hover:bg-gray-100 transition">
+                      <div className="flex-1 pr-2 overflow-hidden flex flex-col justify-center">
+                         <div className="flex flex-wrap items-center gap-1.5 mb-0.5">
+                           <span className="text-[11px] font-bold text-gray-400">{toROCYearStr(exp.date)}</span>
+                           {exp.addedByRole && <span className={`${getRoleColorStyle(exp.addedByRole).lightBg} ${getRoleColorStyle(exp.addedByRole).text} border ${getRoleColorStyle(exp.addedByRole).lightBorder} px-1.5 py-0.5 rounded text-[10px] font-bold tracking-wide shrink-0`}>{exp.addedByRole}</span>}
+                           <span className="bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0">{exp.frequency === '區間' ? (exp.frequencyInterval === '自訂' ? `${exp.frequencyCustomText}天` : exp.frequencyInterval) : exp.frequency || '一次'}</span>
+                           {exp.excludeFromBalance && <span className="bg-gray-200 text-gray-500 px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0">不計入</span>}
+                         </div>
+                         <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 mt-0.5">
+                           {!exp.type || exp.type === 'expense' || exp.type === 'income' ? (
+                             <>
+                               <span className={`font-bold text-[11px] px-1.5 py-0.5 rounded border shrink-0 ${exp.excludeFromBalance ? 'text-gray-500 bg-gray-50 border-gray-200' : exp.type === 'income' ? 'bg-green-50 text-green-600 border-green-100' : 'bg-orange-50 text-orange-600 border-orange-100'}`}>{exp.category}</span>
+                               <span className={`font-black text-black text-[14px] sm:text-[15px] ${exp.excludeFromBalance ? 'text-gray-500 line-through decoration-gray-400' : ''}`}>{exp.title}</span>
+                             </>
+                           ) : (
+                             <>
+                               <span className={`font-bold text-[11px] px-1.5 py-0.5 rounded border shrink-0 ${exp.excludeFromBalance ? 'text-gray-500 bg-gray-50 border-gray-200' : 'bg-blue-50 text-blue-600 border-blue-100'}`}>轉帳</span>
+                               <span className={`font-black text-black text-[14px] sm:text-[15px] ${exp.excludeFromBalance ? 'text-gray-500 line-through decoration-gray-400' : ''}`}>{renderMethodText(exp.method, exp.subMethod)} ➜ {renderMethodText(exp.transferToMethod, exp.transferToSubMethod)}</span>
+                             </>
+                           )}
+                           {exp.payer && exp.payer !== '未指定' && <span className={`text-[11px] font-bold px-1.5 py-0.5 rounded border border-gray-200 ${exp.excludeFromBalance ? 'text-gray-400 bg-transparent' : 'text-gray-500 bg-white'}`}>👤 {Array.isArray(exp.payer)?exp.payer.join(', '):exp.payer}</span>}
+                           {exp.type !== 'transfer' && exp.method && exp.method !== '未指定' && <span className={`text-[11px] font-bold px-1.5 py-0.5 rounded border border-gray-200 ${exp.excludeFromBalance ? 'text-gray-400 bg-transparent' : 'text-gray-500 bg-white'}`}>💳 {renderMethodText(exp.method, exp.subMethod)}</span>}
+                           {exp.type !== 'transfer' && exp.merchant && exp.merchant !== '未指定' && <span className={`text-[11px] font-bold px-1.5 py-0.5 rounded border border-gray-200 ${exp.excludeFromBalance ? 'text-gray-400 bg-transparent' : 'text-gray-500 bg-white'}`}>🏪 {exp.merchant}</span>}
+                           {exp.photoBase64 && <span className="shrink-0 w-[18px] h-[18px] rounded overflow-hidden shadow-sm inline-block border border-gray-200" title="此紀錄附有照片"><img src={exp.photoBase64} alt="圖" className="w-full h-full object-cover" /></span>}
+                         </div>
                       </div>
-                    )
-                  });
+                      <div className={`font-black text-[16px] shrink-0 ${exp.excludeFromBalance ? 'text-gray-400 line-through decoration-gray-300' : exp.type === 'income' ? 'text-green-500' : exp.type === 'transfer' ? 'text-blue-500' : 'text-gray-800'}`}>
+                         {exp.type === 'income' ? '+' : exp.type === 'transfer' ? '⇆' : '-'}${exp.amount.toLocaleString()}
+                      </div>
+                    </div>
+                  ));
                 })()}
               </div>
             </div>
@@ -2627,7 +2652,7 @@ export default function App() {
                   const accHistory = records.filter(r => {
                      if (r.date > historyEndDate || r.date < historyStartDate) return false;
                      if (r.date > todayStr) return false;
-                     
+                     if (r.excludeFromBalance) return false; 
                      const getAccName = (method, subMethod) => method === '現金' ? '現金' : subMethod;
                      const fromAcc = getAccName(r.method, r.subMethod);
                      const toAcc = getAccName(r.transferToMethod, r.transferToSubMethod);
@@ -2646,7 +2671,7 @@ export default function App() {
                     let isPositive = false;
                     if (isIncome && getAccName(exp.method, exp.subMethod) === viewingAccountHistory) isPositive = true;
                     if (isTransfer && getAccName(exp.transferToMethod, exp.transferToSubMethod) === viewingAccountHistory) isPositive = true;
-                    let freqDisplay = exp.frequency === '區間' ? (exp.frequencyInterval === '自訂' ? exp.frequencyCustomText : exp.frequencyInterval) : exp.frequency;
+                    let freqDisplay = exp.frequency === '區間' ? (exp.frequencyInterval === '自訂' ? `${exp.frequencyCustomText}天` : exp.frequencyInterval) : exp.frequency;
                     const payerStr = Array.isArray(exp.payer) ? exp.payer.join(', ') : exp.payer;
 
                     return (
@@ -2655,23 +2680,27 @@ export default function App() {
                            <div className="flex flex-wrap items-center gap-1.5 mb-0.5">
                              <span className="text-[11px] font-bold text-gray-400">{toROCYearStr(exp.date)}</span>
                              {exp.addedByRole && <span className={`${getRoleColorStyle(exp.addedByRole).lightBg} ${getRoleColorStyle(exp.addedByRole).text} border ${getRoleColorStyle(exp.addedByRole).lightBorder} px-1.5 py-0.5 rounded text-[10px] font-bold tracking-wide shrink-0`}>{exp.addedByRole}</span>}
-                             <span className="bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded text-[10px] font-bold tracking-wide">{freqDisplay || '一次'}</span>
-                             {exp.excludeFromBalance && <span className="bg-gray-200 text-gray-500 px-1.5 py-0.5 rounded text-[10px] font-bold tracking-wide shrink-0">不計入</span>}
+                             <span className="bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0">{freqDisplay || '一次'}</span>
+                             {exp.excludeFromBalance && <span className="bg-gray-200 text-gray-500 px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0">不計入</span>}
                            </div>
                            <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 mt-0.5">
-                             <span className={`font-black text-[14px] flex items-center gap-1 ${exp.excludeFromBalance ? 'text-gray-500 line-through decoration-gray-300' : 'text-gray-700'}`}>
-                               {!isTransfer && <span className={`font-bold text-[11px] px-1 py-0.5 rounded border shrink-0 ${isIncome ? 'bg-green-50 text-green-600 border-green-100' : 'bg-orange-50 text-orange-600 border-orange-100'}`}>[{exp.category}] {exp.title}</span>}
-                               {isTransfer ? `轉帳: ${renderMethodText(exp.method, exp.subMethod)}➜${renderMethodText(exp.transferToMethod, exp.transferToSubMethod)}` : exp.title}
-                             </span>
-                             {payerStr && payerStr !== '未指定' && <span className="text-gray-500 text-[11px] font-bold bg-white px-1.5 py-0.5 rounded border border-gray-200">👤 {payerStr}</span>}
-                             {!isTransfer && exp.method && exp.method !== '未指定' && <span className="text-gray-500 text-[11px] font-bold bg-white px-1.5 py-0.5 rounded border border-gray-200">💳 {renderMethodText(exp.method, exp.subMethod)}</span>}
-                             {exp.merchant && exp.merchant !== '未指定' && <span className="text-gray-500 text-[11px] font-bold bg-white px-1.5 py-0.5 rounded border border-gray-200">🏪 {exp.merchant}</span>}
-                             
-                             {exp.photoBase64 && (
-                               <span className="shrink-0 w-[18px] h-[18px] rounded-md overflow-hidden shadow-sm inline-block border border-gray-200" title="有照片">
-                                 <img src={exp.photoBase64} alt="圖" className="w-full h-full object-cover" />
-                               </span>
+                             {!isTransfer && (
+                               <>
+                                 <span className={`font-bold text-[11px] px-1.5 py-0.5 rounded border shrink-0 ${exp.excludeFromBalance ? 'text-gray-500 border-gray-200 bg-gray-50' : isIncome ? 'bg-green-50 text-green-600 border-green-100' : 'bg-orange-50 text-orange-600 border-orange-100'}`}>{exp.category}</span>
+                                 <span className={`font-black text-black text-[14px] sm:text-[15px] ${exp.excludeFromBalance ? 'text-gray-500 line-through decoration-gray-400' : ''}`}>{exp.title}</span>
+                               </>
                              )}
+                             {isTransfer && (
+                               <>
+                                 <span className={`font-bold text-[11px] px-1.5 py-0.5 rounded border shrink-0 ${exp.excludeFromBalance ? 'text-gray-500 border-gray-200 bg-gray-50' : 'bg-blue-50 text-blue-600 border-blue-100'}`}>轉帳</span>
+                                 <span className={`font-black text-black text-[14px] sm:text-[15px] ${exp.excludeFromBalance ? 'text-gray-500 line-through decoration-gray-400' : ''}`}>{renderMethodText(exp.method, exp.subMethod)} ➜ {renderMethodText(exp.transferToMethod, exp.transferToSubMethod)}</span>
+                               </>
+                             )}
+                             {payerStr && payerStr !== '未指定' && <span className={`text-[11px] font-bold px-1.5 py-0.5 rounded border border-gray-200 ${exp.excludeFromBalance ? 'text-gray-400 bg-transparent' : 'text-gray-500 bg-white'}`}>👤 {payerStr}</span>}
+                             {!isTransfer && exp.method && exp.method !== '未指定' && <span className={`text-[11px] font-bold px-1.5 py-0.5 rounded border border-gray-200 ${exp.excludeFromBalance ? 'text-gray-400 bg-transparent' : 'text-gray-500 bg-white'}`}>💳 {renderMethodText(exp.method, exp.subMethod)}</span>}
+                             {!isTransfer && exp.merchant && exp.merchant !== '未指定' && <span className={`text-[11px] font-bold px-1.5 py-0.5 rounded border border-gray-200 ${exp.excludeFromBalance ? 'text-gray-400 bg-transparent' : 'text-gray-500 bg-white'}`}>🏪 {exp.merchant}</span>}
+                             {exp.photoBase64 && <span className="shrink-0 w-[18px] h-[18px] rounded overflow-hidden shadow-sm inline-block border border-gray-200" title="有照片"><img src={exp.photoBase64} alt="圖" className="w-full h-full object-cover" /></span>}
+                             {exp.note && <span className={`text-[11px] font-bold px-1.5 py-0.5 rounded border border-[#F2EFE9] max-w-[120px] truncate ${exp.excludeFromBalance ? 'text-gray-400 bg-transparent' : 'text-gray-500 bg-[#FFFDF9]'}`}>📝 {exp.note}</span>}
                            </div>
                         </div>
                         <div className={`font-black text-[16px] shrink-0 ${exp.excludeFromBalance ? 'text-gray-400 line-through decoration-gray-300' : isPositive ? 'text-green-500' : 'text-gray-800'}`}>
@@ -2693,18 +2722,18 @@ export default function App() {
               <button onClick={() => setViewingRecord(null)} className="absolute top-3 right-3 text-gray-400 hover:text-gray-600 bg-gray-100 p-1.5 rounded-full transition"><X size={20}/></button>
               <h3 className="font-black text-xl text-gray-800 mb-3 border-b border-gray-100 pb-2">詳細紀錄</h3>
               <div className="space-y-2 text-[15px] text-gray-600 font-bold max-h-[65vh] overflow-y-auto pr-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-                <div className="flex justify-between items-center bg-gray-50 p-2.5 rounded-xl border border-gray-100"><span className="text-gray-400">類型</span><span className={`${viewingRecord.type === 'income' ? 'text-green-500' : viewingRecord.type === 'transfer' ? 'text-blue-500' : 'text-orange-500'} font-black text-[16px]`}>{viewingRecord.type === 'income' ? '收入' : viewingRecord.type === 'transfer' ? '轉帳' : '支出'}</span></div>
-                <div className="flex justify-between items-center bg-gray-50 p-2.5 rounded-xl border border-gray-100"><span className="text-gray-400">金額</span><span className={`text-[24px] font-black ${viewingRecord.excludeFromBalance ? 'text-gray-500 line-through decoration-gray-300' : 'text-gray-800'}`}>${viewingRecord.amount.toLocaleString()}</span></div>
-                <div className="flex justify-between items-center border-b border-gray-100 pb-1.5 pt-1"><span className="text-gray-400">消費日期</span><span className="text-gray-800">{toROCYearStr(viewingRecord.date)}</span></div>
-                <div className="flex justify-between items-center border-b border-gray-100 pb-1.5"><span className="text-gray-400">建檔時間</span><span className="text-gray-800 text-[13px]">{toROCYearStr(viewingRecord.timestamp)} {new Date(viewingRecord.timestamp).toLocaleTimeString('zh-TW', {hour12: false, hour: '2-digit', minute:'2-digit'})}</span></div>
-                <div className="flex justify-between items-center border-b border-gray-100 pb-1.5"><span className="text-gray-400">分類</span><span className="text-gray-800">{viewingRecord.category}</span></div>
-                {viewingRecord.type !== 'transfer' && <div className="flex justify-between items-center border-b border-gray-100 pb-1.5"><span className="text-gray-400">項目</span><span className="text-gray-800">{viewingRecord.title}</span></div>}
-                {viewingRecord.merchant && viewingRecord.merchant !== '未指定' && <div className="flex justify-between items-center border-b border-gray-100 pb-1.5"><span className="text-gray-400">商家</span><span className="text-gray-800">{viewingRecord.merchant}</span></div>}
-                {viewingRecord.payer && viewingRecord.payer.length > 0 && <div className="flex justify-between items-center border-b border-gray-100 pb-1.5"><span className="text-gray-400">對象</span><span className="text-gray-800">{Array.isArray(viewingRecord.payer) ? viewingRecord.payer.join(', ') : viewingRecord.payer}</span></div>}
-                {viewingRecord.method && viewingRecord.method !== '未指定' && <div className="flex justify-between items-center border-b border-gray-100 pb-1.5"><span className="text-gray-400">{viewingRecord.type === 'transfer' ? '轉出帳戶' : '付款方式'}</span><span className="text-gray-800">{renderMethodText(viewingRecord.method, viewingRecord.subMethod)}</span></div>}
-                {viewingRecord.transferToMethod && <div className="flex justify-between items-center border-b border-gray-100 pb-1.5"><span className="text-gray-400">轉入帳戶</span><span className="text-gray-800">{renderMethodText(viewingRecord.transferToMethod, viewingRecord.transferToSubMethod)}</span></div>}
-                <div className="flex justify-between items-center border-b border-gray-100 pb-1.5"><span className="text-gray-400">頻率</span><span className="text-gray-800">{viewingRecord.frequency === '每週' && viewingRecord.frequencyDays?.length > 0 ? `每週 (${viewingRecord.frequencyDays.join('、')})` : viewingRecord.frequency === '每月' && viewingRecord.frequencyDays?.length > 0 ? `每月 (${viewingRecord.frequencyDays.join('、')}號)` : viewingRecord.frequency === '區間' ? (viewingRecord.frequencyInterval === '自訂' ? viewingRecord.frequencyCustomText : viewingRecord.frequencyInterval) : viewingRecord.frequency}</span></div>
-                <div className="flex justify-between items-center border-b border-gray-100 pb-1.5"><span className="text-gray-400">付款人</span><span className={`${getRoleColorStyle(viewingRecord.addedByRole).lightBg} ${getRoleColorStyle(viewingRecord.addedByRole).text} border ${getRoleColorStyle(viewingRecord.addedByRole).lightBorder} px-2 py-0.5 rounded-md text-[13px] font-bold`}>{viewingRecord.addedByRole}</span></div>
+                {renderDetailRow('類型', <span className={`${viewingRecord.type === 'income' ? 'text-green-500' : viewingRecord.type === 'transfer' ? 'text-blue-500' : 'text-orange-500'} font-black text-[16px]`}>{viewingRecord.type === 'income' ? '收入' : viewingRecord.type === 'transfer' ? '轉帳' : '支出'}</span>)}
+                {renderDetailRow('金額', `$${viewingRecord.amount.toLocaleString()}`, `text-[24px] font-black ${viewingRecord.excludeFromBalance ? 'text-gray-500 line-through decoration-gray-300' : 'text-gray-800'}`)}
+                {renderDetailRow('消費日期', toROCYearStr(viewingRecord.date))}
+                {renderDetailRow('建檔時間', `${toROCYearStr(viewingRecord.timestamp)} ${new Date(viewingRecord.timestamp).toLocaleTimeString('zh-TW', {hour12: false, hour: '2-digit', minute:'2-digit'})}`, 'text-[13px]')}
+                {renderDetailRow('分類', viewingRecord.category)}
+                {viewingRecord.type !== 'transfer' && renderDetailRow('項目', viewingRecord.title)}
+                {viewingRecord.merchant && viewingRecord.merchant !== '未指定' && renderDetailRow('商家', viewingRecord.merchant)}
+                {viewingRecord.payer && viewingRecord.payer.length > 0 && renderDetailRow('對象', Array.isArray(viewingRecord.payer) ? viewingRecord.payer.join(', ') : viewingRecord.payer)}
+                {viewingRecord.method && viewingRecord.method !== '未指定' && renderDetailRow(viewingRecord.type === 'transfer' ? '轉出帳戶' : '付款方式', renderMethodText(viewingRecord.method, viewingRecord.subMethod))}
+                {viewingRecord.transferToMethod && renderDetailRow('轉入帳戶', renderMethodText(viewingRecord.transferToMethod, viewingRecord.transferToSubMethod))}
+                {renderDetailRow('頻率', viewingRecord.frequency === '每週' && viewingRecord.frequencyDays?.length > 0 ? `每週 (${viewingRecord.frequencyDays.join('、')})` : viewingRecord.frequency === '每月' && viewingRecord.frequencyDays?.length > 0 ? `每月 (${viewingRecord.frequencyDays.join('、')}號)` : viewingRecord.frequency === '區間' ? (viewingRecord.frequencyInterval === '自訂' ? viewingRecord.frequencyCustomText : viewingRecord.frequencyInterval) : viewingRecord.frequency)}
+                {renderDetailRow('付款人', <span className={`${getRoleColorStyle(viewingRecord.addedByRole).lightBg} ${getRoleColorStyle(viewingRecord.addedByRole).text} border ${getRoleColorStyle(viewingRecord.addedByRole).lightBorder} px-2 py-0.5 rounded-md text-[13px] font-bold`}>{viewingRecord.addedByRole}</span>)}
                 
                 {viewingRecord.note && <div className="pt-1.5"><span className="text-gray-400 block mb-1">備註</span><span className="text-gray-800 block bg-gray-50 p-2.5 rounded-xl border border-gray-100 text-[14px]">{viewingRecord.note}</span></div>}
                 {viewingRecord.photoBase64 && (
