@@ -1893,7 +1893,7 @@ export default function App() {
           </div>
         </header>
 
-        <main className="scroll-container px-3 py-3 flex-1 overflow-y-auto pb-[90px] [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]" onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd} onTouchCancel={() => {setTouchStart(null); setTouchEnd(null);}}>
+        <main className="scroll-container px-3 py-3 flex-1 overflow-y-auto pb-[90px] [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]" style={{ touchAction: 'pan-y' }} onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
           <div>
             <h3 className="font-bold text-gray-400 mb-2 ml-1 flex items-center gap-1.5 text-[16px]">📜 記帳明細</h3>
             {displayRecords.length === 0 ? (
