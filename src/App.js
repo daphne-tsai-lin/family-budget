@@ -78,8 +78,31 @@ const evaluateCalc = (str) => {
 // ==========================================
 const getLocalTodayStr = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
 const getLocalMonthStartStr = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`; };
-const toROCYearStr = (dateStr) => { if (!dateStr) return ''; const d = new Date(dateStr); if (isNaN(d.getTime())) return dateStr; return `${d.getFullYear() - 1911}/${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}`; };
-const toROCShortStr = (dateStr) => { if (!dateStr) return ''; const d = new Date(dateStr); if (isNaN(d.getTime())) return dateStr; const days = ['日', '一', '二', '三', '四', '五', '六']; return `${d.getFullYear() - 1911}/${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}(${days[d.getDay()]})`; };
+const toROCYearStr = (dateVal) => { 
+  if (!dateVal) return ''; 
+  let d;
+  if (typeof dateVal === 'string' && dateVal.includes('-') && dateVal.length <= 10) {
+    const [y, m, day] = dateVal.split('-').map(Number);
+    d = new Date(y, m - 1, day, 12, 0, 0);
+  } else {
+    d = new Date(dateVal);
+  }
+  if (isNaN(d.getTime())) return dateVal; 
+  return `${d.getFullYear() - 1911}/${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}`; 
+};
+const toROCShortStr = (dateVal) => { 
+  if (!dateVal) return ''; 
+  let d;
+  if (typeof dateVal === 'string' && dateVal.includes('-') && dateVal.length <= 10) {
+    const [y, m, day] = dateVal.split('-').map(Number);
+    d = new Date(y, m - 1, day, 12, 0, 0);
+  } else {
+    d = new Date(dateVal);
+  }
+  if (isNaN(d.getTime())) return dateVal; 
+  const days = ['日', '一', '二', '三', '四', '五', '六']; 
+  return `${d.getFullYear() - 1911}/${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}(${days[d.getDay()]})`; 
+};
 
 const generateFutureDates = (startDateStr, freq, daysArr, intervalStr, customText, maxYears = 1) => {
   const dates = []; if (!startDateStr) return dates;
@@ -392,8 +415,8 @@ export default function App() {
   
   const [availableLoginUsers, setAvailableLoginUsers] = useState(['老公', '老婆']); 
 
-  const [touchStart, setTouchStart] = useState(null);
-  const [touchEnd, setTouchEnd] = useState(null);
+  const touchStartX = useRef(null);
+  const touchStartY = useRef(null);
 
   const fileInputRef = useRef(null); 
   const photoInputRef = useRef(null); 
@@ -557,19 +580,33 @@ export default function App() {
     }
   }, [recordMerchant, recordType, currentRoom?.methodRules, editRecordId]);
 
-  const handleTouchStart = (e) => { setTouchEnd(null); setTouchStart({ x: e.targetTouches[0].clientX, y: e.targetTouches[0].clientY }); };
-  const handleTouchMove = (e) => { setTouchEnd({ x: e.targetTouches[0].clientX, y: e.targetTouches[0].clientY }); };
-  const handleTouchEnd = () => {
-    if (!touchStart || !touchEnd) return;
-    const xDistance = touchStart.x - touchEnd.x, yDistance = touchStart.y - touchEnd.y;
+  const handleTouchStart = (e) => {
+    touchStartX.current = e.touches[0].clientX;
+    touchStartY.current = e.touches[0].clientY;
+  };
+  
+  const handleTouchEnd = (e) => {
+    if (touchStartX.current === null || touchStartY.current === null) return;
+    const touchEndX = e.changedTouches[0].clientX;
+    const touchEndY = e.changedTouches[0].clientY;
+    const xDistance = touchStartX.current - touchEndX;
+    const yDistance = touchStartY.current - touchEndY;
+    
+    touchStartX.current = null;
+    touchStartY.current = null;
+
     if (Math.abs(xDistance) > Math.abs(yDistance) && Math.abs(xDistance) > 40) {
       if (!homeFilterDate) return;
-      const d = new Date(homeFilterDate);
+      const parts = homeFilterDate.split('-');
+      if (parts.length !== 3) return;
+      const [y, m, day] = parts.map(Number);
+      const d = new Date(y, m - 1, day, 12, 0, 0); // 固定中午時間確保加減無誤差
+      
       if (xDistance > 0) d.setDate(d.getDate() + 1);
       else d.setDate(d.getDate() - 1);
+      
       setHomeFilterDate(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`);
     }
-    setTouchStart(null); setTouchEnd(null);
   };
 
   const handleMoveRecord = async (index, direction) => {
