@@ -1,4 +1,4 @@
-/* eslint-disable */
+0/* eslint-disable */
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { LogOut, AlertCircle, Settings, Trash2, X, Sparkles, Home, Plus, Pencil, BarChart, Calendar, Store, Tag, User, CreditCard, RefreshCw, Wallet, PiggyBank, PieChart as LucidePieChart, Download, Upload, Copy, Send, Landmark, Check, ArrowUp, ArrowDown, Search, Camera, Calculator, Image as ImageIcon } from 'lucide-react';
 import { initializeApp } from 'firebase/app';
@@ -363,8 +363,8 @@ export default function App() {
   const [viewingAnalysisItem, setViewingAnalysisItem] = useState(null); 
   const [enlargedPhoto, setEnlargedPhoto] = useState(null); 
   
-  const [historyStartDate, setHistoryStartDate] = useState(getLocalMonthStartStr());
-  const [historyEndDate, setHistoryEndDate] = useState(getLocalTodayStr());
+  const [accountStartDate, setAccountStartDate] = useState(getLocalMonthStartStr());
+  const [accountEndDate, setAccountEndDate] = useState(getLocalTodayStr());
 
   const [recordType, setRecordType] = useState('expense');
   const [recordAmount, setRecordAmount] = useState('0');
@@ -1011,7 +1011,9 @@ export default function App() {
     (currentRoom?.electronicTickets || []).forEach(e => balances[`et_${e}`] = initial[`et_${e}`] !== undefined ? initial[`et_${e}`] : (initial[e] || 0));
     (currentRoom?.creditCards || []).forEach(c => balances[`cc_${c}`] = initial[`cc_${c}`] !== undefined ? initial[`cc_${c}`] : (initial[c] || 0));
     records.forEach(r => {
-      if (r.date > getLocalTodayStr()) return;
+      if (accountStartDate && r.date < accountStartDate) return;
+      if (accountEndDate && r.date > accountEndDate) return;
+      if (!accountEndDate && r.date > getLocalTodayStr()) return;
       if (r.excludeFromBalance) return; 
       
       const amt = Number(r.amount) || 0;
@@ -1685,7 +1687,7 @@ export default function App() {
             </div>
             {roomCode && availableLoginUsers.length === 0 && <p className="text-sm text-gray-400 text-center mt-2">載入名單中...</p>}
           </div>
-          <button type="submit" disabled={isLoading} className="w-full bg-gray-800 text-white font-extrabold text-[20px] p-4 rounded-[1.5rem] hover:bg-gray-700 shadow-md transition active:scale-95 disabled:opacity-50 mt-2">{isLoading ? '處理中...' : '開啟小財庫 🚀'}</button>
+          <button type="submit" disabled={isLoading} className="w-full bg-orange-500 text-white font-extrabold text-[20px] p-4 rounded-[1.5rem] hover:bg-orange-600 shadow-md transition active:scale-95 disabled:opacity-50 mt-2">{isLoading ? '處理中...' : '開啟小財庫 🚀'}</button>
         </form>
         <div className="mt-6 text-center w-full pb-6">
           <button onClick={() => {setView('create'); setErrorMsg(''); setRoomCode(''); setRoomPin(''); setCurrentUserRole(''); setRoomName('');}} className="text-gray-500 text-[17px] font-bold hover:text-gray-700 transition bg-white px-6 py-3 rounded-full shadow-sm border border-gray-200">💡 建立新的家庭房間</button>
@@ -1760,6 +1762,14 @@ export default function App() {
         </header>
 
         <main className="scroll-container px-3 py-3 space-y-3 flex-1 overflow-y-auto pb-[90px] [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+          <div className="flex items-center gap-1.5 bg-white p-2 rounded-2xl shadow-sm border border-indigo-100">
+             <Calendar size={16} className="text-indigo-400 shrink-0 ml-1" />
+             <input type="date" value={accountStartDate} onChange={e => setAccountStartDate(e.target.value)} className="bg-gray-50 border border-gray-100 px-1 py-1.5 rounded-lg outline-none font-bold text-gray-600 text-[12px] focus:border-indigo-300 transition flex-1 min-w-0" />
+             <span className="text-gray-300 text-[12px] font-black">~</span>
+             <input type="date" value={accountEndDate} onChange={e => setAccountEndDate(e.target.value)} className="bg-gray-50 border border-gray-100 px-1 py-1.5 rounded-lg outline-none font-bold text-gray-600 text-[12px] focus:border-indigo-300 transition flex-1 min-w-0" />
+             <button onClick={() => { setAccountStartDate(''); setAccountEndDate(getLocalTodayStr()); }} className={`shrink-0 px-2.5 py-1.5 rounded-lg text-[12px] font-bold transition-all ${accountStartDate === '' ? 'bg-indigo-500 text-white shadow-sm' : 'bg-indigo-50 text-indigo-600 hover:bg-indigo-100'}`}>全部</button>
+          </div>
+
           <div className="bg-white py-3 px-4 rounded-2xl border-2 border-indigo-100 text-center shadow-sm relative overflow-hidden">
              <div className="absolute -right-6 -top-6 bg-indigo-50 w-24 h-24 rounded-full opacity-50"></div>
              <p className="text-indigo-400 font-extrabold text-[14px] relative z-10">💎 淨資產</p>
@@ -2462,21 +2472,12 @@ export default function App() {
                  ))}
                </div>
             </div>
-            <div className="grid grid-cols-2 gap-2 mb-3">
-              <div>
-                <div className="flex justify-between items-center mb-1 ml-1">
-                  <label className="block text-[12px] font-bold text-gray-500">開始日期</label>
-                  <button type="button" onClick={() => setAnalysisStartDate(getLocalTodayStr())} className="text-teal-600 bg-teal-50 hover:bg-teal-100 px-2 py-0.5 rounded text-[11px] font-bold transition">今天</button>
-                </div>
-                <input type="date" value={analysisStartDate} onChange={e => setAnalysisStartDate(e.target.value)} className="w-full bg-gray-50 border border-gray-100 p-2.5 rounded-xl outline-none font-bold text-gray-700 text-[13px] focus:bg-white focus:border-teal-300 transition shadow-sm" />
-              </div>
-              <div>
-                <div className="flex justify-between items-center mb-1 ml-1">
-                  <label className="block text-[12px] font-bold text-gray-500">結束日期</label>
-                  <button type="button" onClick={() => setAnalysisEndDate(getLocalTodayStr())} className="text-teal-600 bg-teal-50 hover:bg-teal-100 px-2 py-0.5 rounded text-[11px] font-bold transition">今天</button>
-                </div>
-                <input type="date" value={analysisEndDate} onChange={e => setAnalysisEndDate(e.target.value)} className="w-full bg-gray-50 border border-gray-100 p-2.5 rounded-xl outline-none font-bold text-gray-700 text-[13px] focus:bg-white focus:border-teal-300 transition shadow-sm" />
-              </div>
+            <div className="flex items-center gap-1.5 bg-white p-2 rounded-2xl shadow-sm border border-teal-100 mb-3">
+               <Calendar size={16} className="text-teal-400 shrink-0 ml-1" />
+               <input type="date" value={analysisStartDate} onChange={e => setAnalysisStartDate(e.target.value)} className="bg-gray-50 border border-gray-100 px-1 py-1.5 rounded-lg outline-none font-bold text-gray-600 text-[12px] focus:border-teal-300 transition flex-1 min-w-0" />
+               <span className="text-gray-300 text-[12px] font-black">~</span>
+               <input type="date" value={analysisEndDate} onChange={e => setAnalysisEndDate(e.target.value)} className="bg-gray-50 border border-gray-100 px-1 py-1.5 rounded-lg outline-none font-bold text-gray-600 text-[12px] focus:border-teal-300 transition flex-1 min-w-0" />
+               <button onClick={() => { setAnalysisStartDate(''); setAnalysisEndDate(getLocalTodayStr()); }} className={`shrink-0 px-2.5 py-1.5 rounded-lg text-[12px] font-bold transition-all ${analysisStartDate === '' ? 'bg-teal-500 text-white shadow-sm' : 'bg-teal-50 text-teal-600 hover:bg-teal-100'}`}>全部</button>
             </div>
             <div className="mb-2">
               <label className="block text-[13px] font-bold text-gray-500 mb-1.5 ml-1">分析選單 (可複選)</label>
@@ -2671,25 +2672,15 @@ export default function App() {
               <h3 className="font-black text-[18px] text-gray-800 mb-3 border-b border-gray-100 pb-2 flex items-center gap-1.5">
                 <Wallet size={18} className="text-indigo-500" /> {viewingAccountHistory} 明細
               </h3>
-              
-              <div className="grid grid-cols-2 gap-2 mb-3">
-                  <div>
-                    <label className="block text-[11px] font-bold text-gray-500 mb-1">開始日期</label>
-                    <input type="date" value={historyStartDate} onChange={e=>setHistoryStartDate(e.target.value)} className="w-full bg-gray-50 border border-gray-200 p-1.5 rounded-lg text-[13px] font-bold text-gray-700 outline-none focus:border-indigo-300 transition" />
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-bold text-gray-500 mb-1">結束日期</label>
-                    <input type="date" value={historyEndDate} onChange={e=>setHistoryEndDate(e.target.value)} className="w-full bg-gray-50 border border-gray-200 p-1.5 rounded-lg text-[13px] font-bold text-gray-700 outline-none focus:border-indigo-300 transition" />
-                  </div>
-              </div>
 
               <div className="flex-1 overflow-y-auto space-y-1.5 pr-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
                 {(() => {
                   const todayStr = getLocalTodayStr();
                   const accHistory = records.filter(r => {
-                     if (r.date > historyEndDate || r.date < historyStartDate) return false;
-                     if (r.date > todayStr) return false;
-                     if (r.excludeFromBalance) return false; 
+                     if (accountStartDate && r.date < accountStartDate) return false;
+                     if (accountEndDate && r.date > accountEndDate) return false;
+                     if (!accountEndDate && r.date > todayStr) return false;
+                     // if (r.excludeFromBalance) return false;
                      const getAccName = (method, subMethod) => method === '現金' ? '現金' : subMethod;
                      const fromAcc = getAccName(r.method, r.subMethod);
                      const toAcc = getAccName(r.transferToMethod, r.transferToSubMethod);
@@ -2908,7 +2899,7 @@ export default function App() {
         {/* 底部導覽列 */}
         {user && view === 'room' && !showAddForm && (
           <div className="absolute bottom-0 left-0 w-full bg-white/95 backdrop-blur-xl p-2 pb-6 sm:pb-3 rounded-t-[1.5rem] shadow-[0_-15px_40px_rgba(0,0,0,0.08)] flex justify-between items-center z-20 border-t border-gray-100 px-6">
-            <button onClick={() => setView('accounts')} className="flex flex-col items-center gap-1 text-gray-400 hover:text-indigo-500 transition px-4 py-2"><Wallet size={22} /><span className="font-extrabold text-[11px]">帳戶</span></button>
+            <button onClick={() => { setAccountStartDate(getLocalMonthStartStr()); setAccountEndDate(getLocalTodayStr()); setView('accounts'); }} className="flex flex-col items-center gap-1 text-gray-400 hover:text-indigo-500 transition px-4 py-2"><Wallet size={22} /><span className="font-extrabold text-[11px]">帳戶</span></button>
             <button onClick={() => { resetForm(); setRecordType('expense'); setShowAddForm(true); }} className="absolute left-1/2 -translate-x-1/2 -top-5 bg-gradient-to-tr from-pink-400 to-orange-400 text-white w-[60px] h-[60px] rounded-full flex items-center justify-center shadow-[0_10px_20px_rgba(251,146,60,0.4)] border-[3px] border-[#FFFBF0] transform hover:scale-105 transition active:scale-95"><Plus size={32} strokeWidth={3} /></button>
             <button onClick={() => { setAnalysisType('expense'); setAnalysisStartDate(getLocalMonthStartStr()); setAnalysisEndDate(getLocalTodayStr()); setAnalysisMenus([]); setAnalysisSubSelections({ category: [], title: [], merchant: [], method: [], subMethod: [], payer: [] }); setAnalysisRoleFilter('全部'); setView('analysis'); }} className="flex flex-col items-center gap-1 text-gray-400 hover:text-teal-500 transition px-4 py-2"><BarChart size={24} /><span className="font-extrabold text-[11px]">統計</span></button>
           </div>
