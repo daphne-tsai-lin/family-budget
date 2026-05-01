@@ -1,4 +1,4 @@
-0/* eslint-disable */
+/* eslint-disable */
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { LogOut, AlertCircle, Settings, Trash2, X, Sparkles, Home, Plus, Pencil, BarChart, Calendar, Store, Tag, User, CreditCard, RefreshCw, Wallet, PiggyBank, PieChart as LucidePieChart, Download, Upload, Copy, Send, Landmark, Check, ArrowUp, ArrowDown, Search, Camera, Calculator, Image as ImageIcon } from 'lucide-react';
 import { initializeApp } from 'firebase/app';
@@ -414,6 +414,7 @@ export default function App() {
   const [syncSelection, setSyncSelection] = useState({}); 
   
   const [availableLoginUsers, setAvailableLoginUsers] = useState(['老公', '老婆']); 
+  const [refreshTrigger, setRefreshTrigger] = useState(0); 
 
   const touchStartX = useRef(null);
   const touchStartY = useRef(null);
@@ -481,6 +482,20 @@ export default function App() {
   }, [roomCode, user, view]);
 
   useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        setTimeout(() => setRefreshTrigger(prev => prev + 1), 500);
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleVisibilityChange);
+    };
+  }, []);
+
+  useEffect(() => {
     if (!user || !activeRoomId) return;
     const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', activeRoomId);
     const unsubscribeRoom = onSnapshot(roomRef, (snapshot) => {
@@ -493,7 +508,7 @@ export default function App() {
       setRecords(roomRecords);
     });
     return () => { unsubscribeRoom(); unsubscribeExpenses(); };
-  }, [user, activeRoomId]);
+  }, [user, activeRoomId, refreshTrigger]); 
 
   useEffect(() => {
     if (!records || records.length === 0 || !activeRoomId) return;
@@ -600,7 +615,7 @@ export default function App() {
       const parts = homeFilterDate.split('-');
       if (parts.length !== 3) return;
       const [y, m, day] = parts.map(Number);
-      const d = new Date(y, m - 1, day, 12, 0, 0); // 固定中午時間確保加減無誤差
+      const d = new Date(y, m - 1, day, 12, 0, 0); 
       
       if (xDistance > 0) d.setDate(d.getDate() + 1);
       else d.setDate(d.getDate() - 1);
@@ -983,7 +998,6 @@ export default function App() {
     reader.readAsText(file);
   };
 
-  // 補上遺漏的 handleBackup 功能
   const handleBackup = () => {
     if (!records || records.length === 0) return alert('目前沒有資料可以備份喔！');
     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(records));
@@ -1905,6 +1919,7 @@ export default function App() {
               </p>
             </div>
             <div className="flex items-center gap-1.5">
+              <button onClick={() => setRefreshTrigger(prev => prev + 1)} className="p-1.5 bg-white/20 hover:bg-white/30 text-white rounded-lg transition backdrop-blur-sm" title="重新連線"><RefreshCw size={18} /></button>
               <button onClick={() => fileInputRef.current?.click()} className="p-1.5 bg-white/20 hover:bg-white/30 text-white rounded-lg transition backdrop-blur-sm" title="匯入資料"><Upload size={18} /></button>
               <button onClick={handleBackup} className="p-1.5 bg-white/20 hover:bg-white/30 text-white rounded-lg transition backdrop-blur-sm" title="備份雲端資料"><Download size={18} /></button>
               <button onClick={() => { setSettingsTab('expense'); setView('settings'); }} className="p-1.5 bg-white/20 hover:bg-white/30 text-white rounded-lg transition backdrop-blur-sm" title="設定"><Settings size={18} /></button>
