@@ -78,6 +78,19 @@ const evaluateCalc = (str) => {
 // ==========================================
 const getLocalTodayStr = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
 const getLocalMonthStartStr = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`; };
+const getLocalLastMonthStartStr = () => {
+    const d = new Date();
+    const year = d.getMonth() === 0 ? d.getFullYear() - 1 : d.getFullYear();
+    const month = d.getMonth() === 0 ? 12 : d.getMonth();
+    return `${year}-${String(month).padStart(2, '0')}-01`;
+};
+const getLocalLastMonthEndStr = () => {
+    const d = new Date();
+    const year = d.getMonth() === 0 ? d.getFullYear() - 1 : d.getFullYear();
+    const month = d.getMonth() === 0 ? 12 : d.getMonth();
+    const lastDay = new Date(year, month, 0).getDate();
+    return `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+};
 const toROCYearStr = (dateVal) => { 
   if (!dateVal) return ''; 
   let d;
@@ -682,6 +695,7 @@ export default function App() {
         electronicTickets: ['點點卡', '悠遊卡', '悠遊付錢包'],
         initialBalances: { '現金': 0 },
         promptCashSync: false,
+        accountDefaultRange: '當月',
         excludedPromptPayers: []
       };
       await setDoc(roomRef, newRoomData);
@@ -1776,12 +1790,23 @@ export default function App() {
         </header>
 
         <main className="scroll-container px-3 py-3 space-y-3 flex-1 overflow-y-auto pb-[90px] [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-          <div className="flex items-center gap-1.5 bg-white p-2 rounded-2xl shadow-sm border border-indigo-100">
-             <Calendar size={16} className="text-indigo-400 shrink-0 ml-1" />
-             <input type="date" value={accountStartDate} onChange={e => setAccountStartDate(e.target.value)} className="bg-gray-50 border border-gray-100 px-1 py-1.5 rounded-lg outline-none font-bold text-gray-600 text-[12px] focus:border-indigo-300 transition flex-1 min-w-0" />
-             <span className="text-gray-300 text-[12px] font-black">~</span>
-             <input type="date" value={accountEndDate} onChange={e => setAccountEndDate(e.target.value)} className="bg-gray-50 border border-gray-100 px-1 py-1.5 rounded-lg outline-none font-bold text-gray-600 text-[12px] focus:border-indigo-300 transition flex-1 min-w-0" />
-             <button onClick={() => { setAccountStartDate(''); setAccountEndDate(getLocalTodayStr()); }} className={`shrink-0 px-2.5 py-1.5 rounded-lg text-[12px] font-bold transition-all ${accountStartDate === '' ? 'bg-indigo-500 text-white shadow-sm' : 'bg-indigo-50 text-indigo-600 hover:bg-indigo-100'}`}>全部</button>
+          <div className="flex flex-col gap-2 bg-white p-2 rounded-2xl shadow-sm border border-indigo-100">
+             <div className="flex items-center gap-1.5">
+               <Calendar size={14} className="text-indigo-400 shrink-0 ml-1 hidden sm:block" />
+               <div className="relative flex-1 bg-gray-50 border border-gray-100 px-2 py-1.5 rounded-lg overflow-hidden flex justify-center items-center cursor-pointer min-w-0">
+                  <input type="date" value={accountStartDate} onChange={e => setAccountStartDate(e.target.value)} className="absolute inset-0 w-full h-full opacity-0 z-10 cursor-pointer" />
+                  <span className="font-bold text-gray-600 text-[12px] z-0 pointer-events-none truncate">{accountStartDate ? toROCYearStr(accountStartDate) : '不限'}</span>
+               </div>
+               <span className="text-gray-300 text-[12px] font-black shrink-0">~</span>
+               <div className="relative flex-1 bg-gray-50 border border-gray-100 px-2 py-1.5 rounded-lg overflow-hidden flex justify-center items-center cursor-pointer min-w-0">
+                  <input type="date" value={accountEndDate} onChange={e => setAccountEndDate(e.target.value)} className="absolute inset-0 w-full h-full opacity-0 z-10 cursor-pointer" />
+                  <span className="font-bold text-gray-600 text-[12px] z-0 pointer-events-none truncate">{accountEndDate ? toROCYearStr(accountEndDate) : '不限'}</span>
+               </div>
+               <div className="flex shrink-0 gap-0.5 ml-0.5">
+                   <button onClick={() => { setAccountStartDate(getLocalLastMonthStartStr()); setAccountEndDate(getLocalLastMonthEndStr()); }} className={`px-2 py-1.5 rounded-lg text-[11px] sm:text-[12px] font-bold transition-all ${(accountStartDate === getLocalLastMonthStartStr() && accountEndDate === getLocalLastMonthEndStr()) ? 'bg-indigo-500 text-white shadow-sm' : 'bg-indigo-50 text-indigo-600 hover:bg-indigo-100'}`}>上月</button>
+                   <button onClick={() => { setAccountStartDate(''); setAccountEndDate(getLocalTodayStr()); }} className={`px-2 py-1.5 rounded-lg text-[11px] sm:text-[12px] font-bold transition-all ${accountStartDate === '' ? 'bg-indigo-500 text-white shadow-sm' : 'bg-indigo-50 text-indigo-600 hover:bg-indigo-100'}`}>全部</button>
+               </div>
+             </div>
           </div>
 
           <div className="bg-white py-3 px-4 rounded-2xl border-2 border-indigo-100 text-center shadow-sm relative overflow-hidden">
@@ -2168,72 +2193,6 @@ export default function App() {
     );
   }
   else if (view === 'settings') {
-    const PillGroupMulti = ({ label, icon: Icon, options, values = [], onChange, isPayer = false }) => {
-      const hasFamily = values.includes('全家');
-      const hasIndividuals = values.some(v => v !== '全家');
-      const handleToggle = (opt) => {
-        let newVals = [...values];
-        if (isPayer) {
-          if (opt === '全家') { if (hasFamily) newVals = []; else newVals = ['全家']; } 
-          else {
-            if (hasFamily) newVals = [opt]; 
-            else { if (newVals.includes(opt)) newVals = newVals.filter(v => v !== opt); else newVals.push(opt); }
-          }
-        } else {
-          if (newVals.includes(opt)) newVals = newVals.filter(v => v !== opt); else newVals.push(opt);
-        }
-        onChange(newVals);
-      };
-
-      const renderButtonRow = (rowOptions, startIndex = 0) => (
-        <div className="flex w-full gap-1 sm:gap-1.5">
-          {rowOptions.map((opt, idxOffset) => {
-            const actualIdx = startIndex + idxOffset;
-            const isSelected = values.includes(opt);
-            const isDisabled = isPayer && ((opt === '全家' && hasIndividuals) || (opt !== '全家' && hasFamily));
-            
-            const style = isPayer ? getRoleColorStyle(opt, actualIdx) : { bg: 'bg-[#F59E0B]', text: 'text-gray-700', borderSel: 'border-[#F59E0B]', lightBg: 'bg-[#FFE28A]', lightBorder: 'border-[#F59E0B]' };
-            
-            let btnClass = '';
-            if (isDisabled) {
-               btnClass = 'bg-gray-100 text-gray-300 border-transparent cursor-not-allowed opacity-60';
-            } else if (isSelected) {
-               btnClass = isPayer 
-                 ? `${style.bg} text-white ${style.borderSel} transform -translate-y-0.5 z-10` 
-                 : `${style.lightBg} text-gray-900 ${style.borderSel} transform -translate-y-0.5 z-10`;
-            } else {
-               btnClass = isPayer
-                 ? `bg-white ${style.text} border-gray-200 hover:border-gray-300 hover:${style.lightBg}`
-                 : `bg-white text-gray-500 border-gray-200 hover:border-gray-300 hover:bg-gray-50`;
-            }
-
-            return (
-              <button key={opt} type="button" onClick={() => handleToggle(opt)} className={`flex-1 min-w-0 py-2 px-0.5 rounded-[1.2rem] text-[12px] sm:text-[14px] font-black transition-all duration-200 border-2 shadow-sm flex items-center justify-center leading-tight truncate ${btnClass}`}>
-                {opt}
-              </button>
-            )
-          })}
-        </div>
-      );
-
-      const needsTwoRows = options.length >= 6;
-      const splitIndex = Math.ceil(options.length / 2);
-
-      return (
-        <div className="mb-3 w-full">
-          {label && <label className="flex items-center gap-1.5 text-[14px] font-bold text-gray-500 mb-1.5 ml-1">{Icon && <Icon size={14} className="text-gray-400" />} {label}</label>}
-          {needsTwoRows ? (
-            <div className="flex flex-col gap-1.5">
-              {renderButtonRow(options.slice(0, splitIndex), 0)}
-              {renderButtonRow(options.slice(splitIndex), splitIndex)}
-            </div>
-          ) : (
-            renderButtonRow(options, 0)
-          )}
-        </div>
-      );
-    };
-
     content = (
       <>
         <header className="bg-gradient-to-r from-purple-400 to-pink-400 px-4 py-3.5 shadow-md shrink-0 z-10 rounded-b-[1.5rem] border-b-4 border-white/20">
@@ -2309,6 +2268,25 @@ export default function App() {
 
             {settingsTab === 'other' && (
               <>
+                <div className="bg-white p-3 sm:p-4 rounded-2xl border-2 border-indigo-100 shadow-sm mb-3">
+                  <div className="flex justify-between items-center gap-3">
+                    <div className="flex-1">
+                      <h3 className="font-bold text-gray-700 text-[15px] sm:text-[16px]">帳戶與統計預設顯示區間</h3>
+                      <p className="text-[11px] sm:text-[12px] text-gray-500 font-bold mt-1 leading-relaxed">設定進入「帳戶總覽」或「統計分析」時，預設要看「當月」還是「全部」的資料。</p>
+                    </div>
+                    <div className="flex bg-gray-100 p-1 rounded-xl shadow-inner shrink-0">
+                      <button
+                        onClick={() => updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', activeRoomId), { accountDefaultRange: '當月' })}
+                        className={`px-3 py-1.5 rounded-lg text-[13px] font-bold transition-all ${(!currentRoom?.accountDefaultRange || currentRoom.accountDefaultRange === '當月') ? 'bg-indigo-500 text-white shadow-sm' : 'text-gray-500 hover:bg-gray-200'}`}
+                      >當月</button>
+                      <button
+                        onClick={() => updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', activeRoomId), { accountDefaultRange: '全部' })}
+                        className={`px-3 py-1.5 rounded-lg text-[13px] font-bold transition-all ${(currentRoom?.accountDefaultRange === '全部') ? 'bg-indigo-500 text-white shadow-sm' : 'text-gray-500 hover:bg-gray-200'}`}
+                      >全部</button>
+                    </div>
+                  </div>
+                </div>
+
                 <SettingBlock title="🙋 登入人員 (付款人)" items={currentRoom?.loginUsers || ['老公', '老婆']} onUpdate={(newList, oldItem, newItem) => updateSettingField('loginUsers', newList, oldItem, newItem)} themeClass="border-purple-100" spanClass="text-purple-600" btnClass="bg-purple-400" placeholder="輸入登入者名稱..." />
                 <p className="text-[12px] font-bold text-purple-400 mt-1 mb-3 bg-purple-50 p-2.5 rounded-xl leading-relaxed">💡 在這裡新增的名稱，會自動變成登入畫面的按鈕喔！修改名稱也會連動更新歷史紀錄。</p>
                 
@@ -2347,7 +2325,7 @@ export default function App() {
                   <div className="flex flex-col gap-2 mb-4">
                     {orderedAutoFillKeys.map((item, idx, arr) => (
                       <div key={item} className="flex justify-between items-center bg-orange-50 p-2 rounded-xl border border-orange-100 shadow-sm gap-2">
-                        <span className="text-[14px] font-bold text-orange-700 flex-1 min-w-0 truncate pl-1">[{item}] ➜ {currentRoom.autoFillRules[item]}</span>
+                        <span className="text-[14px] font-bold text-orange-700 flex-1 min-w-0 truncate pl-1">[{item}] ➜ {currentRoom.autoFillRules?.[item]}</span>
                         <div className="flex items-center gap-1 shrink-0 ml-1">
                             <button onClick={()=>handleMoveRule(item, -1)} disabled={idx===0} className="w-7 h-7 flex items-center justify-center bg-white border border-gray-200 rounded text-gray-400 hover:bg-gray-100 hover:text-blue-500 disabled:opacity-30 transition font-black text-[12px]">↑</button>
                             <button onClick={()=>handleMoveRule(item, 1)} disabled={idx===arr.length-1} className="w-7 h-7 flex items-center justify-center bg-white border border-gray-200 rounded text-gray-400 hover:bg-gray-100 hover:text-blue-500 disabled:opacity-30 transition font-black text-[12px]">↓</button>
@@ -2375,10 +2353,10 @@ export default function App() {
                   <h3 className="font-bold text-gray-700 mb-3 text-[17px] flex items-center gap-2">🤖 付款方式預設規則</h3>
                   <div className="flex flex-col gap-2 mb-4">
                     {orderedMethodKeys.map((merchant, idx, arr) => {
-                      const rule = currentRoom.methodRules[merchant];
+                      const rule = currentRoom.methodRules?.[merchant] || {};
                       return (
                         <div key={merchant} className="flex justify-between items-center bg-blue-50 p-2 rounded-xl border border-blue-100 shadow-sm gap-2">
-                          <span className="text-[14px] font-bold text-blue-700 flex-1 min-w-0 truncate pl-1">[{merchant}] ➜ {rule.method} {rule.subMethod ? `(${rule.subMethod})` : ''}</span>
+                          <span className="text-[14px] font-bold text-blue-700 flex-1 min-w-0 truncate pl-1">[{merchant}] ➜ {rule.method || '未知'} {rule.subMethod ? `(${rule.subMethod})` : ''}</span>
                           <div className="flex items-center gap-1 shrink-0 ml-1">
                               <button onClick={()=>handleMoveMethodRule(merchant, -1)} disabled={idx===0} className="w-7 h-7 flex items-center justify-center bg-white border border-gray-200 rounded text-gray-400 hover:bg-gray-100 hover:text-blue-500 disabled:opacity-30 transition font-black text-[12px]">↑</button>
                               <button onClick={()=>handleMoveMethodRule(merchant, 1)} disabled={idx===arr.length-1} className="w-7 h-7 flex items-center justify-center bg-white border border-gray-200 rounded text-gray-400 hover:bg-gray-100 hover:text-blue-500 disabled:opacity-30 transition font-black text-[12px]">↓</button>
@@ -2487,12 +2465,23 @@ export default function App() {
                  ))}
                </div>
             </div>
-            <div className="flex items-center gap-1.5 bg-white p-2 rounded-2xl shadow-sm border border-teal-100 mb-3">
-               <Calendar size={16} className="text-teal-400 shrink-0 ml-1" />
-               <input type="date" value={analysisStartDate} onChange={e => setAnalysisStartDate(e.target.value)} className="bg-gray-50 border border-gray-100 px-1 py-1.5 rounded-lg outline-none font-bold text-gray-600 text-[12px] focus:border-teal-300 transition flex-1 min-w-0" />
-               <span className="text-gray-300 text-[12px] font-black">~</span>
-               <input type="date" value={analysisEndDate} onChange={e => setAnalysisEndDate(e.target.value)} className="bg-gray-50 border border-gray-100 px-1 py-1.5 rounded-lg outline-none font-bold text-gray-600 text-[12px] focus:border-teal-300 transition flex-1 min-w-0" />
-               <button onClick={() => { setAnalysisStartDate(''); setAnalysisEndDate(getLocalTodayStr()); }} className={`shrink-0 px-2.5 py-1.5 rounded-lg text-[12px] font-bold transition-all ${analysisStartDate === '' ? 'bg-teal-500 text-white shadow-sm' : 'bg-teal-50 text-teal-600 hover:bg-teal-100'}`}>全部</button>
+            <div className="flex flex-col gap-2 bg-white p-2 rounded-2xl shadow-sm border border-teal-100 mb-3">
+               <div className="flex items-center gap-1.5">
+                 <Calendar size={14} className="text-teal-400 shrink-0 ml-1 hidden sm:block" />
+                 <div className="relative flex-1 bg-gray-50 border border-gray-100 px-2 py-1.5 rounded-lg overflow-hidden flex justify-center items-center cursor-pointer min-w-0">
+                    <input type="date" value={analysisStartDate} onChange={e => setAnalysisStartDate(e.target.value)} className="absolute inset-0 w-full h-full opacity-0 z-10 cursor-pointer" />
+                    <span className="font-bold text-gray-600 text-[12px] z-0 pointer-events-none truncate">{analysisStartDate ? toROCYearStr(analysisStartDate) : '不限'}</span>
+                 </div>
+                 <span className="text-gray-300 text-[12px] font-black shrink-0">~</span>
+                 <div className="relative flex-1 bg-gray-50 border border-gray-100 px-2 py-1.5 rounded-lg overflow-hidden flex justify-center items-center cursor-pointer min-w-0">
+                    <input type="date" value={analysisEndDate} onChange={e => setAnalysisEndDate(e.target.value)} className="absolute inset-0 w-full h-full opacity-0 z-10 cursor-pointer" />
+                    <span className="font-bold text-gray-600 text-[12px] z-0 pointer-events-none truncate">{analysisEndDate ? toROCYearStr(analysisEndDate) : '不限'}</span>
+                 </div>
+                 <div className="flex shrink-0 gap-0.5 ml-0.5">
+                     <button onClick={() => { setAnalysisStartDate(getLocalLastMonthStartStr()); setAnalysisEndDate(getLocalLastMonthEndStr()); }} className={`px-2 py-1.5 rounded-lg text-[11px] sm:text-[12px] font-bold transition-all ${(analysisStartDate === getLocalLastMonthStartStr() && analysisEndDate === getLocalLastMonthEndStr()) ? 'bg-teal-500 text-white shadow-sm' : 'bg-teal-50 text-teal-600 hover:bg-teal-100'}`}>上月</button>
+                     <button onClick={() => { setAnalysisStartDate(''); setAnalysisEndDate(getLocalTodayStr()); }} className={`px-2 py-1.5 rounded-lg text-[11px] sm:text-[12px] font-bold transition-all ${analysisStartDate === '' ? 'bg-teal-500 text-white shadow-sm' : 'bg-teal-50 text-teal-600 hover:bg-teal-100'}`}>全部</button>
+                 </div>
+               </div>
             </div>
             <div className="mb-2">
               <label className="block text-[13px] font-bold text-gray-500 mb-1.5 ml-1">分析選單 (可複選)</label>
@@ -2881,7 +2870,7 @@ export default function App() {
                                if (fKey === 'autoFillRules') displayLabel = `[${item}] ➜ ${currentRoom?.autoFillRules?.[item]}`;
                                if (fKey === 'methodRules') {
                                    const rule = currentRoom?.methodRules?.[item];
-                                   displayLabel = `[${item}] ➜ ${rule?.method}${rule?.subMethod ? `(${rule?.subMethod})` : ''}`;
+                                   displayLabel = `[${item}] ➜ ${rule?.method || '未知'}${rule?.subMethod ? `(${rule?.subMethod})` : ''}`;
                                }
                                return (
                                  <button 
@@ -2914,9 +2903,25 @@ export default function App() {
         {/* 底部導覽列 */}
         {user && view === 'room' && !showAddForm && (
           <div className="absolute bottom-0 left-0 w-full bg-white/95 backdrop-blur-xl p-2 pb-6 sm:pb-3 rounded-t-[1.5rem] shadow-[0_-15px_40px_rgba(0,0,0,0.08)] flex justify-between items-center z-20 border-t border-gray-100 px-6">
-            <button onClick={() => { setAccountStartDate(getLocalMonthStartStr()); setAccountEndDate(getLocalTodayStr()); setView('accounts'); }} className="flex flex-col items-center gap-1 text-gray-400 hover:text-indigo-500 transition px-4 py-2"><Wallet size={22} /><span className="font-extrabold text-[11px]">帳戶</span></button>
+            <button onClick={() => { 
+                const defaultRange = currentRoom?.accountDefaultRange || '當月';
+                if (defaultRange === '全部') {
+                   setAccountStartDate(''); setAccountEndDate(getLocalTodayStr());
+                } else {
+                   setAccountStartDate(getLocalMonthStartStr()); setAccountEndDate(getLocalTodayStr());
+                }
+                setView('accounts'); 
+              }} className="flex flex-col items-center gap-1 text-gray-400 hover:text-indigo-500 transition px-4 py-2"><Wallet size={22} /><span className="font-extrabold text-[11px]">帳戶</span></button>
             <button onClick={() => { resetForm(); setRecordType('expense'); setShowAddForm(true); }} className="absolute left-1/2 -translate-x-1/2 -top-5 bg-gradient-to-tr from-pink-400 to-orange-400 text-white w-[60px] h-[60px] rounded-full flex items-center justify-center shadow-[0_10px_20px_rgba(251,146,60,0.4)] border-[3px] border-[#FFFBF0] transform hover:scale-105 transition active:scale-95"><Plus size={32} strokeWidth={3} /></button>
-            <button onClick={() => { setAnalysisType('expense'); setAnalysisStartDate(getLocalMonthStartStr()); setAnalysisEndDate(getLocalTodayStr()); setAnalysisMenus([]); setAnalysisSubSelections({ category: [], title: [], merchant: [], method: [], subMethod: [], payer: [] }); setAnalysisRoleFilter('全部'); setView('analysis'); }} className="flex flex-col items-center gap-1 text-gray-400 hover:text-teal-500 transition px-4 py-2"><BarChart size={24} /><span className="font-extrabold text-[11px]">統計</span></button>
+            <button onClick={() => { 
+                const defaultRange = currentRoom?.accountDefaultRange || '當月';
+                if (defaultRange === '全部') {
+                   setAnalysisStartDate(''); setAnalysisEndDate(getLocalTodayStr());
+                } else {
+                   setAnalysisStartDate(getLocalMonthStartStr()); setAnalysisEndDate(getLocalTodayStr());
+                }
+                setAnalysisType('expense'); setAnalysisMenus([]); setAnalysisSubSelections({ category: [], title: [], merchant: [], method: [], subMethod: [], payer: [] }); setAnalysisRoleFilter('全部'); setView('analysis'); 
+              }} className="flex flex-col items-center gap-1 text-gray-400 hover:text-teal-500 transition px-4 py-2"><BarChart size={24} /><span className="font-extrabold text-[11px]">統計</span></button>
           </div>
         )}
       </div>
