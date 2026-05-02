@@ -711,7 +711,7 @@ export default function App() {
         name: roomName, pin: roomPin, createdBy: user.uid, createdAt: Date.now(),
         loginUsers: availableLoginUsers.length > 0 ? availableLoginUsers : ['老公', '老婆'], 
         categories: ['🍔 飲食', '🚗 交通', '🏠 居住', '💡 水電瓦斯', '🎉 娛樂', '👶 育兒'],
-        categoryItems: { '🍔 飲食': ['早餐', '午餐', '晚餐', '飲料', '宵 মাতৃ', '買菜'], '🚗 交通': ['加油', '大眾運輸', '停車', '保養'], '🏠 居住': ['房租', '日用品', '維修'], '💡 水電瓦斯': ['水費', '電費', '瓦斯費', '電信費'] },
+        categoryItems: { '🍔 飲食': ['早餐', '午餐', '晚餐', '飲料', '宵夜', '買菜'], '🚗 交通': ['加油', '大眾運輸', '停車', '保養'], '🏠 居住': ['房租', '日用品', '維修'], '💡 水電瓦斯': ['水費', '電費', '瓦斯費', '電信費'] },
         autoFillRules: { '早餐': '早餐店', '晚餐': '小吃店', '飲料': '飲料店', '加油': '加油站' },
         methodRules: { '麥當勞': { method: '信用卡', subMethod: '點點卡' }, '蝦皮拍賣': { method: '行動支付', subMethod: '國泰世華' } },
         incomeCategories: ['💰 薪水', '🧧 獎金', '📈 投資', '🎁 其他收入'],
@@ -2322,13 +2322,13 @@ export default function App() {
                   <div className="flex justify-between items-center gap-3">
                     <div className="flex-1">
                       <h3 className="font-bold text-gray-700 text-[15px] sm:text-[16px]">帳戶與統計預設顯示區間</h3>
-                      <p className="text-[11px] sm:text-[12px] text-gray-500 font-bold mt-1 leading-relaxed">設定進入「帳戶總覽」或「統計分析」時，預設要看「上月」還是「全部」的資料。</p>
+                      <p className="text-[11px] sm:text-[12px] text-gray-500 font-bold mt-1 leading-relaxed">設定進入「帳戶總覽」或「統計分析」時，預設要看「當月」還是「全部」的資料。</p>
                     </div>
                     <div className="flex bg-gray-100 p-1 rounded-xl shadow-inner shrink-0">
                       <button
-                        onClick={() => updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', activeRoomId), { accountDefaultRange: '上月' })}
-                        className={`px-3 py-1.5 rounded-lg text-[13px] font-bold transition-all ${(!currentRoom?.accountDefaultRange || currentRoom.accountDefaultRange === '上月') ? 'bg-indigo-500 text-white shadow-sm' : 'text-gray-500 hover:bg-gray-200'}`}
-                      >上月</button>
+                        onClick={() => updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', activeRoomId), { accountDefaultRange: '當月' })}
+                        className={`px-3 py-1.5 rounded-lg text-[13px] font-bold transition-all ${(!currentRoom?.accountDefaultRange || currentRoom.accountDefaultRange === '當月') ? 'bg-indigo-500 text-white shadow-sm' : 'text-gray-500 hover:bg-gray-200'}`}
+                      >當月</button>
                       <button
                         onClick={() => updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', activeRoomId), { accountDefaultRange: '全部' })}
                         className={`px-3 py-1.5 rounded-lg text-[13px] font-bold transition-all ${(currentRoom?.accountDefaultRange === '全部') ? 'bg-indigo-500 text-white shadow-sm' : 'text-gray-500 hover:bg-gray-200'}`}
@@ -2949,26 +2949,26 @@ export default function App() {
             </div>
           </div>
         )}
-        
+
         {/* 底部導覽列 */}
         {user && view === 'room' && !showAddForm && (
           <div className="absolute bottom-0 left-0 w-full bg-white/95 backdrop-blur-xl p-2 pb-6 sm:pb-3 rounded-t-[1.5rem] shadow-[0_-15px_40px_rgba(0,0,0,0.08)] flex justify-between items-center z-20 border-t border-gray-100 px-6">
             <button onClick={() => { 
-                const defaultRange = currentRoom?.accountDefaultRange || '上月';
+                const defaultRange = currentRoom?.accountDefaultRange || '當月';
                 if (defaultRange === '全部') {
                    setAccountStartDate(''); setAccountEndDate(getLocalTodayStr());
                 } else {
-                   setAccountStartDate(getLocalLastMonthStartStr()); setAccountEndDate(getLocalLastMonthEndStr());
+                   setAccountStartDate(getLocalMonthStartStr()); setAccountEndDate(getLocalTodayStr());
                 }
                 setView('accounts'); 
               }} className="flex flex-col items-center gap-1 text-gray-400 hover:text-indigo-500 transition px-4 py-2"><Wallet size={22} /><span className="font-extrabold text-[11px]">帳戶</span></button>
             <button onClick={() => { resetForm(); setRecordType('expense'); setShowAddForm(true); }} className="absolute left-1/2 -translate-x-1/2 -top-5 bg-gradient-to-tr from-pink-400 to-orange-400 text-white w-[60px] h-[60px] rounded-full flex items-center justify-center shadow-[0_10px_20px_rgba(251,146,60,0.4)] border-[3px] border-[#FFFBF0] transform hover:scale-105 transition active:scale-95"><Plus size={32} strokeWidth={3} /></button>
             <button onClick={() => { 
-                const defaultRange = currentRoom?.accountDefaultRange || '上月';
+                const defaultRange = currentRoom?.accountDefaultRange || '當月';
                 if (defaultRange === '全部') {
                    setAnalysisStartDate(''); setAnalysisEndDate(getLocalTodayStr());
                 } else {
-                   setAnalysisStartDate(getLocalLastMonthStartStr()); setAnalysisEndDate(getLocalLastMonthEndStr());
+                   setAnalysisStartDate(getLocalMonthStartStr()); setAnalysisEndDate(getLocalTodayStr());
                 }
                 setAnalysisType('expense'); setAnalysisMenus([]); setAnalysisSubSelections({ category: [], title: [], merchant: [], method: [], subMethod: [], payer: [] }); setAnalysisRoleFilter('全部'); setView('analysis'); 
               }} className="flex flex-col items-center gap-1 text-gray-400 hover:text-teal-500 transition px-4 py-2"><BarChart size={24} /><span className="font-extrabold text-[11px]">統計</span></button>
