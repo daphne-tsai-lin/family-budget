@@ -44,11 +44,11 @@ const getRoomHeaderColor = (roomId) => {
   const colors = [
     'from-[#f6a09a] from-40% to-[#015467]',
     'from-[#026c85] from-15% to-[#a15c36]',
-    'from-blue-600 to-purple-600',
-    'from-blue-400 to-blue-700',
+    'from-[#4798b3] from-40% to-[#d4af37]',
+    'from-[#4b9cd3] from-40% to-[#16213e]',
     'from-teal-600 to-cyan-600',
-    'from-[#758d71] from-40% to-[#bccf90]',
-    'from-[#e7cd79] to-[#467897]',
+    'from-[#8ab87f] from-40% to-[#bccf90]',
+    'from-[#9966cc] to-[#d8a7b1]',
     'from-pink-400 to-amber-300'
   ];
   let hash = 0;
@@ -66,11 +66,11 @@ const getRoomHeaderColor = (roomId) => {
 const ROOM_THEMES = [
   { id: 't1', label: '落櫻碧海', classes: 'from-[#f6a09a] from-40% to-[#015467]' },
   { id: 't2', label: '深海琥珀', classes: 'from-[#026c85] from-15% to-[#a15c36]' },
-  { id: 't3', label: '深邃星空', classes: 'from-blue-600 to-purple-600' },
-  { id: 't4', label: '浩瀚蔚藍', classes: 'from-blue-400 to-blue-700' },
+  { id: 't3', label: '薩克斯雅金', classes: 'from-[#4798b3] from-40% to-[#d4af37]' },
+  { id: 't4', label: '瀚海墨藍', classes: 'from-[#4b9cd3] from-40% to-[#16213e]' },
   { id: 't5', label: '沁涼深海', classes: 'from-teal-600 to-cyan-600' },
-  { id: 't6', label: '抹茶青檸', classes: 'from-[#758d71] from-40% to-[#bccf90]' },
-  { id: 't7', label: '秋日湖光', classes: 'from-[#e7cd79] to-[#467897]' },
+  { id: 't6', label: '抹茶青檸', classes: 'from-[#8ab87f] from-40% to-[#bccf90]' },
+  { id: 't7', label: '蘭紫豆沙', classes: 'from-[#9966cc] to-[#d8a7b1]' },
   { id: 't8', label: '蜜桃珊瑚', classes: 'from-pink-400 to-amber-300' }
 ];
 
