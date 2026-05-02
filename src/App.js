@@ -40,18 +40,16 @@ const getRoleColorStyle = (role, index = 0) => {
 // 房間專屬漸層顏色統一定義 (依據 roomId 雜湊分配)
 // ==========================================
 const getRoomHeaderColor = (roomId) => {
-  if (!roomId) return 'from-pink-400 to-orange-400';
+  if (!roomId) return 'from-[#f6a09a] from-40% to-[#015467]';
   const colors = [
-    'from-pink-400 to-orange-400',
-    'from-indigo-400 to-purple-400',
-    'from-teal-400 to-emerald-400',
-    'from-blue-400 to-cyan-400',
-    'from-rose-400 to-pink-500',
-    'from-amber-400 to-orange-500',
-    'from-fuchsia-400 to-purple-500',
-    'from-sky-400 to-indigo-500',
-    'from-emerald-400 to-cyan-500',
-    'from-violet-400 to-fuchsia-500'
+    'from-[#f6a09a] from-40% to-[#015467]',
+    'from-[#026c85] from-15% to-[#a15c36]',
+    'from-blue-600 to-purple-600',
+    'from-blue-400 to-blue-700',
+    'from-teal-600 to-cyan-600',
+    'from-[#758d71] from-40% to-[#bccf90]',
+    'from-[#e7cd79] to-[#467897]',
+    'from-pink-400 to-amber-300'
   ];
   let hash = 0;
   for (let i = 0; i < roomId.length; i++) {
@@ -64,6 +62,17 @@ const getRoomHeaderColor = (roomId) => {
   
   return colors[Math.abs(hash) % colors.length];
 };
+
+const ROOM_THEMES = [
+  { id: 't1', label: '落櫻碧海', classes: 'from-[#f6a09a] from-40% to-[#015467]' },
+  { id: 't2', label: '深海琥珀', classes: 'from-[#026c85] from-15% to-[#a15c36]' },
+  { id: 't3', label: '深邃星空', classes: 'from-blue-600 to-purple-600' },
+  { id: 't4', label: '浩瀚蔚藍', classes: 'from-blue-400 to-blue-700' },
+  { id: 't5', label: '沁涼深海', classes: 'from-teal-600 to-cyan-600' },
+  { id: 't6', label: '抹茶青檸', classes: 'from-[#758d71] from-40% to-[#bccf90]' },
+  { id: 't7', label: '秋日湖光', classes: 'from-[#e7cd79] to-[#467897]' },
+  { id: 't8', label: '蜜桃珊瑚', classes: 'from-pink-400 to-amber-300' }
+];
 
 // ==========================================
 // 計算機功能與按鍵設定 (馬卡龍色系)
@@ -1981,7 +1990,7 @@ export default function App() {
     );
   }
   else if (view === 'room' && !showAddForm) {
-    const headerColorClass = getRoomHeaderColor(activeRoomId);
+    const headerColorClass = currentRoom?.headerTheme || getRoomHeaderColor(activeRoomId);
 
     content = (
       <>
@@ -2318,6 +2327,27 @@ export default function App() {
 
             {settingsTab === 'other' && (
               <>
+                <div className="bg-white p-3 sm:p-4 rounded-2xl border-2 border-indigo-100 shadow-sm mb-3">
+                  <h3 className="font-bold text-gray-700 text-[15px] sm:text-[16px] mb-1">🎨 自訂房間首頁顏色</h3>
+                  <p className="text-[11px] sm:text-[12px] text-gray-500 font-bold mb-3 leading-relaxed">點擊下方色塊即可立即更換此房間的專屬首頁顏色。</p>
+                  <div className="flex justify-between items-center w-full px-0.5 sm:px-1">
+                    {ROOM_THEMES.map(theme => {
+                       const fallbackTheme = getRoomHeaderColor(activeRoomId);
+                       const isSelected = currentRoom?.headerTheme ? currentRoom.headerTheme === theme.classes : fallbackTheme === theme.classes;
+                       return (
+                         <button
+                            key={theme.id}
+                            onClick={() => updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', activeRoomId), { headerTheme: theme.classes })}
+                            className={`w-8 h-8 sm:w-9 sm:h-9 rounded-full shadow-sm transition-all duration-200 border-2 shrink-0 ${isSelected ? 'border-white scale-110 shadow-md ring-2 ring-gray-400 opacity-100' : 'border-transparent hover:scale-105 opacity-60 hover:opacity-100'} bg-gradient-to-tr ${theme.classes} flex items-center justify-center`}
+                            title={theme.label}
+                         >
+                           {isSelected && <Check size={14} className="text-white drop-shadow-md" />}
+                         </button>
+                       )
+                    })}
+                  </div>
+                </div>
+
                 <div className="bg-white p-3 sm:p-4 rounded-2xl border-2 border-indigo-100 shadow-sm mb-3">
                   <div className="flex justify-between items-center gap-3">
                     <div className="flex-1">
