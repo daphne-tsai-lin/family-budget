@@ -40,16 +40,16 @@ const getRoleColorStyle = (role, index = 0) => {
 // 房間專屬漸層顏色統一定義 (依據 roomId 雜湊分配)
 // ==========================================
 const getRoomHeaderColor = (roomId) => {
-  if (!roomId) return 'from-[#f6a09a] from-40% to-[#015467]';
+  if (!roomId) return 'from-[#cf736c] from-35% via-[#9b728b] to-[#027d9c]';
   const colors = [
-    'from-[#f6a09a] from-40% to-[#015467]',
+    'from-[#cf736c] from-35% via-[#9b728b] to-[#027d9c]',
     'from-[#026c85] from-15% to-[#a15c36]',
-    'from-[#4798b3] from-40% to-[#d4af37]',
-    'from-[#4b9cd3] from-40% to-[#16213e]',
+    'from-[#367b93] from-40% to-[#d4af37]',
+    'from-[#3485ba] from-40% to-[#16213e]',
     'from-teal-600 to-cyan-600',
-    'from-[#8ab87f] from-40% to-[#bccf90]',
-    'from-[#9966cc] to-[#d8a7b1]',
-    'from-pink-400 to-amber-300'
+    'from-[#72a067] from-40% to-[#9ab06e]',
+    'from-[#7f4eb3] to-[#a3727e]',
+    'from-[#cc2b6e] from-40% via-[#6d2875] to-[#11235a]'
   ];
   let hash = 0;
   for (let i = 0; i < roomId.length; i++) {
@@ -64,14 +64,14 @@ const getRoomHeaderColor = (roomId) => {
 };
 
 const ROOM_THEMES = [
-  { id: 't1', label: '落櫻碧海', classes: 'from-[#f6a09a] from-40% to-[#015467]' },
+  { id: 't1', label: '落櫻碧海', classes: 'from-[#cf736c] from-35% via-[#9b728b] to-[#027d9c]' },
   { id: 't2', label: '深海琥珀', classes: 'from-[#026c85] from-15% to-[#a15c36]' },
-  { id: 't3', label: '薩克斯雅金', classes: 'from-[#4798b3] from-40% to-[#d4af37]' },
-  { id: 't4', label: '瀚海墨藍', classes: 'from-[#4b9cd3] from-40% to-[#16213e]' },
+  { id: 't3', label: '薩克斯雅金', classes: 'from-[#367b93] from-40% to-[#d4af37]' },
+  { id: 't4', label: '瀚海墨藍', classes: 'from-[#3485ba] from-40% to-[#16213e]' },
   { id: 't5', label: '沁涼深海', classes: 'from-teal-600 to-cyan-600' },
-  { id: 't6', label: '抹茶青檸', classes: 'from-[#8ab87f] from-40% to-[#bccf90]' },
-  { id: 't7', label: '蘭紫豆沙', classes: 'from-[#9966cc] to-[#d8a7b1]' },
-  { id: 't8', label: '蜜桃珊瑚', classes: 'from-pink-400 to-amber-300' }
+  { id: 't6', label: '抹茶青檸', classes: 'from-[#72a067] from-40% to-[#9ab06e]' },
+  { id: 't7', label: '蘭紫豆沙', classes: 'from-[#7f4eb3] to-[#a3727e]' },
+  { id: 't8', label: '暮色玫瑰', classes: 'from-[#cc2b6e] from-40% via-[#6d2875] to-[#11235a]' }
 ];
 
 // ==========================================
