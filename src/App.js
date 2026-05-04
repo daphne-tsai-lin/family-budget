@@ -865,7 +865,7 @@ export default function App() {
       
       await batch.commit();
       
-      let shouldPrompt = !isEditing && recordType === 'expense' && recordMethod === '現金' && currentRoom?.promptCashSync && !excludeFromBalance;
+      let shouldPrompt = !isEditing && recordType === 'expense' && currentRoom?.promptCashSync && !excludeFromBalance;
       if (shouldPrompt && currentRoom?.excludedPromptPayers?.length > 0) {
           const payers = Array.isArray(recordPayer) ? recordPayer : [recordPayer];
           const isExcluded = payers.some(p => currentRoom.excludedPromptPayers.includes(p));
@@ -2341,7 +2341,7 @@ export default function App() {
                             className={`w-8 h-8 sm:w-9 sm:h-9 rounded-full shadow-sm transition-all duration-200 border-2 shrink-0 ${isSelected ? 'border-white scale-110 shadow-md ring-2 ring-gray-400 opacity-100' : 'border-transparent hover:scale-105 opacity-60 hover:opacity-100'} bg-gradient-to-tr ${theme.classes} flex items-center justify-center`}
                             title={theme.label}
                          >
-                           {isSelected && <Check size={14} className="text-white drop-shadow-md" />}
+                            {isSelected && <Check size={14} className="text-white drop-shadow-md" />}
                          </button>
                        )
                     })}
@@ -2373,8 +2373,8 @@ export default function App() {
                 <div className="bg-white p-3 sm:p-4 rounded-2xl border-2 border-green-100 shadow-sm mb-3">
                   <div className="flex justify-between items-center gap-3">
                     <div className="flex-1">
-                      <h3 className="font-bold text-gray-700 text-[15px] sm:text-[16px]">現金支出自動跨房間提示</h3>
-                      <p className="text-[11px] sm:text-[12px] text-gray-500 font-bold mt-1 leading-relaxed">開啟後，每次新增「現金」支出存檔時，會自動跳出傳送至其他房間的詢問視窗。</p>
+                      <h3 className="font-bold text-gray-700 text-[15px] sm:text-[16px]">支出自動跨房間提示</h3>
+                      <p className="text-[11px] sm:text-[12px] text-gray-500 font-bold mt-1 leading-relaxed">開啟後，每次新增「支出」存檔時，會自動跳出傳送至其他房間的詢問視窗。</p>
                     </div>
                     <button 
                       onClick={() => updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', activeRoomId), { promptCashSync: !currentRoom?.promptCashSync })}
@@ -2393,7 +2393,7 @@ export default function App() {
                          onChange={(vals) => updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', activeRoomId), { excludedPromptPayers: vals })} 
                          isPayer={true} 
                        />
-                       <p className="text-[11px] text-gray-400 font-bold mt-1.5">💡 當現金支出的對象包含上方勾選的對象時，將「不會」跳出跨房間提示。</p>
+                       <p className="text-[11px] text-gray-400 font-bold mt-1.5">💡 當支出的對象包含上方勾選的對象時，將「不會」跳出跨房間提示。</p>
                     </div>
                   )}
                 </div>
@@ -2961,11 +2961,11 @@ export default function App() {
                                    {displayLabel}
                                  </button>
                                )
-                            })}
+                             })}
                          </div>
                        </div>
                      )
-                  })}
+                   })}
                 </div>
                 
                 <button 
