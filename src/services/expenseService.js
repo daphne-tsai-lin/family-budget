@@ -2,30 +2,43 @@ import { db } from "../firebase/firebaseConfig";
 import {
   collection,
   addDoc,
-  getDocs,
   deleteDoc,
   doc,
   query,
   orderBy,
+  onSnapshot,
   serverTimestamp
 } from "firebase/firestore";
 
 const expenseCollection = collection(db, "expenses");
 
-export const getExpenses = async () => {
+/*
+即時監聽資料
+*/
+
+export const subscribeExpenses = (callback) => {
 
   const q = query(
     expenseCollection,
     orderBy("date", "desc")
   );
 
-  const snapshot = await getDocs(q);
+  return onSnapshot(q, (snapshot) => {
 
-  return snapshot.docs.map(doc => ({
-    id: doc.id,
-    ...doc.data()
-  }));
+    const expenses = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
+
+    callback(expenses);
+
+  });
+
 };
+
+/*
+新增記帳
+*/
 
 export const addExpense = async (expense) => {
 
@@ -35,6 +48,10 @@ export const addExpense = async (expense) => {
   });
 
 };
+
+/*
+刪除記帳
+*/
 
 export const deleteExpense = async (id) => {
 
