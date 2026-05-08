@@ -1,30 +1,28 @@
 import { useState, useEffect } from "react";
-import { getExpenses } from "../services/expenseService";
+import { subscribeExpenses } from "../services/expenseService";
 
 export const useExpenses = () => {
 
   const [expenses, setExpenses] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const loadExpenses = async () => {
-
-    const data = await getExpenses();
-
-    setExpenses(data);
-
-    setLoading(false);
-  };
-
   useEffect(() => {
 
-    loadExpenses();
+    const unsubscribe = subscribeExpenses((data) => {
+
+      setExpenses(data);
+
+      setLoading(false);
+
+    });
+
+    return () => unsubscribe();
 
   }, []);
 
   return {
     expenses,
-    loading,
-    reload: loadExpenses
+    loading
   };
 
 };
