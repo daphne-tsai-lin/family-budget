@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Sparkles, Copy, Trash2, X, Send } from 'lucide-react';
-import { onAuthStateChanged } from 'firebase/auth';
+// 💡 確保引入了 signInAnonymously 來解決「魔法連線中」卡住的問題
+import { onAuthStateChanged, signInAnonymously } from 'firebase/auth';
 import { doc, getDoc, updateDoc, onSnapshot, collection, writeBatch, deleteField, setDoc, query, where } from 'firebase/firestore';
 
 import { auth, db, appId } from './firebase/firebaseConfig'; 
@@ -56,15 +57,28 @@ export default function App() {
   // 💡 效能優化：記錄這次開啟 App 是否已經清理過過期圖片了
   const hasPrunedPhotos = useRef(false);
 
+  // 1. 初始化與匿名登入機制 (解決卡在連線中的問題)
   useEffect(() => {
     try {
       const storedRooms = JSON.parse(localStorage.getItem('expenseApp_savedRooms') || '[]');
       setSavedRooms(storedRooms);
     } catch(e) {}
-    const unsubscribe = onAuthStateChanged(auth, setUser);
+    
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      if (currentUser) {
+        setUser(currentUser);
+      } else {
+        // 如果沒有登入，自動在背景進行匿名登入
+        signInAnonymously(auth).catch((error) => {
+          console.error("Firebase 連線失敗:", error);
+          setErrorMsg("系統連線失敗，請檢查網路");
+        });
+      }
+    });
     return () => unsubscribe();
   }, []);
 
+  // 2. 防誤觸退出機制
   useEffect(() => {
     window.history.pushState({ trap: true }, '');
     const handleBeforeUnload = (e) => { e.preventDefault(); e.returnValue = ''; };
@@ -78,6 +92,7 @@ export default function App() {
     return () => { window.removeEventListener('beforeunload', handleBeforeUnload); window.removeEventListener('popstate', handlePopState); };
   }, []);
 
+  // 3. 監聽房間名稱與名單
   useEffect(() => {
     if ((view === 'login' || view === 'create') && roomCode && user) {
       const timer = setTimeout(async () => {
@@ -93,6 +108,7 @@ export default function App() {
     }
   }, [roomCode, user, view]);
 
+  // 4. 精準載入資料庫
   useEffect(() => {
     if (!user || !activeRoomId) return;
     const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', activeRoomId);
@@ -108,7 +124,7 @@ export default function App() {
     return () => { unsubscribeRoom(); unsubscribeExpenses(); };
   }, [user, activeRoomId]);
 
-  // 💡 效能優化：只在初次載入資料時清理一次過期圖片，避免頻繁渲染消耗效能
+  // 5. 效能優化：只清理一次過期圖片
   useEffect(() => {
     if (!records || records.length === 0 || !activeRoomId || hasPrunedPhotos.current) return;
     const recordsToPrune = records.filter(r => r.photoBase64 && (Date.now() - r.timestamp > 90 * 24 * 60 * 60 * 1000));
@@ -128,14 +144,15 @@ export default function App() {
       };
       pruneOldPhotos();
     }
-    hasPrunedPhotos.current = true; // 標記為已清理
+    hasPrunedPhotos.current = true;
   }, [records, activeRoomId]);
 
+  // 6. 狀態自動重置
   useEffect(() => {
     if (view !== 'room') { setSearchQuery(''); setHomeFilterDate(getLocalTodayStr()); }
   }, [view]);
 
-  // === 穩定參照的 Handlers (效能優化) ===
+  // === 穩定參照的 Handlers ===
   const handleEditRecord = useCallback((record) => {
     setEditRecordId(record?.id);
     setShowAddForm(true);
@@ -146,6 +163,7 @@ export default function App() {
     setEditRecordId(null);
   }, []);
 
+  // === 業務邏輯 ===
   const handleJoinRoom = async (e) => {
     e.preventDefault(); setErrorMsg('');
     if (!currentUserRole || !roomCode || !roomPin) return setErrorMsg('請填寫完整代碼、密碼並選擇身份');
@@ -191,7 +209,7 @@ export default function App() {
         name: roomName, pin: roomPin, createdBy: user.uid, createdAt: Date.now(),
         loginUsers: availableLoginUsers.length > 0 ? availableLoginUsers : ['老公', '老婆'],
         categories: ['🍔 飲食', '🚗 交通', '🏠 居住', '💡 水電瓦斯', '🎉 娛樂', '👶 育兒'],
-        categoryItems: { '🍔 飲食': ['早餐', '午餐', '晚餐', '飲料', '宵夜', '買菜'], '🚗 交通': ['加油', '大眾運輸', '停車', '保養'], '🏠 居住': ['房租', '日用品', '維修'], '💡 水電瓦斯': ['水費', '電費', '瓦斯費', '電信費'] },
+        categoryItems: { '🍔 飲食': ['早餐', '午餐', '晚餐', '飲料', '宵備', '買菜'], '🚗 交通': ['加油', '大眾運輸', '停車', '保養'], '🏠 居住': ['房租', '日用品', '維修'], '💡 水電瓦斯': ['水費', '電費', '瓦斯費', '電信費'] },
         autoFillRules: { '早餐': '早餐店', '晚餐': '小吃店', '飲料': '飲料店', '加油': '加油站' },
         methodRules: { '麥當勞': { method: '信用卡', subMethod: '點點卡' }, '蝦皮拍賣': { method: '行動支付', subMethod: '國泰世華' } },
         incomeCategories: ['💰 薪水', '🧧 獎金', '📈 投資', '🎁 其他收入'],
