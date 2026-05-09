@@ -74,7 +74,7 @@ const RecordFormView = ({ recordToEdit, copyRecordData, onClose, setCrossRoomRec
       // 💡 週期性防呆第一關：修改時絕對會詢問！
       const oldWasPeriodic = oldRecord?.groupId || (oldRecord && oldRecord.frequency !== '一次');
       if (isEditing && oldWasPeriodic) {
-        updateFuture = window.confirm('這是一筆設定了「週期」的歷史紀錄。\n\n請問您要一併變更「未來的」紀錄嗎？\n\n(按【確定】變更當次與未來，按【取消】則僅修改這單一筆。\n💡 放心，過去既有的紀錄絕對不會被更動)');
+        updateFuture = window.confirm('此筆為週期性紀錄\n\n，請問一併變更「未來」紀錄嗎？\n\n(按【確定】變更當次與未來，按【取消】則僅修改此筆。\n💡 過去既有的紀錄絕對不會被更動)');
       } else if (isEditing && !oldWasPeriodic && record.frequency !== '一次') {
         updateFuture = true;
       }
