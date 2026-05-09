@@ -1,38 +1,33 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ChevronLeft, Save, Upload, Tag, Store, Receipt, Calendar, Settings, Image as ImageIcon } from 'lucide-react';
+// 💡 修正：補齊了所有遺漏的圖示，解決白畫面問題！
+import { ChevronLeft, Save, Upload, Tag, Store, Receipt, Calendar, Settings, Image as ImageIcon, Wallet, PiggyBank, Sparkles, X } from 'lucide-react';
 import { collection, doc, writeBatch } from 'firebase/firestore';
 import { db, appId } from '../firebase/firebaseConfig';
 import { CustomDropdown, MethodSelector, PillGroupMulti } from '../components/SharedUI';
 import { getLocalTodayStr, generateFutureDates, evaluateCalc } from '../utils/helpers';
 
-const RecordFormView = ({ user, activeRoomId, currentRoom, currentUserRole, records, recordToEdit, onClose, setCrossRoomRecord }) => {
-  const [record, setRecord] = useState(recordToEdit || {
-    type: 'expense', amount: '', date: getLocalTodayStr(),
-    category: currentRoom?.categories?.[0] || '🍔 飲食',
-    title: '', merchant: '', method: '現金', subMethod: '', transferToMethod: '', transferToSubMethod: '',
-    payer: ['全家'], note: '', photoBase64: '', excludeFromBalance: false,
-    frequency: '一次', frequencyDays: [], frequencyInterval: '3個月', frequencyCustomText: '10'
+const RecordFormView = ({ user, activeRoomId, currentRoom, currentUserRole, records, recordToEdit, copyRecordData, onClose, setCrossRoomRecord }) => {
+  
+  // 💡 修正：處理傳入的複製資料 (移除舊ID，保留內容，日期預設為今天)
+  const [record, setRecord] = useState(() => {
+    if (recordToEdit) return recordToEdit;
+    if (copyRecordData) {
+      const { id, groupId, ...rest } = copyRecordData;
+      return { ...rest, date: getLocalTodayStr() };
+    }
+    return {
+      type: 'expense', amount: '', date: getLocalTodayStr(),
+      category: currentRoom?.categories?.[0] || '🍔 飲食',
+      title: '', merchant: '', method: '現金', subMethod: '', transferToMethod: '', transferToSubMethod: '',
+      payer: ['全家'], note: '', photoBase64: '', excludeFromBalance: false,
+      frequency: '一次', frequencyDays: [], frequencyInterval: '3個月', frequencyCustomText: '10'
+    };
   });
 
-  const [calcInput, setCalcInput] = useState(recordToEdit ? String(recordToEdit.amount) : '');
-  const [amount, setAmount] = useState(recordToEdit ? recordToEdit.amount : 0);
+  const [calcInput, setCalcInput] = useState((recordToEdit || copyRecordData) ? String((recordToEdit || copyRecordData).amount) : '');
+  const [amount, setAmount] = useState((recordToEdit || copyRecordData) ? (recordToEdit || copyRecordData).amount : 0);
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef(null);
-
-  // 💡 修正：補回商家預設規則 (Auto-fill)
-  useEffect(() => {
-    if (!recordToEdit && record.title && currentRoom?.autoFillRules?.[record.title]) {
-      setRecord(prev => ({ ...prev, merchant: currentRoom.autoFillRules[record.title] }));
-    }
-  }, [record.title, recordToEdit, currentRoom]);
-
-  // 💡 修正：補回付款方式預設規則 (Method Rules)
-  useEffect(() => {
-    if (!recordToEdit && record.merchant && currentRoom?.methodRules?.[record.merchant]) {
-      const rule = currentRoom.methodRules[record.merchant];
-      setRecord(prev => ({ ...prev, method: rule.method, subMethod: rule.subMethod || '' }));
-    }
-  }, [record.merchant, recordToEdit, currentRoom]);
 
   const handleCalcInput = (val) => {
     if (val === 'C') { setCalcInput(''); setAmount(0); }
@@ -166,7 +161,7 @@ const RecordFormView = ({ user, activeRoomId, currentRoom, currentUserRole, reco
     <div className="absolute inset-0 bg-[#FFFBF0] z-50 flex flex-col overflow-hidden">
       <header className="bg-white px-4 py-3 border-b border-gray-100 shadow-sm shrink-0 flex justify-between items-center z-10 rounded-b-2xl">
         <button onClick={onClose} className="p-2 text-gray-400 hover:bg-gray-50 rounded-full transition"><ChevronLeft size={24}/></button>
-        <h2 className="text-[18px] font-black text-gray-800 tracking-wide">{recordToEdit ? '✏️ 編輯紀錄' : '✨ 新增紀錄'}</h2>
+        <h2 className="text-[18px] font-black text-gray-800 tracking-wide">{recordToEdit ? '✏️ 編輯紀錄' : copyRecordData ? '✨ 複製新增' : '✨ 新增紀錄'}</h2>
         <button onClick={handleSave} disabled={!isFormValid()} className={`px-4 py-2 rounded-xl font-bold text-[14px] flex items-center shadow-sm transition-all ${isFormValid() ? 'bg-orange-500 text-white hover:bg-orange-600 hover:-translate-y-0.5' : 'bg-gray-100 text-gray-300 cursor-not-allowed'}`}>
           <Save size={16} className="mr-1.5"/> 儲存
         </button>
