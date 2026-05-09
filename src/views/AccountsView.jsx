@@ -4,16 +4,16 @@ import { RecordItem } from '../components/SharedUI';
 
 const AccountsView = ({ user, activeRoomId, currentRoom, records, setView, setViewingRecord, currentUserRole }) => {
   const [filterRange, setFilterRange] = useState(currentRoom?.accountDefaultRange || '當月');
-  const [selectedAccount, setSelectedAccount] = useState(null);
+  // 💡 修正：加上可選擇特定月份的狀態
+  const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
 
   const displayRecords = useMemo(() => {
     let filtered = records;
-    if (filterRange === '當月') {
-      const thisMonth = new Date().toISOString().slice(0, 7);
-      filtered = filtered.filter(r => r.date.startsWith(thisMonth));
+    if (filterRange !== '全部') {
+      filtered = filtered.filter(r => r.date.startsWith(selectedMonth));
     }
     return filtered;
-  }, [records, filterRange]);
+  }, [records, filterRange, selectedMonth]);
 
   const accountData = useMemo(() => {
     const balances = { ...currentRoom?.initialBalances };
@@ -24,7 +24,6 @@ const AccountsView = ({ user, activeRoomId, currentRoom, records, setView, setVi
     if(balances['現金'] === undefined) balances['現金'] = 0;
 
     displayRecords.forEach(r => {
-      // 💡 修正：嚴格排除勾選了「不計入總覽」的明細
       if (r.excludeFromBalance) return; 
 
       if (r.type === 'expense' || !r.type) {
@@ -68,8 +67,6 @@ const AccountsView = ({ user, activeRoomId, currentRoom, records, setView, setVi
   const { balances, creditCards, totalAssets, totalLiabilities, netAssets } = accountData;
 
   const handleAccountClick = (type, name) => {
-    // 顯示帳戶反查的明細，這裡的資料包含了所有勾或沒勾的項目，
-    // 以便在點進去看的時候，依然能看到被打上刪除線的紀錄
     const accountRecords = displayRecords.filter(r => {
       if (r.type === 'transfer') {
         if (type === 'balance' && ((['銀行', '現金', '電子票證'].includes(r.method) && r.subMethod === name) || (r.method === '現金' && name === '現金'))) return true;
@@ -110,9 +107,12 @@ const AccountsView = ({ user, activeRoomId, currentRoom, records, setView, setVi
 
       <div className="px-4 py-3 shrink-0">
         <div className="bg-gray-100 p-1 rounded-xl flex shadow-inner border border-gray-200">
-          {['當月', '全部'].map(opt => (
-            <button key={opt} onClick={() => setFilterRange(opt)} className={`flex-1 py-1.5 rounded-lg text-[14px] font-black transition-all ${filterRange === opt ? 'bg-white text-blue-600 shadow-sm transform -translate-y-0.5' : 'text-gray-400 hover:text-gray-600'}`}>{opt}</button>
-          ))}
+          {/* 💡 修正：把原本的純按鈕改成可以點擊選擇特定月份的設計 */}
+          <label className={`flex-1 relative flex justify-center items-center py-1.5 rounded-lg text-[14px] font-black transition-all cursor-pointer ${filterRange !== '全部' ? 'bg-white text-blue-600 shadow-sm transform -translate-y-0.5' : 'text-gray-400 hover:text-gray-600'}`}>
+            <input type="month" value={selectedMonth} onChange={(e) => { setSelectedMonth(e.target.value); setFilterRange('月'); }} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
+            {filterRange !== '全部' && selectedMonth === new Date().toISOString().slice(0, 7) ? '當月' : selectedMonth}
+          </label>
+          <button onClick={() => setFilterRange('全部')} className={`flex-1 py-1.5 rounded-lg text-[14px] font-black transition-all ${filterRange === '全部' ? 'bg-white text-blue-600 shadow-sm transform -translate-y-0.5' : 'text-gray-400 hover:text-gray-600'}`}>全部</button>
         </div>
       </div>
 
