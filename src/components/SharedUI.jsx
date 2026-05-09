@@ -143,3 +143,76 @@ export const PillGroupMulti = ({ label, icon: Icon, options, values = [], onChan
     </div>
   );
 };
+// ==========================================
+// 共用組件：圓餅圖 SVG (從原本 App.js 搬移過來)
+// ==========================================
+export const MyCustomPieChart = ({ data, colors }) => {
+  const total = data.reduce((sum, d) => sum + d.value, 0);
+  if (total === 0) return <div className="text-gray-400 text-center py-10 font-bold bg-white rounded-2xl border-2 border-dashed border-gray-200 text-sm">無分析數據 📊</div>;
+  
+  let cumulativeValue = 0;
+  const slices = data.map((slice, i) => {
+    const startPercent = cumulativeValue / total;
+    cumulativeValue += slice.value;
+    const endPercent = cumulativeValue / total;
+    const slicePercent = slice.value / total;
+    const startAngle = (startPercent - 0.25) * 2 * Math.PI;
+    const endAngle = (endPercent - 0.25) * 2 * Math.PI;
+    const midAngle = (startPercent + slicePercent / 2 - 0.25) * 2 * Math.PI;
+    const isSmall = slicePercent < 0.08;
+    return { ...slice, i, startPercent, endPercent, slicePercent, startAngle, endAngle, midAngle, isSmall, anchorSide: Math.cos(midAngle) >= 0 ? 1 : -1, targetY: Math.sin(midAngle) * 1.15 };
+  });
+
+  const resolveCollisions = (sideSlices) => {
+    const MIN_DIST = 0.16;
+    sideSlices.sort((a, b) => a.targetY - b.targetY);
+    for (let j = 1; j < sideSlices.length; j++) {
+      if (sideSlices[j].targetY - sideSlices[j-1].targetY < MIN_DIST) {
+        sideSlices[j].targetY = sideSlices[j-1].targetY + MIN_DIST;
+      }
+    }
+  };
+  resolveCollisions(slices.filter(s => s.isSmall && s.anchorSide === 1));
+  resolveCollisions(slices.filter(s => s.isSmall && s.anchorSide === -1));
+
+  return (
+    <svg viewBox="-1.25 -1.25 2.5 2.5" className="w-full max-w-[200px] h-auto mx-auto drop-shadow-md overflow-visible">
+      {slices.map((s) => {
+        const color = colors[s.i % colors.length];
+        if (s.value === total) {
+          return (
+            <g key={s.i}>
+              <circle r="1" cx="0" cy="0" fill={color} />
+              <text x="0" y="0" fill="white" fontSize="0.25" fontWeight="bold" textAnchor="middle" dominantBaseline="central" style={{ textShadow: '0px 1px 3px rgba(0,0,0,0.4)' }}>100%</text>
+            </g>
+          );
+        }
+        const startX = Math.cos(s.startAngle), startY = Math.sin(s.startAngle);
+        const endX = Math.cos(s.endAngle), endY = Math.sin(s.endAngle);
+        const largeArcFlag = s.slicePercent > 0.5 ? 1 : 0;
+        const pathData = [`M 0 0`, `L ${startX} ${startY}`, `A 1 1 0 ${largeArcFlag} 1 ${endX} ${endY}`, `Z`].join(' ');
+        
+        if (s.isSmall) {
+          const lineStartX = Math.cos(s.midAngle) * 0.9, lineStartY = Math.sin(s.midAngle) * 0.9;
+          const bendX = Math.cos(s.midAngle) * 1.05, elbowX = bendX + (0.12 * s.anchorSide);
+          return (
+            <g key={s.i}>
+              <path d={pathData} fill={color} stroke="white" strokeWidth="0.015" className="transition-all duration-300 hover:opacity-80" />
+              <polyline points={`${lineStartX},${lineStartY} ${bendX},${s.targetY} ${elbowX},${s.targetY}`} stroke={color} strokeWidth="0.015" fill="none" />
+              <text x={elbowX + (0.02 * s.anchorSide)} y={s.targetY} fill={color} fontSize="0.12" fontWeight="bold" textAnchor={s.anchorSide === 1 ? "start" : "end"} dominantBaseline="central">{Math.round(s.slicePercent * 100)}%</text>
+            </g>
+          );
+        } else {
+          const textRadius = 0.65;
+          const textX = Math.cos(s.midAngle) * textRadius, textY = Math.sin(s.midAngle) * textRadius;
+          return (
+            <g key={s.i}>
+              <path d={pathData} fill={color} stroke="white" strokeWidth="0.015" className="transition-all duration-300 hover:opacity-80" />
+              <text x={textX} y={textY} fill="white" fontSize="0.18" fontWeight="bold" textAnchor="middle" dominantBaseline="central" style={{ textShadow: '0px 1px 3px rgba(0,0,0,0.6)' }}>{Math.round(s.slicePercent * 100)}%</text>
+            </g>
+          );
+        }
+      })}
+    </svg>
+  );
+};
