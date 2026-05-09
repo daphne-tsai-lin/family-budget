@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X, Calculator, Calendar, RefreshCw, Store, User, CreditCard, Wallet, Tag, Camera, Image as ImageIcon, Trash2, Check } from 'lucide-react';
 import { doc, collection, writeBatch, deleteField } from 'firebase/firestore';
-import { db, appId } from '../firebase/Config';
+import { db, appId } from '../firebase/firebaseConfig';
 import { getLocalTodayStr, toROCYearStr, evaluateCalc, generateFutureDates } from '../utils/helpers';
 import { CustomDropdown, MethodSelector, PillGroupMulti } from '../components/SharedUI'; // 確保這三個有搬到 SharedUI.jsx
 
