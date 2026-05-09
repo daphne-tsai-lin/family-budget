@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Sparkles, Copy, Trash2, X, Send } from 'lucide-react';
 import { onAuthStateChanged } from 'firebase/auth';
 import { doc, getDoc, updateDoc, onSnapshot, collection, writeBatch, deleteField, setDoc } from 'firebase/firestore';
-import { auth, db, appId } from './firebase/Config';
+import { auth, db, appId } from './firebase/config';
 import { getLocalTodayStr, toROCYearStr, getRoleColorStyle } from './utils/helpers';
 
 // 引入我們剛建立的所有模組化畫面
