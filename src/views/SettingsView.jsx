@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Settings, RefreshCw, Check, Trash2, X, User } from 'lucide-react';
 import { doc, updateDoc, writeBatch, deleteField, getDoc } from 'firebase/firestore';
-import { db, appId } from '../firebase/Config';
+import { db, appId } from '../firebase/firebaseConfig';
 import { SettingBlock, PillGroupMulti } from '../components/SharedUI';
 import { getRoomHeaderColor } from '../utils/helpers';
 
