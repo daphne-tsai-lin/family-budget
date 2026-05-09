@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Sparkles, Copy, Trash2, X, Send } from 'lucide-react';
 import { onAuthStateChanged } from 'firebase/auth';
 import { doc, getDoc, updateDoc, onSnapshot, collection, writeBatch, deleteField, setDoc } from 'firebase/firestore';
+
+// 確保這裡是正確的 firebaseConfig 路徑
 import { auth, db, appId } from './firebase/firebaseConfig'; 
 import { getLocalTodayStr, toROCYearStr, getRoleColorStyle, generateFutureDates } from './utils/helpers';
 
@@ -18,29 +20,24 @@ export default function App() {
   const [currentUserRole, setCurrentUserRole] = useState('');
   const [view, setView] = useState('login');
   
-  // 房間與資料狀態
   const [activeRoomId, setActiveRoomId] = useState(null);
   const [currentRoom, setCurrentRoom] = useState(null);
   const [records, setRecords] = useState([]);
   const [savedRooms, setSavedRooms] = useState([]);
   
-  // 登入/創立表單狀態
   const [roomCode, setRoomCode] = useState('');
   const [roomPin, setRoomPin] = useState('');
   const [roomName, setRoomName] = useState('');
   const [availableLoginUsers, setAvailableLoginUsers] = useState(['老公', '老婆']);
   
-  // UI 互動狀態
   const [errorMsg, setErrorMsg] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
   const [editRecordId, setEditRecordId] = useState(null);
   
-  // 共用查詢與過濾
   const [homeFilterDate, setHomeFilterDate] = useState(getLocalTodayStr());
   const [searchQuery, setSearchQuery] = useState('');
   
-  // 全局 Modal 狀態
   const [viewingRecord, setViewingRecord] = useState(null);
   const [crossRoomRecord, setCrossRoomRecord] = useState(null);
   const [selectedTransferRoom, setSelectedTransferRoom] = useState(null);
@@ -49,7 +46,7 @@ export default function App() {
   
   const fileInputRef = useRef(null);
 
-  // 初始化與登入監聽
+  // 1. 初始化與登入快取監聽
   useEffect(() => {
     try {
       const storedRooms = JSON.parse(localStorage.getItem('expenseApp_savedRooms') || '[]');
@@ -59,7 +56,27 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
-  // 監聽房間名稱與名單
+  // 2. 防誤觸退出機制 (防止記帳一半意外關閉網頁)
+  useEffect(() => {
+    window.history.pushState({ trap: true }, '');
+    const handleBeforeUnload = (e) => { e.preventDefault(); e.returnValue = ''; };
+    const handlePopState = (e) => {
+      const confirmExit = window.confirm("確定要關閉記帳本嗎？\n\n(免煩惱！您的資料都已經即時安全儲存至雲端囉 ✨ )");
+      if (!confirmExit) {
+        window.history.pushState({ trap: true }, '');
+      } else {
+        setTimeout(() => { try { window.close(); } catch(err) {} window.history.back(); }, 100);
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    window.addEventListener('popstate', handlePopState);
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, []);
+
+  // 3. 監聽房間名稱與動態載入人員名單
   useEffect(() => {
     if ((view === 'login' || view === 'create') && roomCode && user) {
       const timer = setTimeout(async () => {
@@ -75,7 +92,7 @@ export default function App() {
     }
   }, [roomCode, user, view]);
 
-  // 監聽房間設定與記帳明細
+  // 4. 監聽房間設定與記帳明細
   useEffect(() => {
     if (!user || !activeRoomId) return;
     const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', activeRoomId);
@@ -91,7 +108,7 @@ export default function App() {
     return () => { unsubscribeRoom(); unsubscribeExpenses(); };
   }, [user, activeRoomId, refreshTrigger]);
 
-  // 自動清理 90 天以上舊圖片
+  // 5. 自動清理 90 天以上舊圖片 (節省雲端空間)
   useEffect(() => {
     if (!records || records.length === 0 || !activeRoomId) return;
     const recordsToPrune = records.filter(r => r.photoBase64 && (Date.now() - r.timestamp > 90 * 24 * 60 * 60 * 1000));
@@ -110,7 +127,31 @@ export default function App() {
     }
   }, [records, activeRoomId]);
 
-  // === 共用業務邏輯 ===
+  // 6. 狀態自動重置機制 (離開首頁時清空搜尋與重置日期)
+  useEffect(() => {
+    if (view !== 'room') {
+      setSearchQuery('');
+      setHomeFilterDate(getLocalTodayStr());
+    }
+  }, [view]);
+
+  // 7. 支援 visibilitychange 的背景刷新
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        setTimeout(() => setRefreshTrigger(prev => prev + 1), 500);
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleVisibilityChange);
+    };
+  }, []);
+
+  // === 業務與點擊邏輯 ===
+
   const handleJoinRoom = async (e) => {
     e.preventDefault(); setErrorMsg('');
     if (!currentUserRole || !roomCode || !roomPin) return setErrorMsg('請填寫完整代碼、密碼並選擇身份');
@@ -144,7 +185,6 @@ export default function App() {
     } catch(err) { setErrorMsg('連線失敗'); } finally { setIsLoading(false); }
   };
 
-  // ⚠️ 修正點 2：補齊完整的建立房間邏輯
   const handleCreateRoom = async (e) => {
     e.preventDefault(); setErrorMsg('');
     if (!roomCode || !roomPin || !roomName || !currentUserRole) { setErrorMsg('請填寫所有欄位並選擇身份'); return; }
@@ -222,6 +262,25 @@ export default function App() {
       const targetRoomSnap = await getDoc(targetRoomRef);
       if (!targetRoomSnap.exists()) return alert('目標房間不存在！');
       
+      const tRoom = targetRoomSnap.data();
+      const data = crossRoomRecord;
+
+      // 防呆：檢查目標房間是否具備相同的分類、項目、商家
+      let missingOption = false;
+      if (data.type === 'expense' || !data.type) {
+        if (data.category && (!tRoom.categories || !tRoom.categories.includes(data.category))) missingOption = true;
+        if (data.category && data.title && (!tRoom.categoryItems || !tRoom.categoryItems[data.category] || !tRoom.categoryItems[data.category].includes(data.title))) missingOption = true;
+        if (data.merchant && data.merchant !== '未指定' && (!tRoom.merchants || !tRoom.merchants.includes(data.merchant))) missingOption = true;
+      } else if (data.type === 'income') {
+        if (data.category && (!tRoom.incomeCategories || !tRoom.incomeCategories.includes(data.category))) missingOption = true;
+      } else if (data.type === 'transfer') {
+        if (data.category && (!tRoom.transferCategories || !tRoom.transferCategories.includes(data.category))) missingOption = true;
+      }
+      
+      if (missingOption) {
+        return alert("因無相同選項故無法傳送，請先確認目標房間具備相同的分類、項目與商家！");
+      }
+      
       const { id, ...dataToCopy } = crossRoomRecord;
       dataToCopy.roomId = targetRoomId;
       dataToCopy.timestamp = Date.now();
@@ -250,6 +309,31 @@ export default function App() {
     } catch (err) { alert('傳送失敗！'); }
   };
 
+  const handleImport = async (e) => {
+    const file = e.target.files[0]; if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        const importedData = JSON.parse(event.target.result);
+        if (!Array.isArray(importedData)) throw new Error('檔案格式不正確，需為陣列');
+        if (!window.confirm(`確定要匯入 ${importedData.length} 筆資料嗎？\n(將會與目前的紀錄無縫合併)`)) return;
+        setIsLoading(true);
+        const batch = writeBatch(db); let opsCount = 0; let totalImported = 0;
+        for (const record of importedData) {
+          if (opsCount >= 490) { await batch.commit(); opsCount = 0; }
+          const { id, ...dataToCopy } = record;
+          dataToCopy.roomId = activeRoomId; dataToCopy.groupId = null;
+          if (dataToCopy.frequency !== '一次') dataToCopy.frequency = '一次';
+          batch.set(doc(collection(db, 'artifacts', appId, 'public', 'data', 'expenses')), dataToCopy);
+          opsCount++; totalImported++;
+        }
+        if (opsCount > 0) await batch.commit();
+        alert(`✅ 成功匯入 ${totalImported} 筆資料！`);
+      } catch (err) { alert('匯入失敗：' + err.message); } finally { setIsLoading(false); if (fileInputRef.current) fileInputRef.current.value = null; }
+    };
+    reader.readAsText(file);
+  };
+
   const handleBackup = () => {
     if (!records || records.length === 0) return alert('目前沒有資料可以備份喔！');
     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(records));
@@ -258,6 +342,8 @@ export default function App() {
     downloadAnchorNode.setAttribute("download", `expense_backup_${getLocalTodayStr()}.json`);
     document.body.appendChild(downloadAnchorNode); downloadAnchorNode.click(); downloadAnchorNode.remove();
   };
+
+  // === 畫面分發渲染器 ===
 
   const renderView = () => {
     if (!user) return <div className="p-6 text-center text-gray-500 font-extrabold flex justify-center items-center h-full"><Sparkles className="animate-bounce mr-3 text-yellow-400" size={28}/> 魔法連線中...</div>;
@@ -288,9 +374,14 @@ export default function App() {
   return (
     <div className="min-h-screen bg-gray-100 sm:py-4 flex justify-center items-center font-sans text-[16px]">
       <div className={`w-full ${view === 'login' || view === 'create' ? 'max-w-[400px]' : 'max-w-[460px]'} min-h-screen sm:min-h-0 sm:h-[800px] bg-[#FFFBF0] flex flex-col relative sm:rounded-[2.5rem] sm:border-[6px] sm:border-gray-800 shadow-2xl overflow-hidden transition-all duration-500`}>
-        <input type="file" accept=".json" style={{display: 'none'}} ref={fileInputRef} />
+        {/* 用於匯入 JSON 的隱藏按鈕 */}
+        <input type="file" accept=".json" style={{display: 'none'}} ref={fileInputRef} onChange={handleImport} />
         
         {renderView()}
+
+        {/* ========================================== */}
+        {/* 跨頁面共用彈跳視窗 Modal (單筆紀錄、放大圖、傳送) */}
+        {/* ========================================== */}
 
         {enlargedPhoto && (
           <div className="fixed inset-0 bg-black/90 z-[150] flex flex-col items-center justify-center p-4 backdrop-blur-md" onClick={() => setEnlargedPhoto(null)}>
@@ -315,7 +406,7 @@ export default function App() {
                 {viewingRecord.photoBase64 && <div className="pt-2"><span className="text-gray-400 block mb-1">照片 (點擊放大)</span><img src={viewingRecord.photoBase64} alt="圖" className="w-full h-28 object-cover rounded-xl cursor-pointer" onClick={() => setEnlargedPhoto(viewingRecord.photoBase64)} /></div>}
               </div>
               <div className="flex gap-2.5 mt-4 pt-3 border-t border-gray-100">
-                <button onClick={() => { setEditRecordId(viewingRecord.id); setViewingRecord(null); setShowAddForm(true); setView('room'); }} className="flex-1 font-bold py-2.5 rounded-xl bg-green-50 text-green-600 flex justify-center items-center"><Copy size={15} className="mr-1"/> 複製</button>
+                <button onClick={() => { setEditRecordId(viewingRecord.id); setViewingRecord(null); setShowAddForm(true); setView('room'); }} className="flex-1 font-bold py-2.5 rounded-xl bg-green-50 text-green-600 flex justify-center items-center"><Copy size={15} className="mr-1"/> 複製/編輯</button>
                 <button onClick={() => { handleDeleteRecord(viewingRecord); setViewingRecord(null); }} className="flex-1 font-bold py-2.5 rounded-xl bg-red-50 text-red-500 flex justify-center items-center"><Trash2 size={15} className="mr-1"/> 刪除</button>
               </div>
             </div>
