@@ -1,6 +1,7 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
+// 💡 引入了離線快取模組
+import { getFirestore, initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from 'firebase/firestore';
 
 const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
   apiKey: "AIzaSyBiFI05fIDz35Zk3n4nodHy9ZoYWqHOnZk",
@@ -10,9 +11,12 @@ const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__f
 };
 
 const app = initializeApp(firebaseConfig);
-
 export const auth = getAuth(app);
-export const db = getFirestore(app);
-export const appId = typeof __app_id !== 'undefined' ? __app_id : 'linbei-family-app';
 
+// 💡 啟動離線持久化快取 (Offline Persistence)
+export const db = initializeFirestore(app, {
+  localCache: persistentLocalCache({tabManager: persistentMultipleTabManager()})
+});
+
+export const appId = typeof __app_id !== 'undefined' ? __app_id : 'linbei-family-app';
 export default app;
