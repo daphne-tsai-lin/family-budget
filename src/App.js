@@ -129,7 +129,6 @@ export default function App() {
   const handleEditRecord = useCallback((record) => { setEditRecordId(record?.id); setCopyRecordData(null); setShowAddForm(true); }, []);
   const handleCloseForm = useCallback(() => { setShowAddForm(false); setEditRecordId(null); setCopyRecordData(null); }, []);
 
-  // 💡 確保備份函式存在並傳遞
   const handleBackup = useCallback(() => {
     if (!records || records.length === 0) return alert('目前沒有資料可以備份喔！');
     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(records));
@@ -298,7 +297,7 @@ export default function App() {
             </div>
           )}
 
-          {/* 💡 修正 3：修正明細視窗文字顯示 (付款方式、付款人、複製、刪除) */}
+          {/* 💡 修復：加回了詳細紀錄的「備註」與「圖片」，並修正了按鈕與標題文字 */}
           {viewingRecord && (
             <div className="fixed inset-0 bg-black/40 z-[110] flex justify-center items-center p-4 backdrop-blur-sm" onClick={() => setViewingRecord(null)}>
               <div className="bg-white w-full max-w-sm rounded-[1.5rem] p-5 shadow-2xl relative" onClick={e => e.stopPropagation()}>
@@ -316,6 +315,20 @@ export default function App() {
                   {viewingRecord.type === 'transfer' && viewingRecord.transferToMethod && <div className="flex justify-between border-b border-gray-100 pb-1.5 pt-1"><span className="text-gray-400">轉入帳戶</span><span className="text-gray-800">{viewingRecord.transferToMethod}{viewingRecord.transferToSubMethod ? ` (${viewingRecord.transferToSubMethod})` : ''}</span></div>}
                   <div className="flex justify-between border-b border-gray-100 pb-1.5 pt-1"><span className="text-gray-400">付款人</span><span className={`${getRoleColorStyle(viewingRecord.addedByRole).lightBg} ${getRoleColorStyle(viewingRecord.addedByRole).text} px-2 py-0.5 rounded-md`}>{viewingRecord.addedByRole}</span></div>
                   {viewingRecord.excludeFromBalance && <div className="flex justify-between border-b border-gray-100 pb-1.5 pt-1"><span className="text-gray-400">計入總覽</span><span className="text-red-500 font-bold">不計入</span></div>}
+                  
+                  {/* 💡 正確加回的備註與圖片區塊 */}
+                  {viewingRecord.note && (
+                    <div className="pt-2">
+                      <span className="text-gray-400 font-bold text-[13px] block mb-1">備註</span>
+                      <div className="text-gray-800 bg-gray-50 p-3 rounded-xl border border-gray-100">{viewingRecord.note}</div>
+                    </div>
+                  )}
+                  {(viewingRecord.photoBase64 || viewingRecord.photoUrl) && (
+                    <div className="pt-2">
+                      <span className="text-gray-400 font-bold text-[13px] block mb-1">照片 (點擊放大)</span>
+                      <img src={viewingRecord.photoBase64 || viewingRecord.photoUrl} alt="圖" className="w-full h-32 object-cover rounded-xl cursor-pointer border border-gray-200 shadow-sm" onClick={() => setEnlargedPhoto(viewingRecord.photoBase64 || viewingRecord.photoUrl)} />
+                    </div>
+                  )}
                 </div>
                 
                 {!viewingRecord.addedByRole || viewingRecord.addedByRole === currentUserRole ? (
