@@ -14,6 +14,16 @@ import AccountsView from './views/AccountsView';
 import AnalysisView from './views/AnalysisView';
 import SettingsView from './views/SettingsView';
 
+// ==========================================
+// 💡 找回遺失的樣式：自動載入 Tailwind CSS 引擎
+// ==========================================
+if (typeof document !== 'undefined' && !document.getElementById('tailwind-script')) {
+  const script = document.createElement('script');
+  script.id = 'tailwind-script';
+  script.src = 'https://cdn.tailwindcss.com';
+  document.head.appendChild(script);
+}
+
 export default function App() {
   const [user, setUser] = useState(null);
   const [currentUserRole, setCurrentUserRole] = useState('');
@@ -296,7 +306,6 @@ export default function App() {
         if (!Array.isArray(importedData)) throw new Error('檔案格式不正確，需為陣列');
         if (!window.confirm(`確定要匯入 ${importedData.length} 筆資料嗎？\n(將會與目前的紀錄無縫合併)`)) return;
         setIsLoading(true);
-        // 💡 效能修復：解決 Claude 提到的 batch 重建 bug
         let batch = writeBatch(db); 
         let opsCount = 0; 
         let totalImported = 0;
@@ -304,7 +313,7 @@ export default function App() {
         for (const record of importedData) {
           if (opsCount >= 490) { 
             await batch.commit(); 
-            batch = writeBatch(db); // 重建全新的 batch
+            batch = writeBatch(db);
             opsCount = 0; 
           }
           const { id, ...dataToCopy } = record;
