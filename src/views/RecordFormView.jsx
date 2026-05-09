@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ChevronLeft, Save, Upload, Tag, Store, Receipt, Calendar, Settings, Image as ImageIcon, Camera, Calculator, Wallet, PiggyBank, Check, Trash2, Sparkles, User, RefreshCw, X } from 'lucide-react';
+// 💡 修復點 1：補上漏掉的 CreditCard 信用卡圖示，解決白畫面崩潰
+import { ChevronLeft, Save, Upload, Tag, Store, Receipt, Calendar, Settings, Image as ImageIcon, Camera, Calculator, Wallet, PiggyBank, Check, Trash2, Sparkles, User, RefreshCw, X, CreditCard } from 'lucide-react';
 import { collection, doc, writeBatch, deleteField } from 'firebase/firestore';
 import { db, appId } from '../firebase/firebaseConfig';
 import { CustomDropdown, MethodSelector, PillGroupMulti } from '../components/SharedUI';
-import { getLocalTodayStr, generateFutureDates, evaluateCalc } from '../utils/helpers';
+// 💡 修復點 2：補上漏掉的 toROCYearStr 民國年轉換，解決日期選擇器崩潰
+import { getLocalTodayStr, generateFutureDates, evaluateCalc, toROCYearStr } from '../utils/helpers';
 
 const RecordFormView = ({ user, activeRoomId, currentRoom, currentUserRole, records, recordToEdit, copyRecordData, onClose, setCrossRoomRecord }) => {
   const [record, setRecord] = useState(() => {
@@ -299,7 +301,7 @@ const RecordFormView = ({ user, activeRoomId, currentRoom, currentUserRole, reco
         </button>
       </main>
 
-      {/* ✅ 完美復刻智慧計算機 */}
+      {/* 原版復刻智慧計算機 */}
       {showCalc && (
         <div className="fixed inset-0 z-[150] bg-black/60 flex flex-col justify-center items-center p-4 backdrop-blur-[2px] animate-in fade-in duration-200" onClick={() => { setAmount(evaluateCalc(calcInput)); setShowCalc(false); }}>
           <div className="bg-gray-50 w-full max-w-[320px] rounded-[2rem] p-5 shadow-2xl animate-in zoom-in-95 duration-200 border border-gray-200" onClick={e => e.stopPropagation()}>
