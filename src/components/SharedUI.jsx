@@ -2,9 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Pencil, Trash2, ArrowUp, ArrowDown, Send, Check } from 'lucide-react';
 import { toROCYearStr, getRoleColorStyle } from '../utils/helpers';
 
-// ==========================================
 // 1. 設定區塊 (SettingBlock)
-// ==========================================
 export const SettingBlock = ({ title, items, onUpdate, themeClass, spanClass, btnClass, placeholder }) => {
   const [newItem, setNewItem] = useState('');
   const [editIdx, setEditIndex] = useState(null);
@@ -73,9 +71,7 @@ export const SettingBlock = ({ title, items, onUpdate, themeClass, spanClass, bt
   );
 };
 
-// ==========================================
 // 2. 自訂下拉選單 (CustomDropdown)
-// ==========================================
 export const CustomDropdown = ({ label, icon: Icon, options, value, onChange, placeholder }) => {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef(null);
@@ -109,9 +105,7 @@ export const CustomDropdown = ({ label, icon: Icon, options, value, onChange, pl
   );
 };
 
-// ==========================================
 // 3. 圓餅圖 SVG (MyCustomPieChart)
-// ==========================================
 export const MyCustomPieChart = ({ data, colors }) => {
   const total = data.reduce((sum, d) => sum + d.value, 0);
   if (total === 0) return <div className="text-gray-400 text-center py-10 font-bold bg-white rounded-2xl border-2 border-dashed border-gray-200 text-sm">無分析數據 📊</div>;
@@ -179,9 +173,7 @@ export const MyCustomPieChart = ({ data, colors }) => {
   );
 };
 
-// ==========================================
 // 4. 付款方式選擇器 (MethodSelector)
-// ==========================================
 export const MethodSelector = ({ label, icon: IconComponent, method, subMethod, setMethod, setSubMethod, currentRoom }) => {
   const getMethodStyle = (opt) => {
     if (opt.includes('現金')) return { bg: 'bg-emerald-500', text: 'text-emerald-600', borderSel: 'border-emerald-600' };
@@ -251,9 +243,7 @@ export const MethodSelector = ({ label, icon: IconComponent, method, subMethod, 
   );
 };
 
-// ==========================================
 // 5. 膠囊多選按鈕群組 (PillGroupMulti)
-// ==========================================
 export const PillGroupMulti = ({ label, icon: Icon, options, values = [], onChange, isPayer = false }) => {
   const hasFamily = values.includes('全家');
   const hasIndividuals = values.some(v => v !== '全家');
@@ -310,14 +300,14 @@ export const PillGroupMulti = ({ label, icon: Icon, options, values = [], onChan
   );
 };
 
-// ==========================================
-// 6. 單筆明細項目 (RecordItem)
-// ==========================================
-export const RecordItem = ({ exp, idx, isSortable = false, hideActions = false, onRecordClick, handleMoveRecord, openEditForm, setCrossRoomRecord }) => {
+// 6. 🔒 單筆明細項目 (RecordItem) - 加入本人防呆驗證
+export const RecordItem = ({ exp, idx, currentUserId, isSortable = false, hideActions = false, onRecordClick, handleMoveRecord, openEditForm, setCrossRoomRecord }) => {
   const isIncome = exp.type === 'income', isTransfer = exp.type === 'transfer';
   const payerStr = Array.isArray(exp.payer) ? exp.payer.join(', ') : exp.payer;
   const freqDisplay = exp.frequency === '區間' ? (exp.frequencyInterval === '自訂' ? `${exp.frequencyCustomText}天` : exp.frequencyInterval) : exp.frequency;
-  const canModify = true; // 放寬權限限制交由上層控制
+  
+  // 💡 核心防護：檢查這筆帳是不是現在這個登入者建立的
+  const canModify = exp.addedBy === currentUserId; 
 
   const renderMethodText = (method, subMethod) => {
     if (!method || method === '未指定') return null;
@@ -359,6 +349,7 @@ export const RecordItem = ({ exp, idx, isSortable = false, hideActions = false, 
         {!hideActions && (
           <div className="grid grid-cols-2 gap-1 mt-1 w-[64px] relative z-20">
             <button onClick={(e) => { e.stopPropagation(); handleMoveRecord(idx, -1); }} disabled={idx === 0 || !isSortable} className={`text-gray-400 hover:text-blue-500 font-bold p-1 transition bg-gray-50 hover:bg-blue-50 rounded shadow-sm flex items-center justify-center disabled:opacity-30 ${!isSortable ? 'cursor-not-allowed' : ''}`}><ArrowUp size={14} /></button>
+            {/* 💡 非本人時，編輯與傳送按鈕會被鎖定 */}
             <button onClick={(e) => { e.stopPropagation(); openEditForm(exp); }} disabled={!canModify} className={`font-bold p-1 transition bg-gray-50 rounded shadow-sm flex items-center justify-center ${canModify ? 'text-gray-400 hover:text-blue-500 hover:bg-blue-50' : 'text-gray-300 opacity-40 cursor-not-allowed'}`}><Pencil size={14} /></button>
             <button onClick={(e) => { e.stopPropagation(); handleMoveRecord(idx, 1); }} disabled={!isSortable} className={`text-gray-400 hover:text-blue-500 font-bold p-1 transition bg-gray-50 hover:bg-blue-50 rounded shadow-sm flex items-center justify-center disabled:opacity-30 ${!isSortable ? 'cursor-not-allowed' : ''}`}><ArrowDown size={14} /></button>
             <button onClick={(e) => { e.stopPropagation(); setCrossRoomRecord(exp); }} disabled={!canModify} className={`font-bold p-1 transition bg-gray-50 rounded shadow-sm flex items-center justify-center ${canModify ? 'text-gray-400 hover:text-orange-500 hover:bg-orange-50' : 'text-gray-300 opacity-40 cursor-not-allowed'}`}><Send size={14} /></button>
