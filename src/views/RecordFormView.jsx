@@ -107,7 +107,6 @@ const RecordFormView = ({ recordToEdit, copyRecordData, onClose, setCrossRoomRec
         opsCount++;
         
         if (record.frequency !== '一次') {
-          // 💡 此處已套用 helpers 中的 1 年限制
           const dates = generateFutureDates(record.date, record.frequency, record.frequencyDays, record.frequencyInterval, record.frequencyCustomText, 1);
           for (const d of dates) {
             if (opsCount >= 490) await commitBatch();
@@ -121,7 +120,7 @@ const RecordFormView = ({ recordToEdit, copyRecordData, onClose, setCrossRoomRec
         const curRef = doc(db, 'artifacts', appId, 'public', 'data', 'expenses', recordToEdit.id);
         if (!record.photoBase64 && oldRecord?.photoBase64) baseData.photoBase64 = deleteField();
         
-        // 💡 邏輯修正：如果只改單次，徹底切斷與未來紀錄的關聯
+        // 💡 邏輯修正：原本是週期性，如果選擇 "不變更未來"，就徹底切斷關聯（讓它變單次，未來紀錄保持原狀不動）
         if (!updateFuture && oldWasPeriodic) {
           baseData.frequency = '一次'; baseData.frequencyDays = []; baseData.frequencyInterval = ''; baseData.frequencyCustomText = ''; baseData.groupId = null;
         }
@@ -129,6 +128,7 @@ const RecordFormView = ({ recordToEdit, copyRecordData, onClose, setCrossRoomRec
         batch.update(curRef, { ...baseData, timestamp: oldRecord.timestamp }); 
         opsCount++;
 
+        // 💡 邏輯修正：如果選擇 "變更未來"，我們就會將所有關聯的未來紀錄刪除（即便您這次改成了單次，也要先把它們清掉！）
         if (updateFuture && currentGroupId) {
           const futuresToDelete = records.filter(r => r.groupId === currentGroupId && r.date > oldRecord.date && r.id !== recordToEdit.id);
           for (const r of futuresToDelete) {
@@ -137,6 +137,8 @@ const RecordFormView = ({ recordToEdit, copyRecordData, onClose, setCrossRoomRec
             opsCount++;
           }
         }
+        
+        // 如果您不但選擇了變更未來，而且這次的新設定仍然是週期性，就再長出新的未來紀錄
         if (updateFuture && record.frequency !== '一次') {
           const dates = generateFutureDates(record.date, record.frequency, record.frequencyDays, record.frequencyInterval, record.frequencyCustomText, 1).filter(d => d > record.date);
           for (const d of dates) {
