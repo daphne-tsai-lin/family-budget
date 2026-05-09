@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Sparkles, Copy, Trash2, X, Send } from 'lucide-react';
 import { onAuthStateChanged } from 'firebase/auth';
-import { doc, getDoc, updateDoc, onSnapshot, collection, writeBatch, deleteField } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, onSnapshot, collection, writeBatch, deleteField, setDoc } from 'firebase/firestore';
 import { auth, db, appId } from './firebase/Config';
 import { getLocalTodayStr, toROCYearStr, getRoleColorStyle } from './utils/helpers';
 
@@ -143,8 +143,64 @@ export default function App() {
     } catch(err) { setErrorMsg('連線失敗'); } finally { setIsLoading(false); }
   };
 
-  const handleCreateRoom = async (e) => { ... } // (保留你原本 Create 的邏輯即可)
+  const handleCreateRoom = async (e) => {
+    e.preventDefault(); 
+    setErrorMsg('');
+    if (!roomCode || !roomPin || !roomName || !currentUserRole) { 
+      setErrorMsg('請填寫所有欄位並選擇身份'); 
+      return; 
+    }
+    if (!user) { 
+      setErrorMsg('資料庫尚未連線，請稍後再試。'); 
+      return; 
+    }
+    setIsLoading(true);
+    try {
+      const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', roomCode);
+      const roomSnap = await getDoc(roomRef);
+      if (roomSnap.exists()) { 
+        setErrorMsg('這個房間代碼已被使用，請換一個'); 
+        setIsLoading(false); 
+        return; 
+      }
+      
+      const newRoomData = {
+        name: roomName, pin: roomPin, createdBy: user.uid, createdAt: Date.now(),
+        loginUsers: availableLoginUsers.length > 0 ? availableLoginUsers : ['老公', '老婆'],
+        categories: ['🍔 飲食', '🚗 交通', '🏠 居住', '💡 水電瓦斯', '🎉 娛樂', '👶 育兒'],
+        categoryItems: { '🍔 飲食': ['早餐', '午餐', '晚餐', '飲料', '宵夜', '買菜'], '🚗 交通': ['加油', '大眾運輸', '停車', '保養'], '🏠 居住': ['房租', '日用品', '維修'], '💡 水電瓦斯': ['水費', '電費', '瓦斯費', '電信費'] },
+        autoFillRules: { '早餐': '早餐店', '晚餐': '小吃店', '飲料': '飲料店', '加油': '加油站' },
+        methodRules: { '麥當勞': { method: '信用卡', subMethod: '點點卡' }, '蝦皮拍賣': { method: '行動支付', subMethod: '國泰世華' } },
+        incomeCategories: ['💰 薪水', '🧧 獎金', '📈 投資', '🎁 其他收入'],
+        transferCategories: ['💳 信用卡繳款', '🏠 房貸繳款', '🔄 資金調度', '💰 投資理財'],
+        payers: ['全家', '老公', '老婆', '恩恩', '蔚蔚'],
+        paymentMethods: ['現金', '行動支付', '信用卡', '銀行', '電子票證'],
+        creditCards: ['玉山銀行', '國泰世華', '台北富邦', '元大銀行'],
+        mobilePayCards: ['玉山銀行', '國泰世華', '台北富邦', '元大銀行'],
+        bankAccounts: ['台北富邦', '元大銀行', '中國信託'],
+        electronicTickets: ['點點卡', '悠遊卡', '悠遊付錢包'],
+        initialBalances: { '現金': 0 },
+        promptCashSync: false,
+        accountDefaultRange: '當月',
+        excludedPromptPayers: []
+      };
+      
+      await setDoc(roomRef, newRoomData);
+      
+      // 更新本地端快速切換紀錄
+      const newRooms = [{ id: roomCode, name: roomName, pin: roomPin, role: currentUserRole }, ...savedRooms.filter(r => r.id !== roomCode)].slice(0, 5);
+      localStorage.setItem('expenseApp_savedRooms', JSON.stringify(newRooms));
+      setSavedRooms(newRooms);
 
+      setActiveRoomId(roomCode); 
+      setHomeFilterDate(getLocalTodayStr()); 
+      setView('room');
+    } catch (err) { 
+      setErrorMsg('建立房間失敗：' + err.message); 
+    } finally { 
+      setIsLoading(false); 
+    }
+  };
   // 排序調整
   const handleMoveRecord = async (index, direction) => {
     const displayRecs = searchQuery ? records.filter(r => r.date <= getLocalTodayStr() && JSON.stringify(r).toLowerCase().includes(searchQuery.toLowerCase())) : records.filter(r => r.date === homeFilterDate);
