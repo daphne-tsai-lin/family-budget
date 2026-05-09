@@ -29,7 +29,6 @@ const RecordFormView = ({ user, activeRoomId, currentRoom, currentUserRole, reco
   const photoInputRef = useRef(null);
   const recordDateInputRef = useRef(null);
 
-  // Auto-fill logic
   useEffect(() => {
     if (!recordToEdit && !copyRecordData && record.title && currentRoom?.autoFillRules?.[record.title]) {
       setRecord(prev => ({ ...prev, merchant: currentRoom.autoFillRules[record.title] }));
@@ -43,7 +42,7 @@ const RecordFormView = ({ user, activeRoomId, currentRoom, currentUserRole, reco
     }
   }, [record.merchant, recordToEdit, copyRecordData, currentRoom]);
 
-  // 完美復刻原版 4521行的最嚴格驗證
+  // ✅ 100% 復刻原版最強的防呆驗證邏輯
   let isFormValid = false;
   const parsedAmt = Number(String(amount).replace(/,/g, '').replace(/[^\d]/g, ''));
   if (parsedAmt > 0 && record.date && record.payer.length > 0) {
@@ -79,11 +78,8 @@ const RecordFormView = ({ user, activeRoomId, currentRoom, currentUserRole, reco
       let newGroupId = null;
 
       if (isEditing) {
-        if (updateFuture) {
-          newGroupId = record.frequency === '一次' ? null : (Date.now().toString() + Math.random().toString(36).substring(2, 9));
-        } else {
-          newGroupId = null;
-        }
+        if (updateFuture) newGroupId = record.frequency === '一次' ? null : (Date.now().toString() + Math.random().toString(36).substring(2, 9));
+        else newGroupId = null;
       } else {
         newGroupId = record.frequency === '一次' ? null : (Date.now().toString() + Math.random().toString(36).substring(2, 9));
       }
@@ -137,9 +133,7 @@ const RecordFormView = ({ user, activeRoomId, currentRoom, currentUserRole, reco
         const isExcluded = payers.some(p => currentRoom.excludedPromptPayers.includes(p));
         if (isExcluded) shouldPrompt = false;
       }
-      if (shouldPrompt) {
-        setCrossRoomRecord({ ...baseData, id: `auto_${Date.now()}` });
-      }
+      if (shouldPrompt) setCrossRoomRecord({ ...baseData, id: `auto_${Date.now()}` });
       onClose();
     } catch (err) { alert('儲存過程發生錯誤！'); }
   };
@@ -305,7 +299,7 @@ const RecordFormView = ({ user, activeRoomId, currentRoom, currentUserRole, reco
         </button>
       </main>
 
-      {/* 原版復刻智慧計算機 */}
+      {/* ✅ 完美復刻智慧計算機 */}
       {showCalc && (
         <div className="fixed inset-0 z-[150] bg-black/60 flex flex-col justify-center items-center p-4 backdrop-blur-[2px] animate-in fade-in duration-200" onClick={() => { setAmount(evaluateCalc(calcInput)); setShowCalc(false); }}>
           <div className="bg-gray-50 w-full max-w-[320px] rounded-[2rem] p-5 shadow-2xl animate-in zoom-in-95 duration-200 border border-gray-200" onClick={e => e.stopPropagation()}>
