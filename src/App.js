@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Sparkles, Copy, Trash2, X, Send } from 'lucide-react';
 import { onAuthStateChanged } from 'firebase/auth';
 import { doc, getDoc, updateDoc, onSnapshot, collection, writeBatch, deleteField, setDoc, query, where } from 'firebase/firestore';
@@ -43,6 +43,8 @@ export default function App() {
   const [enlargedPhoto, setEnlargedPhoto] = useState(null);
   
   const fileInputRef = useRef(null);
+  // 💡 效能優化：記錄這次開啟 App 是否已經清理過過期圖片了
+  const hasPrunedPhotos = useRef(false);
 
   useEffect(() => {
     try {
@@ -88,10 +90,7 @@ export default function App() {
       if (snapshot.exists()) setCurrentRoom({ id: snapshot.id, ...snapshot.data() });
     });
 
-    const expensesQuery = query(
-      collection(db, 'artifacts', appId, 'public', 'data', 'expenses'),
-      where('roomId', '==', activeRoomId)
-    );
+    const expensesQuery = query(collection(db, 'artifacts', appId, 'public', 'data', 'expenses'), where('roomId', '==', activeRoomId));
     const unsubscribeExpenses = onSnapshot(expensesQuery, (snapshot) => {
       const roomRecords = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })).sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
       setRecords(roomRecords);
@@ -99,27 +98,43 @@ export default function App() {
     return () => { unsubscribeRoom(); unsubscribeExpenses(); };
   }, [user, activeRoomId]);
 
+  // 💡 效能優化：只在初次載入資料時清理一次過期圖片，避免頻繁渲染消耗效能
   useEffect(() => {
-    if (!records || records.length === 0 || !activeRoomId) return;
+    if (!records || records.length === 0 || !activeRoomId || hasPrunedPhotos.current) return;
     const recordsToPrune = records.filter(r => r.photoBase64 && (Date.now() - r.timestamp > 90 * 24 * 60 * 60 * 1000));
     if (recordsToPrune.length > 0) {
       const pruneOldPhotos = async () => {
         try {
-          const batch = writeBatch(db);
-          recordsToPrune.forEach(r => {
+          let batch = writeBatch(db);
+          let count = 0;
+          for (const r of recordsToPrune) {
+            if (count >= 490) { await batch.commit(); batch = writeBatch(db); count = 0; }
             const newNote = r.note ? `${r.note} (圖檔已自動刪除)` : '(圖檔已自動刪除)';
             batch.update(doc(db, 'artifacts', appId, 'public', 'data', 'expenses', r.id), { photoBase64: deleteField(), note: newNote });
-          });
-          await batch.commit();
+            count++;
+          }
+          if (count > 0) await batch.commit();
         } catch (e) {}
       };
       pruneOldPhotos();
     }
+    hasPrunedPhotos.current = true; // 標記為已清理
   }, [records, activeRoomId]);
 
   useEffect(() => {
     if (view !== 'room') { setSearchQuery(''); setHomeFilterDate(getLocalTodayStr()); }
   }, [view]);
+
+  // === 穩定參照的 Handlers (效能優化) ===
+  const handleEditRecord = useCallback((record) => {
+    setEditRecordId(record?.id);
+    setShowAddForm(true);
+  }, []);
+
+  const handleCloseForm = useCallback(() => {
+    setShowAddForm(false);
+    setEditRecordId(null);
+  }, []);
 
   const handleJoinRoom = async (e) => {
     e.preventDefault(); setErrorMsg('');
@@ -281,9 +296,17 @@ export default function App() {
         if (!Array.isArray(importedData)) throw new Error('檔案格式不正確，需為陣列');
         if (!window.confirm(`確定要匯入 ${importedData.length} 筆資料嗎？\n(將會與目前的紀錄無縫合併)`)) return;
         setIsLoading(true);
-        const batch = writeBatch(db); let opsCount = 0; let totalImported = 0;
+        // 💡 效能修復：解決 Claude 提到的 batch 重建 bug
+        let batch = writeBatch(db); 
+        let opsCount = 0; 
+        let totalImported = 0;
+        
         for (const record of importedData) {
-          if (opsCount >= 490) { await batch.commit(); opsCount = 0; }
+          if (opsCount >= 490) { 
+            await batch.commit(); 
+            batch = writeBatch(db); // 重建全新的 batch
+            opsCount = 0; 
+          }
           const { id, ...dataToCopy } = record;
           dataToCopy.roomId = activeRoomId; dataToCopy.groupId = null;
           if (dataToCopy.frequency !== '一次') dataToCopy.frequency = '一次';
@@ -317,9 +340,9 @@ export default function App() {
       case 'room':
         if (showAddForm) {
           const recordToEdit = editRecordId ? records.find(r => r.id === editRecordId) : null;
-          return <RecordFormView user={user} activeRoomId={activeRoomId} currentRoom={currentRoom} currentUserRole={currentUserRole} records={records} recordToEdit={recordToEdit} onClose={() => { setShowAddForm(false); setEditRecordId(null); }} setCrossRoomRecord={setCrossRoomRecord} />;
+          return <RecordFormView user={user} activeRoomId={activeRoomId} currentRoom={currentRoom} currentUserRole={currentUserRole} records={records} recordToEdit={recordToEdit} onClose={handleCloseForm} setCrossRoomRecord={setCrossRoomRecord} />;
         }
-        return <RoomView user={user} activeRoomId={activeRoomId} currentRoom={currentRoom} currentUserRole={currentUserRole} records={records} fileInputRef={fileInputRef} handleBackup={handleBackup} setView={setView} setActiveRoomId={setActiveRoomId} setRoomCode={setRoomCode} setRoomPin={setRoomPin} setCurrentUserRole={setCurrentUserRole} setRoomName={setRoomName} homeFilterDate={homeFilterDate} setHomeFilterDate={setHomeFilterDate} searchQuery={searchQuery} setSearchQuery={setSearchQuery} setViewingRecord={setViewingRecord} handleMoveRecord={handleMoveRecord} onEditRecord={(record) => { setEditRecordId(record?.id); setShowAddForm(true); }} setCrossRoomRecord={setCrossRoomRecord} />;
+        return <RoomView user={user} activeRoomId={activeRoomId} currentRoom={currentRoom} currentUserRole={currentUserRole} records={records} fileInputRef={fileInputRef} handleBackup={handleBackup} setView={setView} setActiveRoomId={setActiveRoomId} setRoomCode={setRoomCode} setRoomPin={setRoomPin} setCurrentUserRole={setCurrentUserRole} setRoomName={setRoomName} homeFilterDate={homeFilterDate} setHomeFilterDate={setHomeFilterDate} searchQuery={searchQuery} setSearchQuery={setSearchQuery} setViewingRecord={setViewingRecord} handleMoveRecord={handleMoveRecord} onEditRecord={handleEditRecord} setCrossRoomRecord={setCrossRoomRecord} />;
       case 'accounts':
         return <AccountsView user={user} activeRoomId={activeRoomId} currentRoom={currentRoom} records={records} setView={setView} setViewingRecord={setViewingRecord} />;
       case 'analysis':
@@ -359,7 +382,6 @@ export default function App() {
                 {viewingRecord.note && <div className="pt-1.5"><span className="text-gray-400 block mb-1">備註</span><span className="text-gray-800 block bg-gray-50 p-2.5 rounded-xl">{viewingRecord.note}</span></div>}
                 {viewingRecord.photoBase64 && <div className="pt-2"><span className="text-gray-400 block mb-1">照片 (點擊放大)</span><img src={viewingRecord.photoBase64} alt="圖" className="w-full h-28 object-cover rounded-xl cursor-pointer" onClick={() => setEnlargedPhoto(viewingRecord.photoBase64)} /></div>}
               </div>
-              {/* 💡 權限防禦：判斷是不是自己的紀錄，不是的話就顯示溫馨提示並隱藏編輯按鈕 */}
               {viewingRecord.addedBy === user?.uid ? (
                 <div className="flex gap-2.5 mt-4 pt-3 border-t border-gray-100">
                   <button onClick={() => { setEditRecordId(viewingRecord.id); setViewingRecord(null); setShowAddForm(true); setView('room'); }} className="flex-1 font-bold py-2.5 rounded-xl bg-green-50 text-green-600 flex justify-center items-center"><Copy size={15} className="mr-1"/> 複製/編輯</button>
