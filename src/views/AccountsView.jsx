@@ -3,7 +3,6 @@ import { X, ChevronRight, Wallet, CreditCard, PiggyBank, Landmark, Calendar } fr
 import { doc, updateDoc } from 'firebase/firestore';
 import { db, appId } from '../firebase/firebaseConfig';
 import { getLocalTodayStr, getLocalLastMonthStartStr, getLocalLastMonthEndStr, toROCYearStr, getLocalMonthStartStr } from '../utils/helpers';
-// 💡 修正：把 RecordItem 載入回來
 import { RecordItem } from '../components/SharedUI';
 
 const AccountsView = ({ user, activeRoomId, currentRoom, records, setView, setViewingRecord, currentUserRole }) => {
@@ -214,9 +213,9 @@ const AccountsView = ({ user, activeRoomId, currentRoom, records, setView, setVi
         </div>
       </main>
 
-      {/* 💡 修正 1：找回帳戶總覽裡面完整的詳細明細卡片！ */}
+      {/* 💡 完美套用 RecordItem，讓明細列表有完整圖示與細節 */}
       {viewingAccountHistory && (
-        <div className="fixed inset-0 bg-black/40 z-[100] flex justify-center items-center p-3 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setViewingAccountHistory(null)}>
+        <div className="fixed inset-0 bg-black/40 z-[100] flex justify-center items-end sm:items-center sm:p-4 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setViewingAccountHistory(null)}>
           <div className="bg-white w-full max-w-md max-h-[85vh] flex flex-col rounded-[1.5rem] p-4 shadow-2xl relative" onClick={e => e.stopPropagation()}>
             <button onClick={() => setViewingAccountHistory(null)} className="absolute top-3 right-3 text-gray-400 hover:text-gray-600 bg-gray-100 p-1.5 rounded-full transition"><X size={16}/></button>
             <h3 className="font-black text-[18px] text-gray-800 mb-3 border-b border-gray-100 pb-2 flex items-center gap-1.5"><Wallet size={18} className="text-indigo-500" /> {viewingAccountHistory} 明細</h3>
