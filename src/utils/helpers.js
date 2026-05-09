@@ -1,4 +1,6 @@
+// ==========================================
 // 人員專屬色塊統一定義
+// ==========================================
 export const getRoleColorStyle = (role, index = 0) => {
   if (!role) return { bg: 'bg-gray-100', text: 'text-gray-500', borderSel: 'border-gray-200', lightBg: 'bg-gray-100', lightBorder: 'border-transparent' };
   const specificColors = {
@@ -17,6 +19,9 @@ export const getRoleColorStyle = (role, index = 0) => {
   return specificColors[role] || fallbackColors[index % fallbackColors.length];
 };
 
+// ==========================================
+// 房間專屬漸層顏色統一定義 (依據 roomId 雜湊分配)
+// ==========================================
 export const getRoomHeaderColor = (roomId) => {
   if (!roomId) return 'from-[#cf736c] from-35% via-[#9b728b] to-[#027d9c]';
   const colors = [
@@ -39,6 +44,9 @@ export const getRoomHeaderColor = (roomId) => {
   return colors[Math.abs(hash) % colors.length];
 };
 
+// ==========================================
+// 計算機邏輯
+// ==========================================
 export const evaluateCalc = (str) => {
   try {
     if (!str || str === '0') return '0';
@@ -50,15 +58,90 @@ export const evaluateCalc = (str) => {
   } catch(e) { return str; }
 };
 
+// ==========================================
 // 日期工具函數
+// ==========================================
 export const getLocalTodayStr = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+
 export const getLocalMonthStartStr = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`; };
+
+export const getLocalLastMonthStartStr = () => {
+  const d = new Date();
+  const year = d.getMonth() === 0 ? d.getFullYear() - 1 : d.getFullYear();
+  const month = d.getMonth() === 0 ? 12 : d.getMonth();
+  return `${year}-${String(month).padStart(2, '0')}-01`;
+};
+
+export const getLocalLastMonthEndStr = () => {
+  const d = new Date();
+  const year = d.getMonth() === 0 ? d.getFullYear() - 1 : d.getFullYear();
+  const month = d.getMonth() === 0 ? 12 : d.getMonth();
+  const lastDay = new Date(year, month, 0).getDate();
+  return `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+};
+
 export const toROCYearStr = (dateVal) => {
   if (!dateVal) return '';
-  let d = (typeof dateVal === 'string' && dateVal.includes('-') && dateVal.length <= 10) 
-    ? new Date(dateVal.split('-')[0], dateVal.split('-')[1] - 1, dateVal.split('-')[2], 12, 0, 0) 
-    : new Date(dateVal);
+  let d;
+  if (typeof dateVal === 'string' && dateVal.includes('-') && dateVal.length <= 10) {
+    const [y, m, day] = dateVal.split('-').map(Number);
+    d = new Date(y, m - 1, day, 12, 0, 0);
+  } else {
+    d = new Date(dateVal);
+  }
   if (isNaN(d.getTime())) return dateVal;
   return `${d.getFullYear() - 1911}/${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}`;
 };
-// (...保留其餘的 generateFutureDates, getLocalLastMonthStartStr 等日期函數)
+
+export const toROCShortStr = (dateVal) => {
+  if (!dateVal) return '';
+  let d;
+  if (typeof dateVal === 'string' && dateVal.includes('-') && dateVal.length <= 10) {
+    const [y, m, day] = dateVal.split('-').map(Number);
+    d = new Date(y, m - 1, day, 12, 0, 0);
+  } else {
+    d = new Date(dateVal);
+  }
+  if (isNaN(d.getTime())) return dateVal;
+  const days = ['日', '一', '二', '三', '四', '五', '六'];
+  return `${d.getFullYear() - 1911}/${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}(${days[d.getDay()]})`;
+};
+
+// ==========================================
+// 週期計算函數
+// ==========================================
+export const generateFutureDates = (startDateStr, freq, daysArr, intervalStr, customText, maxYears = 1) => {
+  const dates = []; if (!startDateStr) return dates;
+  const [y, m, d] = startDateStr.split('-').map(Number);
+  const startD = new Date(y, m - 1, d, 12, 0, 0, 0);
+  if (isNaN(startD.getTime())) return dates;
+  const endD = new Date(startD.getTime()); endD.setFullYear(endD.getFullYear() + maxYears);
+
+  const formatDate = (dateObj) => `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}`;
+  let curr = new Date(startD.getTime()); curr.setDate(curr.getDate() + 1);
+  const mapDayToNum = { '週日':0, '週一':1, '週二':2, '週三':3, '週四':4, '週五':5, '週六':6 };
+
+  if (freq === '每週') {
+    const targetDays = daysArr.map(d => mapDayToNum[d]).filter(d => d !== undefined);
+    if(targetDays.length === 0) return dates;
+    while(curr <= endD) { if (targetDays.includes(curr.getDay())) dates.push(formatDate(curr)); curr.setDate(curr.getDate() + 1); }
+  } else if (freq === '每月') {
+    let nextD = new Date(startD.getTime());
+    while (true) { nextD.setMonth(nextD.getMonth() + 1); if (nextD > endD) break; dates.push(formatDate(nextD)); }
+  } else if (freq === '區間') {
+    let nextD = new Date(startD.getTime());
+    while(true) {
+      let added = false;
+      if (intervalStr === '3個月') { nextD.setMonth(nextD.getMonth() + 3); added = true; }
+      else if (intervalStr === '半年') { nextD.setMonth(nextD.getMonth() + 6); added = true; }
+      else if (intervalStr === '一年') { nextD.setFullYear(nextD.getFullYear() + 1); added = true; }
+      else if (intervalStr === '自訂') {
+        const days = parseInt(customText.replace(/\D/g, ''));
+        if(!isNaN(days) && days > 0) { nextD.setDate(nextD.getDate() + days); added = true; }
+      }
+      if (!added || nextD > endD) break;
+      dates.push(formatDate(nextD));
+    }
+  }
+  return dates;
+};
