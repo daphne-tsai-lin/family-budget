@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef, useContext } from 'react';
 import { ChevronLeft, Save, Upload, Tag, Store, Receipt, Calendar, Settings, Image as ImageIcon, Camera, Calculator, Wallet, PiggyBank, Check, Trash2, Sparkles, User, RefreshCw, X, CreditCard } from 'lucide-react';
 import { collection, doc, writeBatch, deleteField } from 'firebase/firestore';
-// 💡 已經徹底移除 storage 的載入，Vercel 絕對不會再報錯！
 import { db, appId } from '../firebase/firebaseConfig';
 import { CustomDropdown, MethodSelector, PillGroupMulti } from '../components/SharedUI';
 import { getLocalTodayStr, generateFutureDates, evaluateCalc, toROCYearStr } from '../utils/helpers';
@@ -71,10 +70,9 @@ const RecordFormView = ({ recordToEdit, copyRecordData, onClose, setCrossRoomRec
       const oldRecord = isEditing ? recordToEdit : null;
       let updateFuture = false;
 
-      // 💡 週期性防呆第一關：修改時絕對會詢問！
       const oldWasPeriodic = oldRecord?.groupId || (oldRecord && oldRecord.frequency !== '一次');
       if (isEditing && oldWasPeriodic) {
-        updateFuture = window.confirm('此筆為週期性紀錄\n您要一併變更「未來」紀錄嗎\n\n(按【確定】變更當次與未來\n按【取消】則僅修改此筆\n💡歷史紀錄絕對不會被更動');
+        updateFuture = window.confirm('此筆為週期性紀錄，請問一併變更未來紀錄嗎？');
       } else if (isEditing && !oldWasPeriodic && record.frequency !== '一次') {
         updateFuture = true;
       }
@@ -92,46 +90,66 @@ const RecordFormView = ({ recordToEdit, copyRecordData, onClose, setCrossRoomRec
       const baseData = { ...record, amount: parsedAmt, timestamp, roomId: activeRoomId, addedBy: user.uid, addedByRole: currentUserRole, groupId: newGroupId };
       if (record.type === 'transfer') baseData.excludeFromBalance = false;
 
-      const batch = writeBatch(db);
+      let batch = writeBatch(db);
       let opsCount = 0;
+
+      const commitBatch = async () => {
+        if (opsCount > 0) {
+          await batch.commit();
+          batch = writeBatch(db);
+          opsCount = 0;
+        }
+      };
 
       if (!isEditing) {
         const docId = doc(collection(db, 'placeholder')).id;
-        batch.set(doc(db, 'artifacts', appId, 'public', 'data', 'expenses', docId), { ...baseData, timestamp: Date.now() }); opsCount++;
+        batch.set(doc(db, 'artifacts', appId, 'public', 'data', 'expenses', docId), { ...baseData, timestamp: Date.now() }); 
+        opsCount++;
+        
         if (record.frequency !== '一次') {
-          generateFutureDates(record.date, record.frequency, record.frequencyDays, record.frequencyInterval, record.frequencyCustomText, 1).forEach(d => {
-            if(opsCount >= 490) return;
+          // 💡 此處已套用 helpers 中的 1 年限制
+          const dates = generateFutureDates(record.date, record.frequency, record.frequencyDays, record.frequencyInterval, record.frequencyCustomText, 1);
+          for (const d of dates) {
+            if (opsCount >= 490) await commitBatch();
             const [y, m, day] = d.split('-').map(Number);
             const safeTs = new Date(y, m - 1, day, 7, 0, 0).getTime();
-            batch.set(doc(collection(db, 'artifacts', appId, 'public', 'data', 'expenses')), { ...baseData, date: d, timestamp: safeTs }); opsCount++;
-          });
+            batch.set(doc(collection(db, 'artifacts', appId, 'public', 'data', 'expenses')), { ...baseData, date: d, timestamp: safeTs });
+            opsCount++;
+          }
         }
       } else {
         const curRef = doc(db, 'artifacts', appId, 'public', 'data', 'expenses', recordToEdit.id);
         if (!record.photoBase64 && oldRecord?.photoBase64) baseData.photoBase64 = deleteField();
         
+        // 💡 邏輯修正：如果只改單次，徹底切斷與未來紀錄的關聯
         if (!updateFuture && oldWasPeriodic) {
           baseData.frequency = '一次'; baseData.frequencyDays = []; baseData.frequencyInterval = ''; baseData.frequencyCustomText = ''; baseData.groupId = null;
         }
-        batch.update(curRef, { ...baseData, timestamp: oldRecord.timestamp }); opsCount++;
+        
+        batch.update(curRef, { ...baseData, timestamp: oldRecord.timestamp }); 
+        opsCount++;
 
-        // 💡 週期性防呆第二關：嚴格保護歷史資料，只修改 r.date > oldRecord.date 的未來紀錄！
         if (updateFuture && currentGroupId) {
-          records.filter(r => r.groupId === currentGroupId && r.date > oldRecord.date && r.id !== recordToEdit.id).forEach(r => {
-            if(opsCount >= 490) return;
-            batch.delete(doc(db, 'artifacts', appId, 'public', 'data', 'expenses', r.id)); opsCount++;
-          });
+          const futuresToDelete = records.filter(r => r.groupId === currentGroupId && r.date > oldRecord.date && r.id !== recordToEdit.id);
+          for (const r of futuresToDelete) {
+            if (opsCount >= 490) await commitBatch();
+            batch.delete(doc(db, 'artifacts', appId, 'public', 'data', 'expenses', r.id));
+            opsCount++;
+          }
         }
         if (updateFuture && record.frequency !== '一次') {
-          generateFutureDates(record.date, record.frequency, record.frequencyDays, record.frequencyInterval, record.frequencyCustomText, 1).filter(d => d > record.date).forEach(d => {
-            if(opsCount >= 490) return;
+          const dates = generateFutureDates(record.date, record.frequency, record.frequencyDays, record.frequencyInterval, record.frequencyCustomText, 1).filter(d => d > record.date);
+          for (const d of dates) {
+            if (opsCount >= 490) await commitBatch();
             const [y, m, day] = d.split('-').map(Number);
             const safeTs = new Date(y, m - 1, day, 7, 0, 0).getTime();
-            batch.set(doc(collection(db, 'artifacts', appId, 'public', 'data', 'expenses')), { ...baseData, date: d, timestamp: safeTs }); opsCount++;
-          });
+            batch.set(doc(collection(db, 'artifacts', appId, 'public', 'data', 'expenses')), { ...baseData, date: d, timestamp: safeTs });
+            opsCount++;
+          }
         }
       }
-      await batch.commit();
+      
+      if (opsCount > 0) await batch.commit();
 
       let shouldPrompt = !isEditing && (record.type === 'expense' || !record.type) && currentRoom.promptCashSync && !record.excludeFromBalance;
       if (shouldPrompt && currentRoom?.excludedPromptPayers?.length > 0) {
