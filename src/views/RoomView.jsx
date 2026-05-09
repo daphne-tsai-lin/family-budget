@@ -1,22 +1,42 @@
-import React, { useState, useMemo, useContext } from 'react';
+import React, { useState, useMemo, useContext, useRef } from 'react';
 import { Upload, Download, Settings, LogOut, Calendar, Search, X, PiggyBank, Wallet, Plus, BarChart, ChevronDown } from 'lucide-react';
 import { getRoomHeaderColor, toROCShortStr, getLocalTodayStr } from '../utils/helpers';
 import { RecordItem } from '../components/SharedUI';
-// 💡 匯入 Context
 import { AppContext } from '../App';
 
 const RoomView = ({
-  // 💡 看！我們不再需要從上層接 user, records 等資料了，介面變超乾淨
-  fileInputRef, homeFilterDate, setHomeFilterDate, 
+  fileInputRef, handleBackup, homeFilterDate, setHomeFilterDate, 
   searchQuery, setSearchQuery, setViewingRecord, handleMoveRecord, onEditRecord, setCrossRoomRecord
 }) => {
-  
-  // 💡 直接從 Context 拔取需要的全域資料
   const { currentUserRole, activeRoomId, currentRoom, records, setView, setActiveRoomId } = useContext(AppContext);
-
-  // 💡 效能救星：分頁狀態 (預設載入 50 筆)
   const [displayCount, setDisplayCount] = useState(50);
   const headerColorClass = currentRoom?.headerTheme || getRoomHeaderColor(activeRoomId);
+
+  // 💡 修正 4：還原左右滑動切換日期功能
+  const touchStartX = useRef(null);
+  const touchStartY = useRef(null);
+
+  const handleTouchStart = (e) => {
+    touchStartX.current = e.touches[0].clientX;
+    touchStartY.current = e.touches[0].clientY;
+  };
+
+  const handleTouchEnd = (e) => {
+    if (touchStartX.current === null || touchStartY.current === null) return;
+    const xDistance = touchStartX.current - e.changedTouches[0].clientX;
+    const yDistance = touchStartY.current - e.changedTouches[0].clientY;
+    touchStartX.current = null;
+    touchStartY.current = null;
+
+    if (Math.abs(xDistance) > Math.abs(yDistance) && Math.abs(xDistance) > 40 && homeFilterDate) {
+      const parts = homeFilterDate.split('-');
+      if (parts.length !== 3) return;
+      const d = new Date(parts[0], parts[1] - 1, parts[2], 12, 0, 0);
+      if (xDistance > 0) d.setDate(d.getDate() + 1);
+      else d.setDate(d.getDate() - 1);
+      setHomeFilterDate(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`);
+    }
+  };
 
   const allFilteredRecords = useMemo(() => {
     const filtered = records.filter(r => {
@@ -31,7 +51,6 @@ const RoomView = ({
     return filtered.sort((a,b) => b.timestamp - a.timestamp);
   }, [records, searchQuery, homeFilterDate]);
 
-  // 💡 切取目前需要顯示的筆數，避免記憶體爆炸
   const displayRecords = allFilteredRecords.slice(0, displayCount);
 
   const { totalIncome, totalExpense } = useMemo(() => {
@@ -48,21 +67,31 @@ const RoomView = ({
             <h1 className="text-[20px] font-black">{currentRoom?.name || '林北的小財庫'}</h1>
             <p className="text-[13px] opacity-90 font-bold">👤 {currentUserRole}</p>
           </div>
-          <div className="flex gap-2">
-            <button onClick={() => setView('settings')} className="p-2 bg-white/20 rounded-lg text-white"><Settings size={18}/></button>
-            <button onClick={() => { setActiveRoomId(null); setView('login'); }} className="p-2 bg-white/20 rounded-lg text-white"><LogOut size={18}/></button>
+          {/* 💡 修正 2：還原下載(備份)與上傳按鈕 */}
+          <div className="flex items-center gap-1.5">
+            <button onClick={() => fileInputRef.current?.click()} className="p-1.5 bg-white/20 hover:bg-white/30 text-white rounded-lg transition backdrop-blur-sm"><Upload size={18} /></button>
+            <button onClick={handleBackup} className="p-1.5 bg-white/20 hover:bg-white/30 text-white rounded-lg transition backdrop-blur-sm"><Download size={18} /></button>
+            <button onClick={() => setView('settings')} className="p-1.5 bg-white/20 hover:bg-white/30 text-white rounded-lg transition backdrop-blur-sm"><Settings size={18} /></button>
+            <button onClick={() => { setActiveRoomId(null); setView('login'); }} className="p-1.5 bg-white/20 hover:bg-white/30 text-white rounded-lg transition backdrop-blur-sm"><LogOut size={18} /></button>
           </div>
         </div>
 
-        <div className="flex gap-1.5 mb-2">
-          <div className="relative flex-1 bg-white/20 border border-white/30 rounded-lg px-2 py-1 flex items-center">
-            <Search size={14} className="text-white mr-1.5"/>
-            <input type="text" placeholder="搜尋歷史..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-full bg-transparent text-white text-[12px] font-bold placeholder-white/60 outline-none" />
-          </div>
-          <div className="relative bg-white/20 border border-white/30 rounded-lg px-2 py-1 flex items-center">
-            <Calendar size={14} className="text-white mr-1.5"/>
-            <input type="date" value={homeFilterDate} onChange={e => setHomeFilterDate(e.target.value)} className="absolute inset-0 opacity-0 cursor-pointer" />
-            <span className="text-white text-[12px] font-black">{homeFilterDate ? toROCShortStr(homeFilterDate) : '全部'}</span>
+        {/* 💡 修正 2：還原日期與搜尋的配置位置，與會發光的今天按鈕 */}
+        <div className="mb-1.5">
+          <div className="flex items-center gap-1.5 w-full">
+            <div className="relative bg-white/20 backdrop-blur-md rounded-lg shadow-sm border border-white/30 px-2 py-1 flex items-center overflow-hidden hover:bg-white/30 transition shrink-0">
+              <input type="date" value={homeFilterDate} onChange={(e) => setHomeFilterDate(e.target.value)} className="absolute inset-0 w-full h-full opacity-0 z-10 cursor-pointer" />
+              <Calendar size={13} className="text-white mr-1 shrink-0 z-0"/>
+              <span className="text-white text-[12px] font-black drop-shadow-sm z-0 whitespace-nowrap">{homeFilterDate ? toROCShortStr(homeFilterDate) : '全部日期'}</span>
+            </div>
+            <button onClick={() => setHomeFilterDate(getLocalTodayStr())} className={`shrink-0 px-2 py-1 rounded-lg transition-all duration-300 font-black text-[12px] shadow-sm backdrop-blur-sm whitespace-nowrap ${homeFilterDate === getLocalTodayStr() ? 'bg-white text-orange-500 scale-105 shadow-md' : 'bg-white/20 hover:bg-white/30 text-white'}`}>
+              今天
+            </button>
+            <div className="relative bg-white/20 backdrop-blur-md rounded-lg shadow-sm border border-white/30 px-2 py-1 flex items-center overflow-hidden transition flex-1 min-w-0">
+              <Search size={13} className="text-white mr-1.5 shrink-0 z-0" />
+              <input type="text" placeholder="搜尋明細..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-full bg-transparent outline-none text-white text-[12px] font-black placeholder-white/70 z-0 min-w-0" />
+              {searchQuery && <button onClick={() => setSearchQuery('')} className="text-white/70 hover:text-white shrink-0 z-10 p-0.5 ml-1"><X size={13}/></button>}
+            </div>
           </div>
         </div>
         
@@ -82,14 +111,14 @@ const RoomView = ({
         </div>
       </header>
 
-      <main className="flex-1 overflow-y-auto px-3 py-3 pb-[90px]">
+      {/* 💡 修正 4：綁定 Touch 事件，恢復左右滑動換日 */}
+      <main className="flex-1 overflow-y-auto px-3 py-3 pb-[90px]" style={{ touchAction: 'pan-y' }} onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
         <div className="space-y-2">
           {displayRecords.map((exp, idx) => (
             <RecordItem key={exp.id} exp={exp} idx={idx} currentUserRole={currentUserRole} isSortable={!searchQuery && !!homeFilterDate} onRecordClick={setViewingRecord} handleMoveRecord={handleMoveRecord} openEditForm={() => onEditRecord(exp)} setCrossRoomRecord={setCrossRoomRecord} />
           ))}
         </div>
 
-        {/* 💡 專業級分頁加載按鈕 (保護手機效能) */}
         {allFilteredRecords.length > displayCount && (
           <button 
             onClick={() => setDisplayCount(prev => prev + 50)}
