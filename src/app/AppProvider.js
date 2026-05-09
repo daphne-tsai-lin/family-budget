@@ -1,9 +1,9 @@
-import { AuthProvider } from "../store/AuthContext";
+import React from "react";
 
 export default function AppProvider({ children }) {
   return (
-    <AuthProvider>
+    <>
       {children}
-    </AuthProvider>
+    </>
   );
 }
