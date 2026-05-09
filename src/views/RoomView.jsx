@@ -1,15 +1,20 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useContext } from 'react';
 import { Upload, Download, Settings, LogOut, Calendar, Search, X, PiggyBank, Wallet, Plus, BarChart, ChevronDown } from 'lucide-react';
 import { getRoomHeaderColor, toROCShortStr, getLocalTodayStr } from '../utils/helpers';
 import { RecordItem } from '../components/SharedUI';
+// 💡 匯入 Context
+import { AppContext } from '../App';
 
 const RoomView = ({
-  user, activeRoomId, currentRoom, currentUserRole, records,
-  fileInputRef, setView, setActiveRoomId, setHomeFilterDate, homeFilterDate, 
+  // 💡 看！我們不再需要從上層接 user, records 等資料了，介面變超乾淨
+  fileInputRef, homeFilterDate, setHomeFilterDate, 
   searchQuery, setSearchQuery, setViewingRecord, handleMoveRecord, onEditRecord, setCrossRoomRecord
 }) => {
   
-  // 💡 關鍵升級：分頁狀態
+  // 💡 直接從 Context 拔取需要的全域資料
+  const { currentUserRole, activeRoomId, currentRoom, records, setView, setActiveRoomId } = useContext(AppContext);
+
+  // 💡 效能救星：分頁狀態 (預設載入 50 筆)
   const [displayCount, setDisplayCount] = useState(50);
   const headerColorClass = currentRoom?.headerTheme || getRoomHeaderColor(activeRoomId);
 
@@ -23,11 +28,10 @@ const RoomView = ({
       if (homeFilterDate) return r.date === homeFilterDate;
       return true;
     });
-    // 排序：確保最新在最前
     return filtered.sort((a,b) => b.timestamp - a.timestamp);
   }, [records, searchQuery, homeFilterDate]);
 
-  // 💡 只切取目前需要顯示的筆數
+  // 💡 切取目前需要顯示的筆數，避免記憶體爆炸
   const displayRecords = allFilteredRecords.slice(0, displayCount);
 
   const { totalIncome, totalExpense } = useMemo(() => {
@@ -85,7 +89,7 @@ const RoomView = ({
           ))}
         </div>
 
-        {/* 💡 專業級分頁加載按鈕 */}
+        {/* 💡 專業級分頁加載按鈕 (保護手機效能) */}
         {allFilteredRecords.length > displayCount && (
           <button 
             onClick={() => setDisplayCount(prev => prev + 50)}
