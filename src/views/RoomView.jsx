@@ -15,7 +15,6 @@ const RoomView = ({
   const touchStartY = useRef(null);
   const headerColorClass = currentRoom?.headerTheme || getRoomHeaderColor(activeRoomId);
 
-  // 效能優化：過濾與排序
   const displayRecords = useMemo(() => {
     const filtered = records.filter(r => {
       if (searchQuery) {
@@ -35,7 +34,6 @@ const RoomView = ({
     return filtered;
   }, [records, searchQuery, homeFilterDate]);
 
-  // 效能優化：計算總計
   const { totalIncome, totalExpense, netBalance } = useMemo(() => {
     const income = displayRecords.filter(r => r.type === 'income' && !r.excludeFromBalance).reduce((sum, r) => sum + r.amount, 0);
     const expense = displayRecords.filter(r => (r.type === 'expense' || !r.type) && !r.excludeFromBalance).reduce((sum, r) => sum + r.amount, 0);
@@ -122,7 +120,8 @@ const RoomView = ({
                   key={exp.id} 
                   exp={exp} 
                   idx={idx} 
-                  currentUserId={user?.uid} 
+                  // 💡 關鍵修正：將 UID 改為傳遞登入身分
+                  currentUserRole={currentUserRole} 
                   isSortable={!searchQuery && homeFilterDate} 
                   onRecordClick={setViewingRecord} 
                   handleMoveRecord={handleMoveRecord} 
