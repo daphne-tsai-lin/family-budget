@@ -15,6 +15,7 @@ const RoomView = ({
   const touchStartY = useRef(null);
   const headerColorClass = currentRoom?.headerTheme || getRoomHeaderColor(activeRoomId);
 
+  // 效能優化：過濾與排序
   const displayRecords = useMemo(() => {
     const filtered = records.filter(r => {
       if (searchQuery) {
@@ -34,6 +35,7 @@ const RoomView = ({
     return filtered;
   }, [records, searchQuery, homeFilterDate]);
 
+  // 效能優化：計算總計
   const { totalIncome, totalExpense, netBalance } = useMemo(() => {
     const income = displayRecords.filter(r => r.type === 'income' && !r.excludeFromBalance).reduce((sum, r) => sum + r.amount, 0);
     const expense = displayRecords.filter(r => (r.type === 'expense' || !r.type) && !r.excludeFromBalance).reduce((sum, r) => sum + r.amount, 0);
@@ -116,8 +118,17 @@ const RoomView = ({
           ) : (
             <div className="space-y-2">
               {displayRecords.map((exp, idx) => (
-                {/* 💡 傳遞 currentUserId 讓 RecordItem 判斷是否為本人 */}
-                <RecordItem key={exp.id} exp={exp} idx={idx} currentUserId={user.uid} isSortable={!searchQuery && homeFilterDate} onRecordClick={setViewingRecord} handleMoveRecord={handleMoveRecord} openEditForm={() => onEditRecord(exp)} setCrossRoomRecord={setCrossRoomRecord} />
+                <RecordItem 
+                  key={exp.id} 
+                  exp={exp} 
+                  idx={idx} 
+                  currentUserId={user?.uid} 
+                  isSortable={!searchQuery && homeFilterDate} 
+                  onRecordClick={setViewingRecord} 
+                  handleMoveRecord={handleMoveRecord} 
+                  openEditForm={() => onEditRecord(exp)} 
+                  setCrossRoomRecord={setCrossRoomRecord} 
+                />
               ))}
             </div>
           )}
