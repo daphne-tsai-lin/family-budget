@@ -5,7 +5,6 @@ import { db, appId } from '../firebase/firebaseConfig';
 import { getLocalTodayStr, getLocalLastMonthStartStr, getLocalLastMonthEndStr, toROCYearStr, getLocalMonthStartStr } from '../utils/helpers';
 
 const AccountsView = ({ user, activeRoomId, currentRoom, records, setView, setViewingRecord }) => {
-  // 依據原始設定，決定預設載入區間
   const defaultRange = currentRoom?.accountDefaultRange || '當月';
   const [accountStartDate, setAccountStartDate] = useState(defaultRange === '全部' ? '' : getLocalMonthStartStr());
   const [accountEndDate, setAccountEndDate] = useState(getLocalTodayStr());
@@ -99,7 +98,7 @@ const AccountsView = ({ user, activeRoomId, currentRoom, records, setView, setVi
       </header>
 
       <main className="scroll-container px-3 py-3 space-y-3 flex-1 overflow-y-auto pb-[90px] [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-        {/* 找回原版的精準日期區間選擇器 */}
+        {/* ✅ 100% 復刻原版：區間過濾器 */}
         <div className="flex flex-col gap-2 bg-white p-2 rounded-2xl shadow-sm border border-indigo-100">
           <div className="flex items-center gap-1.5">
             <Calendar size={14} className="text-indigo-400 shrink-0 ml-1 hidden sm:block" />
@@ -135,6 +134,7 @@ const AccountsView = ({ user, activeRoomId, currentRoom, records, setView, setVi
           </div>
         </div>
 
+        {/* 現金 */}
         <div className="bg-white p-4 rounded-2xl shadow-sm border border-emerald-50">
           <h2 className="font-bold text-[17px] text-gray-700 mb-3 flex items-center gap-1.5"><Wallet size={18} className="text-emerald-500"/> 現金餘額</h2>
           <div onClick={() => !isEditingBalances && setViewingAccountHistory('現金')} className={`flex justify-between items-center bg-gray-50 p-2.5 rounded-xl border border-gray-100 ${!isEditingBalances ? 'cursor-pointer hover:bg-emerald-50 hover:border-emerald-200 transition' : ''}`}>
@@ -147,6 +147,7 @@ const AccountsView = ({ user, activeRoomId, currentRoom, records, setView, setVi
           </div>
         </div>
 
+        {/* 銀行/電子票證 */}
         <div className="bg-white p-4 rounded-2xl shadow-sm border border-blue-50">
           <div className="flex justify-between items-end mb-3 flex-nowrap">
             <h2 className="font-bold text-[17px] text-gray-700 flex items-center gap-1.5 min-w-0 shrink">
@@ -156,7 +157,7 @@ const AccountsView = ({ user, activeRoomId, currentRoom, records, setView, setVi
             <span className="text-[14px] font-extrabold text-blue-500 bg-blue-50 px-2 py-1 rounded-lg shrink-0 ml-2 whitespace-nowrap">小計: ${bankTotal.toLocaleString()}</span>
           </div>
           <div className="space-y-2">
-            {banks.length === 0 && eTickets.length === 0 && <p className="text-gray-400 text-[14px] font-bold text-center py-3 bg-gray-50 rounded-xl">無銀行與電子票證，請至設定新增</p>}
+            {banks.length === 0 && eTickets.length === 0 && <p className="text-gray-400 text-[14px] font-bold text-center py-3 bg-gray-50 rounded-xl">無資料，請至設定新增</p>}
             {banks.map(b => {
               const bal = balances[`bank_${b}`] || 0;
               return (
@@ -186,6 +187,7 @@ const AccountsView = ({ user, activeRoomId, currentRoom, records, setView, setVi
           </div>
         </div>
 
+        {/* 信用卡 */}
         <div className="bg-white p-4 rounded-2xl shadow-sm border border-orange-50">
           <div className="flex justify-between items-end mb-3 flex-nowrap">
             <h2 className="font-bold text-[17px] text-gray-700 flex items-center gap-1.5 min-w-0 shrink">
@@ -195,7 +197,7 @@ const AccountsView = ({ user, activeRoomId, currentRoom, records, setView, setVi
             <span className="text-[14px] font-extrabold text-orange-500 bg-orange-50 px-2 py-1 rounded-lg shrink-0 ml-2 whitespace-nowrap">小計: ${ccTotal.toLocaleString()}</span>
           </div>
           <div className="space-y-2">
-            {ccs.length === 0 && <p className="text-gray-400 text-[14px] font-bold text-center py-3 bg-gray-50 rounded-xl">無信用卡，請至設定新增</p>}
+            {ccs.length === 0 && <p className="text-gray-400 text-[14px] font-bold text-center py-3 bg-gray-50 rounded-xl">無資料，請至設定新增</p>}
             {ccs.map(c => {
               const bal = balances[`cc_${c}`] || 0;
               return (
@@ -210,18 +212,16 @@ const AccountsView = ({ user, activeRoomId, currentRoom, records, setView, setVi
               )
             })}
           </div>
-          <p className="text-[11px] font-bold text-orange-400 mt-3 bg-orange-50 p-2.5 rounded-xl text-center leading-relaxed">* 行動支付與信用卡金額代表「累積應繳卡費（負債）」。刷卡會增加金額，透過轉帳繳費後金額會減少。</p>
+          <p className="text-[11px] font-bold text-orange-400 mt-3 bg-orange-50 p-2.5 rounded-xl text-center leading-relaxed">* 行動支付與信用卡金額代表「累積應繳卡費（負債）」。刷卡會增加金額，轉帳繳費後減少。</p>
         </div>
       </main>
 
-      {/* 歷史明細反查 Modal 保持與之前一樣即可 */}
+      {/* 帳戶明細 Modal */}
       {viewingAccountHistory && (
         <div className="fixed inset-0 bg-black/40 z-[100] flex justify-center items-center p-3 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setViewingAccountHistory(null)}>
           <div className="bg-white w-full max-w-md max-h-[85vh] flex flex-col rounded-[1.5rem] p-4 shadow-2xl relative" onClick={e => e.stopPropagation()}>
             <button onClick={() => setViewingAccountHistory(null)} className="absolute top-3 right-3 text-gray-400 hover:text-gray-600 bg-gray-100 p-1.5 rounded-full transition"><X size={16}/></button>
-            <h3 className="font-black text-[18px] text-gray-800 mb-3 border-b border-gray-100 pb-2 flex items-center gap-1.5">
-              <Wallet size={18} className="text-indigo-500" /> {viewingAccountHistory} 明細
-            </h3>
+            <h3 className="font-black text-[18px] text-gray-800 mb-3 border-b border-gray-100 pb-2 flex items-center gap-1.5"><Wallet size={18} className="text-indigo-500" /> {viewingAccountHistory} 明細</h3>
             <div className="flex-1 overflow-y-auto space-y-1.5 pr-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
               {(() => {
                 const todayStr = getLocalTodayStr();
@@ -233,13 +233,10 @@ const AccountsView = ({ user, activeRoomId, currentRoom, records, setView, setVi
                   const fromAcc = getAccName(r.method, r.subMethod);
                   const toAcc = getAccName(r.transferToMethod, r.transferToSubMethod);
                   return fromAcc === viewingAccountHistory || toAcc === viewingAccountHistory;
-                }).sort((a, b) => {
-                  if (a.date !== b.date) return a.date > b.date ? -1 : 1;
-                  return b.timestamp - a.timestamp;
-                });
+                }).sort((a, b) => (a.date !== b.date ? (a.date > b.date ? -1 : 1) : b.timestamp - a.timestamp));
                 if (accHistory.length === 0) return <p className="text-center text-gray-400 font-bold py-10 text-[14px]">此區間尚無明細</p>;
                 return accHistory.map(exp => (
-                   <div key={exp.id} onClick={() => setViewingRecord(exp)} className="bg-gray-50 p-3 rounded-xl border border-gray-200 shadow-sm mb-2 font-bold text-gray-600 cursor-pointer">
+                   <div key={exp.id} onClick={() => setViewingRecord(exp)} className={`bg-gray-50 p-3 rounded-xl border border-gray-200 shadow-sm mb-2 font-bold text-gray-600 cursor-pointer ${exp.excludeFromBalance ? 'opacity-60 line-through' : ''}`}>
                      <div className="flex justify-between items-center"><span className="text-[12px] text-gray-400">{exp.date}</span><span className="text-[15px] text-gray-800">{exp.title || exp.category}</span><span className={`text-[16px] ${exp.type === 'income' ? 'text-green-500' : 'text-gray-800'}`}>${exp.amount.toLocaleString()}</span></div>
                    </div>
                 ));
