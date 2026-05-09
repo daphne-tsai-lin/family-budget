@@ -210,7 +210,7 @@ export default function App() {
     let deleteFuture = false;
     if (record.groupId) {
       if(!window.confirm('確定要刪除這筆紀錄嗎？')) return;
-      deleteFuture = window.confirm('這是一筆週期紀錄。是否一併刪除此系列「未來」的所有紀錄？');
+      deleteFuture = window.confirm('這是週期性紀錄，是否刪除此系列「未來」的所有紀錄？');
     } else { 
       if(!window.confirm('確定要刪除這筆紀錄嗎？')) return; 
     }
