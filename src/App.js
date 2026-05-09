@@ -18,7 +18,6 @@ if (typeof document !== 'undefined' && !document.getElementById('tailwind-script
   const script = document.createElement('script'); script.id = 'tailwind-script'; script.src = 'https://cdn.tailwindcss.com'; document.head.appendChild(script);
 }
 
-// 💡 1. 建立並匯出 AppContext (解決 Props Drilling)
 export const AppContext = createContext(null);
 
 export default function App() {
@@ -54,7 +53,6 @@ export default function App() {
   const fileInputRef = useRef(null);
   const hasPrunedPhotos = useRef(false);
 
-  // 💡 2. 將固定狀態與常用切換函數打包進 Context
   const contextValue = {
     user, currentUserRole, activeRoomId, currentRoom, records, savedRooms,
     setView, setActiveRoomId, setRoomCode, setRoomPin, setCurrentUserRole, setRoomName
@@ -130,6 +128,16 @@ export default function App() {
 
   const handleEditRecord = useCallback((record) => { setEditRecordId(record?.id); setCopyRecordData(null); setShowAddForm(true); }, []);
   const handleCloseForm = useCallback(() => { setShowAddForm(false); setEditRecordId(null); setCopyRecordData(null); }, []);
+
+  // 💡 確保備份函式存在並傳遞
+  const handleBackup = useCallback(() => {
+    if (!records || records.length === 0) return alert('目前沒有資料可以備份喔！');
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(records));
+    const downloadAnchorNode = document.createElement('a');
+    downloadAnchorNode.setAttribute("href", dataStr);
+    downloadAnchorNode.setAttribute("download", `expense_backup_${getLocalTodayStr()}.json`);
+    document.body.appendChild(downloadAnchorNode); downloadAnchorNode.click(); downloadAnchorNode.remove();
+  }, [records]);
 
   const handleJoinRoom = async (e) => {
     e.preventDefault(); setErrorMsg('');
@@ -263,13 +271,12 @@ export default function App() {
   const renderView = () => {
     if (!user) return <div className="p-6 text-center text-gray-500 font-extrabold flex justify-center items-center h-full"><Sparkles className="animate-bounce mr-3 text-yellow-400" size={28}/> 魔法連線中...</div>;
 
-    // 💡 漸進式重構：我們依然傳遞 Props，保證舊頁面不崩潰，而新頁面可以直接吃 Context！
     switch (view) {
       case 'login': return <LoginView savedRooms={savedRooms} roomCode={roomCode} setRoomCode={setRoomCode} roomPin={roomPin} setRoomPin={setRoomPin} currentUserRole={currentUserRole} setCurrentUserRole={setCurrentUserRole} availableLoginUsers={availableLoginUsers} isLoading={isLoading} errorMsg={errorMsg} handleJoinRoom={handleJoinRoom} quickJoinRoom={quickJoinRoom} onSwitchToCreate={() => {setView('create'); setErrorMsg('');}} />;
       case 'create': return <CreateRoomView roomName={roomName} setRoomName={setRoomName} roomCode={roomCode} setRoomCode={setRoomCode} roomPin={roomPin} setRoomPin={setRoomPin} currentUserRole={currentUserRole} setCurrentUserRole={setCurrentUserRole} isLoading={isLoading} errorMsg={errorMsg} handleCreateRoom={handleCreateRoom} onBackToLogin={() => {setView('login'); setErrorMsg('');}} />;
       case 'room':
         if (showAddForm) return <RecordFormView recordToEdit={editRecordId ? records.find(r => r.id === editRecordId) : null} copyRecordData={copyRecordData} onClose={handleCloseForm} setCrossRoomRecord={setCrossRoomRecord} />;
-        return <RoomView fileInputRef={fileInputRef} homeFilterDate={homeFilterDate} setHomeFilterDate={setHomeFilterDate} searchQuery={searchQuery} setSearchQuery={setSearchQuery} setViewingRecord={setViewingRecord} handleMoveRecord={handleMoveRecord} onEditRecord={handleEditRecord} setCrossRoomRecord={setCrossRoomRecord} />;
+        return <RoomView fileInputRef={fileInputRef} handleBackup={handleBackup} homeFilterDate={homeFilterDate} setHomeFilterDate={setHomeFilterDate} searchQuery={searchQuery} setSearchQuery={setSearchQuery} setViewingRecord={setViewingRecord} handleMoveRecord={handleMoveRecord} onEditRecord={handleEditRecord} setCrossRoomRecord={setCrossRoomRecord} />;
       case 'accounts': return <AccountsView user={user} activeRoomId={activeRoomId} currentRoom={currentRoom} records={records} setView={setView} setViewingRecord={setViewingRecord} currentUserRole={currentUserRole} />;
       case 'analysis': return <AnalysisView records={records} currentRoom={currentRoom} setView={setView} setViewingRecord={setViewingRecord} currentUserRole={currentUserRole} />;
       case 'settings': return <SettingsView user={user} activeRoomId={activeRoomId} currentRoom={currentRoom} records={records} savedRooms={savedRooms} setView={setView} />;
@@ -278,7 +285,6 @@ export default function App() {
   };
 
   return (
-    // 💡 3. 用 Context Provider 包住整個 App
     <AppContext.Provider value={contextValue}>
       <div className="min-h-screen bg-gray-100 sm:py-4 flex justify-center items-center font-sans text-[16px]">
         <div className={`w-full ${view === 'login' || view === 'create' ? 'max-w-[400px]' : 'max-w-[460px]'} min-h-screen sm:min-h-0 sm:h-[800px] bg-[#FFFBF0] flex flex-col relative sm:rounded-[2.5rem] sm:border-[6px] sm:border-gray-800 shadow-2xl overflow-hidden transition-all duration-500`}>
@@ -292,6 +298,7 @@ export default function App() {
             </div>
           )}
 
+          {/* 💡 修正 3：修正明細視窗文字顯示 (付款方式、付款人、複製、刪除) */}
           {viewingRecord && (
             <div className="fixed inset-0 bg-black/40 z-[110] flex justify-center items-center p-4 backdrop-blur-sm" onClick={() => setViewingRecord(null)}>
               <div className="bg-white w-full max-w-sm rounded-[1.5rem] p-5 shadow-2xl relative" onClick={e => e.stopPropagation()}>
@@ -305,16 +312,16 @@ export default function App() {
                   {viewingRecord.type !== 'transfer' && <div className="flex justify-between border-b border-gray-100 pb-1.5 pt-1"><span className="text-gray-400">項目</span><span className="text-gray-800">{viewingRecord.title}</span></div>}
                   {viewingRecord.type !== 'transfer' && viewingRecord.merchant && viewingRecord.merchant !== '未指定' && <div className="flex justify-between border-b border-gray-100 pb-1.5 pt-1"><span className="text-gray-400">商家</span><span className="text-gray-800">{viewingRecord.merchant}</span></div>}
                   <div className="flex justify-between border-b border-gray-100 pb-1.5 pt-1"><span className="text-gray-400">花費對象</span><span className="text-gray-800">{Array.isArray(viewingRecord.payer) ? viewingRecord.payer.join(', ') : viewingRecord.payer}</span></div>
-                  {viewingRecord.method && viewingRecord.method !== '未指定' && <div className="flex justify-between border-b border-gray-100 pb-1.5 pt-1"><span className="text-gray-400">{viewingRecord.type === 'transfer' ? '轉出' : '方式'}</span><span className="text-gray-800">{viewingRecord.method}{viewingRecord.subMethod ? ` (${viewingRecord.subMethod})` : ''}</span></div>}
-                  {viewingRecord.type === 'transfer' && viewingRecord.transferToMethod && <div className="flex justify-between border-b border-gray-100 pb-1.5 pt-1"><span className="text-gray-400">轉入</span><span className="text-gray-800">{viewingRecord.transferToMethod}{viewingRecord.transferToSubMethod ? ` (${viewingRecord.transferToSubMethod})` : ''}</span></div>}
-                  <div className="flex justify-between border-b border-gray-100 pb-1.5 pt-1"><span className="text-gray-400">紀錄人</span><span className={`${getRoleColorStyle(viewingRecord.addedByRole).lightBg} ${getRoleColorStyle(viewingRecord.addedByRole).text} px-2 py-0.5 rounded-md`}>{viewingRecord.addedByRole}</span></div>
+                  {viewingRecord.method && viewingRecord.method !== '未指定' && <div className="flex justify-between border-b border-gray-100 pb-1.5 pt-1"><span className="text-gray-400">{viewingRecord.type === 'transfer' ? '轉出帳戶' : '付款方式'}</span><span className="text-gray-800">{viewingRecord.method}{viewingRecord.subMethod ? ` (${viewingRecord.subMethod})` : ''}</span></div>}
+                  {viewingRecord.type === 'transfer' && viewingRecord.transferToMethod && <div className="flex justify-between border-b border-gray-100 pb-1.5 pt-1"><span className="text-gray-400">轉入帳戶</span><span className="text-gray-800">{viewingRecord.transferToMethod}{viewingRecord.transferToSubMethod ? ` (${viewingRecord.transferToSubMethod})` : ''}</span></div>}
+                  <div className="flex justify-between border-b border-gray-100 pb-1.5 pt-1"><span className="text-gray-400">付款人</span><span className={`${getRoleColorStyle(viewingRecord.addedByRole).lightBg} ${getRoleColorStyle(viewingRecord.addedByRole).text} px-2 py-0.5 rounded-md`}>{viewingRecord.addedByRole}</span></div>
                   {viewingRecord.excludeFromBalance && <div className="flex justify-between border-b border-gray-100 pb-1.5 pt-1"><span className="text-gray-400">計入總覽</span><span className="text-red-500 font-bold">不計入</span></div>}
                 </div>
                 
                 {!viewingRecord.addedByRole || viewingRecord.addedByRole === currentUserRole ? (
                   <div className="flex gap-2.5 mt-4 pt-3 border-t border-gray-100">
-                    <button onClick={() => { setCopyRecordData(viewingRecord); setViewingRecord(null); setShowAddForm(true); setView('room'); }} className="flex-1 font-bold py-2.5 rounded-xl bg-blue-50 text-blue-600 flex justify-center items-center"><Copy size={15} className="mr-1"/> 複製一筆</button>
-                    <button onClick={() => { handleDeleteRecord(viewingRecord); setViewingRecord(null); }} className="flex-1 font-bold py-2.5 rounded-xl bg-red-50 text-red-500 flex justify-center items-center"><Trash2 size={15} className="mr-1"/> 刪除此筆</button>
+                    <button onClick={() => { setCopyRecordData(viewingRecord); setViewingRecord(null); setShowAddForm(true); setView('room'); }} className="flex-1 font-bold py-2.5 rounded-xl bg-blue-50 text-blue-600 flex justify-center items-center"><Copy size={15} className="mr-1"/> 複製</button>
+                    <button onClick={() => { handleDeleteRecord(viewingRecord); setViewingRecord(null); }} className="flex-1 font-bold py-2.5 rounded-xl bg-red-50 text-red-500 flex justify-center items-center"><Trash2 size={15} className="mr-1"/> 刪除</button>
                   </div>
                 ) : (
                   <div className="mt-4 pt-3 border-t border-gray-100 text-center bg-gray-50 rounded-xl p-2.5 shadow-inner">
