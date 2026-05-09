@@ -82,13 +82,11 @@ export const getRoleColorStyle = (role, index = 0) => {
   return colors[index % colors.length];
 };
 
-// 💡 核心優化：將產生未來的數量強制限制在 1 年內！
 export const generateFutureDates = (startDateStr, freq, days, interval, customDays, maxYears = 1) => {
   if (freq === '一次') return [startDateStr];
   let dates = [];
   let current = new Date(startDateStr + 'T12:00:00');
   
-  // 強制最長期限為 1 年
   const limitDate = new Date(startDateStr + 'T12:00:00');
   limitDate.setFullYear(limitDate.getFullYear() + maxYears);
 
@@ -96,7 +94,6 @@ export const generateFutureDates = (startDateStr, freq, days, interval, customDa
     const dayMap = { '週日': 0, '週一': 1, '週二': 2, '週三': 3, '週四': 4, '週五': 5, '週六': 6 };
     const targetDays = days.map(d => dayMap[d]);
     if (targetDays.length === 0) return [startDateStr];
-    // 最多 53 週 (約一年)
     let weeks = 0;
     while (weeks < 53 && current <= limitDate) {
       if (targetDays.includes(current.getDay())) {
@@ -107,11 +104,10 @@ export const generateFutureDates = (startDateStr, freq, days, interval, customDa
         if (dateStr !== startDateStr && !dates.includes(dateStr)) dates.push(dateStr);
       }
       current.setDate(current.getDate() + 1);
-      if (current.getDay() === 0) weeks++; // 每經過週日算過了一週
+      if (current.getDay() === 0) weeks++; 
     }
   } else if (freq === '每月') {
     const startDay = current.getDate();
-    // 最多 12 個月 (一年)
     for (let i = 1; i <= 12; i++) {
       let next = new Date(current.getFullYear(), current.getMonth() + i, startDay, 12, 0, 0);
       if (next.getDate() !== startDay) {
@@ -131,7 +127,6 @@ export const generateFutureDates = (startDateStr, freq, days, interval, customDa
     else if (interval === '一年') addDays = 365;
     
     if (addDays > 0) {
-        // 最大迴圈保護機制，確保不超過一年或最大 12 次
         let count = 0;
         while (current <= limitDate && count < 12) {
             current.setDate(current.getDate() + addDays);
@@ -151,7 +146,8 @@ export const evaluateCalc = (expr) => {
   try {
     if (!expr) return '';
     const sanitized = expr.replace(/×/g, '*').replace(/÷/g, '/');
-    if (/[^0-9+\\-*/.() ]/.test(sanitized)) return expr;
+    // 💡 已修正：安全符號範圍，不再報錯
+    if (/[^0-9+*/.() -]/.test(sanitized)) return expr;
     const result = new Function(`return ${sanitized}`)();
     if (!isFinite(result)) return '';
     return String(Math.floor(result));
