@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Sparkles, Copy, Trash2, X, Send } from 'lucide-react';
 import { onAuthStateChanged } from 'firebase/auth';
-import { doc, getDoc, updateDoc, onSnapshot, collection, writeBatch, deleteField, setDoc } from 'firebase/firestore';
+// 💡 新增了 query, where 用於精準抓取資料
+import { doc, getDoc, updateDoc, onSnapshot, collection, writeBatch, deleteField, setDoc, query, where } from 'firebase/firestore';
 
-// 確保這裡是正確的 firebaseConfig 路徑
 import { auth, db, appId } from './firebase/firebaseConfig'; 
 import { getLocalTodayStr, toROCYearStr, getRoleColorStyle, generateFutureDates } from './utils/helpers';
 
@@ -42,7 +42,6 @@ export default function App() {
   const [crossRoomRecord, setCrossRoomRecord] = useState(null);
   const [selectedTransferRoom, setSelectedTransferRoom] = useState(null);
   const [enlargedPhoto, setEnlargedPhoto] = useState(null);
-  const [refreshTrigger, setRefreshTrigger] = useState(0);
   
   const fileInputRef = useRef(null);
 
@@ -56,7 +55,7 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
-  // 2. 防誤觸退出機制 (防止記帳一半意外關閉網頁)
+  // 2. 防誤觸退出機制
   useEffect(() => {
     window.history.pushState({ trap: true }, '');
     const handleBeforeUnload = (e) => { e.preventDefault(); e.returnValue = ''; };
@@ -92,21 +91,31 @@ export default function App() {
     }
   }, [roomCode, user, view]);
 
-  // 4. 監聽房間設定與記帳明細
+  // 4. 【核心效能優化】精準監聽房間設定與記帳明細
   useEffect(() => {
     if (!user || !activeRoomId) return;
+    
+    // 監聽房間設定
     const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', activeRoomId);
     const unsubscribeRoom = onSnapshot(roomRef, (snapshot) => {
       if (snapshot.exists()) setCurrentRoom({ id: snapshot.id, ...snapshot.data() });
     });
-    const expensesRef = collection(db, 'artifacts', appId, 'public', 'data', 'expenses');
-    const unsubscribeExpenses = onSnapshot(expensesRef, (snapshot) => {
-      const allData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      const roomRecords = allData.filter(exp => exp.roomId === activeRoomId).sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+
+    // 💡 效能升級：只向伺服器請求「目前房間」的明細，不再把全世界的資料抓下來過濾！
+    const expensesQuery = query(
+      collection(db, 'artifacts', appId, 'public', 'data', 'expenses'),
+      where('roomId', '==', activeRoomId)
+    );
+    
+    const unsubscribeExpenses = onSnapshot(expensesQuery, (snapshot) => {
+      const roomRecords = snapshot.docs
+        .map(doc => ({ id: doc.id, ...doc.data() }))
+        .sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
       setRecords(roomRecords);
     });
+
     return () => { unsubscribeRoom(); unsubscribeExpenses(); };
-  }, [user, activeRoomId, refreshTrigger]);
+  }, [user, activeRoomId]);
 
   // 5. 自動清理 90 天以上舊圖片 (節省雲端空間)
   useEffect(() => {
@@ -127,28 +136,13 @@ export default function App() {
     }
   }, [records, activeRoomId]);
 
-  // 6. 狀態自動重置機制 (離開首頁時清空搜尋與重置日期)
+  // 6. 狀態自動重置機制
   useEffect(() => {
     if (view !== 'room') {
       setSearchQuery('');
       setHomeFilterDate(getLocalTodayStr());
     }
   }, [view]);
-
-  // 7. 支援 visibilitychange 的背景刷新
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        setTimeout(() => setRefreshTrigger(prev => prev + 1), 500);
-      }
-    };
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    window.addEventListener('focus', handleVisibilityChange);
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('focus', handleVisibilityChange);
-    };
-  }, []);
 
   // === 業務與點擊邏輯 ===
 
@@ -225,7 +219,11 @@ export default function App() {
   };
 
   const handleMoveRecord = async (index, direction) => {
-    const displayRecs = searchQuery ? records.filter(r => r.date <= getLocalTodayStr() && JSON.stringify(r).toLowerCase().includes(searchQuery.toLowerCase())) : records.filter(r => r.date === homeFilterDate);
+    // 取得當前畫面上顯示的陣列（與 RoomView 的邏輯一致）
+    const displayRecs = searchQuery 
+      ? records.filter(r => r.date <= getLocalTodayStr() && JSON.stringify(r).toLowerCase().includes(searchQuery.toLowerCase()))
+      : records.filter(r => r.date === homeFilterDate);
+      
     if (index + direction < 0 || index + direction >= displayRecs.length) return;
     const currentTx = displayRecs[index], targetTx = displayRecs[index + direction];
     let targetTs = targetTx.timestamp;
@@ -265,7 +263,6 @@ export default function App() {
       const tRoom = targetRoomSnap.data();
       const data = crossRoomRecord;
 
-      // 防呆：檢查目標房間是否具備相同的分類、項目、商家
       let missingOption = false;
       if (data.type === 'expense' || !data.type) {
         if (data.category && (!tRoom.categories || !tRoom.categories.includes(data.category))) missingOption = true;
@@ -277,9 +274,7 @@ export default function App() {
         if (data.category && (!tRoom.transferCategories || !tRoom.transferCategories.includes(data.category))) missingOption = true;
       }
       
-      if (missingOption) {
-        return alert("因無相同選項故無法傳送，請先確認目標房間具備相同的分類、項目與商家！");
-      }
+      if (missingOption) return alert("因無相同選項故無法傳送，請先確認目標房間具備相同的分類、項目與商家！");
       
       const { id, ...dataToCopy } = crossRoomRecord;
       dataToCopy.roomId = targetRoomId;
@@ -358,7 +353,8 @@ export default function App() {
           const recordToEdit = editRecordId ? records.find(r => r.id === editRecordId) : null;
           return <RecordFormView user={user} activeRoomId={activeRoomId} currentRoom={currentRoom} currentUserRole={currentUserRole} records={records} recordToEdit={recordToEdit} onClose={() => { setShowAddForm(false); setEditRecordId(null); }} setCrossRoomRecord={setCrossRoomRecord} />;
         }
-        return <RoomView user={user} activeRoomId={activeRoomId} currentRoom={currentRoom} currentUserRole={currentUserRole} records={records} setRefreshTrigger={setRefreshTrigger} fileInputRef={fileInputRef} handleBackup={handleBackup} setView={setView} setActiveRoomId={setActiveRoomId} setRoomCode={setRoomCode} setRoomPin={setRoomPin} setCurrentUserRole={setCurrentUserRole} setRoomName={setRoomName} homeFilterDate={homeFilterDate} setHomeFilterDate={setHomeFilterDate} searchQuery={searchQuery} setSearchQuery={setSearchQuery} setViewingRecord={setViewingRecord} handleMoveRecord={handleMoveRecord} onEditRecord={(record) => { setEditRecordId(record?.id); setShowAddForm(true); }} setCrossRoomRecord={setCrossRoomRecord} />;
+        // 💡 移除已淘汰的 setRefreshTrigger，保持組件乾淨
+        return <RoomView user={user} activeRoomId={activeRoomId} currentRoom={currentRoom} currentUserRole={currentUserRole} records={records} fileInputRef={fileInputRef} handleBackup={handleBackup} setView={setView} setActiveRoomId={setActiveRoomId} setRoomCode={setRoomCode} setRoomPin={setRoomPin} setCurrentUserRole={setCurrentUserRole} setRoomName={setRoomName} homeFilterDate={homeFilterDate} setHomeFilterDate={setHomeFilterDate} searchQuery={searchQuery} setSearchQuery={setSearchQuery} setViewingRecord={setViewingRecord} handleMoveRecord={handleMoveRecord} onEditRecord={(record) => { setEditRecordId(record?.id); setShowAddForm(true); }} setCrossRoomRecord={setCrossRoomRecord} />;
       case 'accounts':
         return <AccountsView user={user} activeRoomId={activeRoomId} currentRoom={currentRoom} records={records} setView={setView} setViewingRecord={setViewingRecord} />;
       case 'analysis':
@@ -369,19 +365,12 @@ export default function App() {
     }
   };
 
-  const renderMethodText = (method, subMethod) => method ? `${method}${subMethod ? `(${subMethod})` : ''}` : null;
-
   return (
     <div className="min-h-screen bg-gray-100 sm:py-4 flex justify-center items-center font-sans text-[16px]">
       <div className={`w-full ${view === 'login' || view === 'create' ? 'max-w-[400px]' : 'max-w-[460px]'} min-h-screen sm:min-h-0 sm:h-[800px] bg-[#FFFBF0] flex flex-col relative sm:rounded-[2.5rem] sm:border-[6px] sm:border-gray-800 shadow-2xl overflow-hidden transition-all duration-500`}>
-        {/* 用於匯入 JSON 的隱藏按鈕 */}
         <input type="file" accept=".json" style={{display: 'none'}} ref={fileInputRef} onChange={handleImport} />
         
         {renderView()}
-
-        {/* ========================================== */}
-        {/* 跨頁面共用彈跳視窗 Modal (單筆紀錄、放大圖、傳送) */}
-        {/* ========================================== */}
 
         {enlargedPhoto && (
           <div className="fixed inset-0 bg-black/90 z-[150] flex flex-col items-center justify-center p-4 backdrop-blur-md" onClick={() => setEnlargedPhoto(null)}>
