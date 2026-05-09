@@ -19,6 +19,7 @@ const AnalysisView = ({ records, currentRoom, setView, setViewingRecord, current
     ...(analysisType === 'expense' ? [{ id: 'title', label: '📝 項目' }, { id: 'merchant', label: '🏪 商家' }, { id: 'method', label: '💳 付款方式' }, { id: 'payer', label: '👥 花費對象' }] : [{ id: 'payer', label: '👥 對象' }])
   ];
 
+  // ✅ 100% 復刻原版的進階多重條件篩選過濾器
   const analysisFilteredRecords = useMemo(() => {
     return records.filter(r => {
       if (r.excludeFromBalance) return false;
@@ -106,7 +107,6 @@ const AnalysisView = ({ records, currentRoom, setView, setViewingRecord, current
               ))}
             </div>
           </div>
-          {/* 找回原版的精準日期區間選擇器 */}
           <div className="flex flex-col gap-2 bg-white p-2 rounded-2xl shadow-sm border border-teal-100 mb-3">
             <div className="flex items-center gap-1.5">
               <Calendar size={14} className="text-teal-400 shrink-0 ml-1 hidden sm:block" />
@@ -126,7 +126,6 @@ const AnalysisView = ({ records, currentRoom, setView, setViewingRecord, current
             </div>
           </div>
           
-          {/* 找回進階分析選單 (完全還原原版 5467 行後的邏輯) */}
           <div className="mb-2">
             <label className="block text-[13px] font-bold text-gray-500 mb-1.5 ml-1">分析選單 (可複選)</label>
             <div className="flex flex-wrap gap-1.5">
@@ -193,7 +192,6 @@ const AnalysisView = ({ records, currentRoom, setView, setViewingRecord, current
         </div>
       </main>
 
-      {/* 原版的明細彈出視窗 */}
       {viewingAnalysisItem && (
         <div className="fixed inset-0 bg-black/40 z-[100] flex justify-center items-end sm:items-center sm:p-4 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setViewingAnalysisItem(null)}>
           <div className="bg-white w-full max-w-md max-h-[85vh] flex flex-col rounded-[1.5rem] p-4 shadow-2xl relative" onClick={e => e.stopPropagation()}>
