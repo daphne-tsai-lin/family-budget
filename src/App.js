@@ -357,7 +357,7 @@ export default function App() {
         }
         return <RoomView user={user} activeRoomId={activeRoomId} currentRoom={currentRoom} currentUserRole={currentUserRole} records={records} fileInputRef={fileInputRef} handleBackup={handleBackup} setView={setView} setActiveRoomId={setActiveRoomId} setRoomCode={setRoomCode} setRoomPin={setRoomPin} setCurrentUserRole={setCurrentUserRole} setRoomName={setRoomName} homeFilterDate={homeFilterDate} setHomeFilterDate={setHomeFilterDate} searchQuery={searchQuery} setSearchQuery={setSearchQuery} setViewingRecord={setViewingRecord} handleMoveRecord={handleMoveRecord} onEditRecord={handleEditRecord} setCrossRoomRecord={setCrossRoomRecord} />;
       case 'accounts':
-        return <AccountsView user={user} activeRoomId={activeRoomId} currentRoom={currentRoom} records={records} setView={setView} setViewingRecord={setViewingRecord} />;
+        return <AccountsView user={user} activeRoomId={activeRoomId} currentRoom={currentRoom} records={records} setView={setView} setViewingRecord={setViewingRecord} currentUserRole={currentUserRole} />;
       case 'analysis':
         return <AnalysisView records={records} currentRoom={currentRoom} setView={setView} setViewingRecord={setViewingRecord} />;
       case 'settings':
@@ -380,6 +380,7 @@ export default function App() {
           </div>
         )}
 
+        {/* 💡 修正：補回所有缺少的 Modal 欄位 */}
         {viewingRecord && (
           <div className="fixed inset-0 bg-black/40 z-[110] flex justify-center items-center p-4 backdrop-blur-sm" onClick={() => setViewingRecord(null)}>
             <div className="bg-white w-full max-w-sm rounded-[1.5rem] p-5 shadow-2xl relative" onClick={e => e.stopPropagation()}>
@@ -390,13 +391,37 @@ export default function App() {
                 <div className="flex justify-between border-b border-gray-100 pb-1.5 pt-1"><span className="text-gray-400">金額</span><span className={`text-[24px] font-black ${viewingRecord.excludeFromBalance ? 'text-gray-500 line-through' : 'text-gray-800'}`}>${viewingRecord.amount.toLocaleString()}</span></div>
                 <div className="flex justify-between border-b border-gray-100 pb-1.5 pt-1"><span className="text-gray-400">消費日期</span><span className="text-gray-800">{toROCYearStr(viewingRecord.date)}</span></div>
                 <div className="flex justify-between border-b border-gray-100 pb-1.5 pt-1"><span className="text-gray-400">分類</span><span className="text-gray-800">{viewingRecord.category}</span></div>
+                
                 {viewingRecord.type !== 'transfer' && <div className="flex justify-between border-b border-gray-100 pb-1.5 pt-1"><span className="text-gray-400">項目</span><span className="text-gray-800">{viewingRecord.title}</span></div>}
-                <div className="flex justify-between border-b border-gray-100 pb-1.5 pt-1"><span className="text-gray-400">付款人</span><span className={`${getRoleColorStyle(viewingRecord.addedByRole).lightBg} ${getRoleColorStyle(viewingRecord.addedByRole).text} px-2 py-0.5 rounded-md`}>{viewingRecord.addedByRole}</span></div>
+                
+                {viewingRecord.type !== 'transfer' && viewingRecord.merchant && viewingRecord.merchant !== '未指定' && (
+                  <div className="flex justify-between border-b border-gray-100 pb-1.5 pt-1"><span className="text-gray-400">商家</span><span className="text-gray-800 text-right">{viewingRecord.merchant}</span></div>
+                )}
+                
+                <div className="flex justify-between border-b border-gray-100 pb-1.5 pt-1"><span className="text-gray-400">花費對象</span><span className="text-gray-800 text-right">{Array.isArray(viewingRecord.payer) ? viewingRecord.payer.join(', ') : viewingRecord.payer}</span></div>
+                
+                {viewingRecord.method && viewingRecord.method !== '未指定' && (
+                  <div className="flex justify-between border-b border-gray-100 pb-1.5 pt-1">
+                    <span className="text-gray-400">{viewingRecord.type === 'transfer' ? '轉出帳戶' : '付款方式'}</span>
+                    <span className="text-gray-800 text-right">{viewingRecord.method}{viewingRecord.subMethod ? ` (${viewingRecord.subMethod})` : ''}</span>
+                  </div>
+                )}
+                
+                {viewingRecord.type === 'transfer' && viewingRecord.transferToMethod && (
+                  <div className="flex justify-between border-b border-gray-100 pb-1.5 pt-1">
+                    <span className="text-gray-400">轉入帳戶</span>
+                    <span className="text-gray-800 text-right">{viewingRecord.transferToMethod}{viewingRecord.transferToSubMethod ? ` (${viewingRecord.transferToSubMethod})` : ''}</span>
+                  </div>
+                )}
+                
+                <div className="flex justify-between border-b border-gray-100 pb-1.5 pt-1"><span className="text-gray-400">紀錄人</span><span className={`${getRoleColorStyle(viewingRecord.addedByRole).lightBg} ${getRoleColorStyle(viewingRecord.addedByRole).text} px-2 py-0.5 rounded-md`}>{viewingRecord.addedByRole}</span></div>
+                
+                {viewingRecord.excludeFromBalance && <div className="flex justify-between border-b border-gray-100 pb-1.5 pt-1"><span className="text-gray-400">計入總覽</span><span className="text-red-500 font-bold">不計入</span></div>}
+
                 {viewingRecord.note && <div className="pt-1.5"><span className="text-gray-400 block mb-1">備註</span><span className="text-gray-800 block bg-gray-50 p-2.5 rounded-xl">{viewingRecord.note}</span></div>}
                 {viewingRecord.photoBase64 && <div className="pt-2"><span className="text-gray-400 block mb-1">照片 (點擊放大)</span><img src={viewingRecord.photoBase64} alt="圖" className="w-full h-28 object-cover rounded-xl cursor-pointer" onClick={() => setEnlargedPhoto(viewingRecord.photoBase64)} /></div>}
               </div>
               
-              {/* 💡 修正：使用登入身分判斷，並精簡文字 */}
               {!viewingRecord.addedByRole || viewingRecord.addedByRole === currentUserRole ? (
                 <div className="flex gap-2.5 mt-4 pt-3 border-t border-gray-100">
                   <button onClick={() => { setEditRecordId(viewingRecord.id); setViewingRecord(null); setShowAddForm(true); setView('room'); }} className="flex-1 font-bold py-2.5 rounded-xl bg-green-50 text-green-600 flex justify-center items-center"><Copy size={15} className="mr-1"/> 複製/編輯</button>
@@ -411,6 +436,7 @@ export default function App() {
           </div>
         )}
 
+        {/* 傳送至其他房間 Modal 保持不變 */}
         {crossRoomRecord && (
           <div className="fixed inset-0 bg-black/40 z-[120] flex justify-center items-center p-4 backdrop-blur-sm">
             <div className="bg-white w-full max-w-sm rounded-[1.5rem] p-5 shadow-2xl">
