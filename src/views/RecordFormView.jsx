@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef, useContext } from 'react';
 import { ChevronLeft, Save, Upload, Tag, Store, Receipt, Calendar, Settings, Image as ImageIcon, Camera, Calculator, Wallet, PiggyBank, Check, Trash2, Sparkles, User, RefreshCw, X, CreditCard } from 'lucide-react';
 import { collection, doc, writeBatch, deleteField } from 'firebase/firestore';
-import { ref, uploadString, getDownloadURL } from 'firebase/storage';
-import { db, appId, storage } from '../firebase/firebaseConfig';
+// 💡 已經徹底移除 storage 的載入，Vercel 絕對不會再報錯！
+import { db, appId } from '../firebase/firebaseConfig';
 import { CustomDropdown, MethodSelector, PillGroupMulti } from '../components/SharedUI';
 import { getLocalTodayStr, generateFutureDates, evaluateCalc, toROCYearStr } from '../utils/helpers';
 import { AppContext } from '../App';
@@ -20,7 +20,7 @@ const RecordFormView = ({ recordToEdit, copyRecordData, onClose, setCrossRoomRec
       type: 'expense', amount: '', date: getLocalTodayStr(),
       category: currentRoom?.categories?.[0] || '🍔 飲食',
       title: '', merchant: '', method: '現金', subMethod: '', transferToMethod: '', transferToSubMethod: '',
-      payer: ['全家'], note: '', photoBase64: '', photoUrl: '', excludeFromBalance: false,
+      payer: ['全家'], note: '', photoBase64: '', excludeFromBalance: false,
       frequency: '一次', frequencyDays: [], frequencyInterval: '3個月', frequencyCustomText: '10'
     };
   });
@@ -63,13 +63,6 @@ const RecordFormView = ({ recordToEdit, copyRecordData, onClose, setCrossRoomRec
     }
   }
 
-  const uploadPhotoToCloud = async (base64, docId) => {
-    if (!base64 || !base64.startsWith('data:')) return base64;
-    const storageRef = ref(storage, `expenses/${activeRoomId}/${docId}.jpg`);
-    await uploadString(storageRef, base64, 'data_url');
-    return await getDownloadURL(storageRef);
-  };
-
   const handleSave = async () => {
     if (!isFormValid || !user || isUploading) return;
     setIsUploading(true);
@@ -78,17 +71,12 @@ const RecordFormView = ({ recordToEdit, copyRecordData, onClose, setCrossRoomRec
       const oldRecord = isEditing ? recordToEdit : null;
       let updateFuture = false;
 
+      // 💡 週期性防呆第一關：修改時絕對會詢問！
       const oldWasPeriodic = oldRecord?.groupId || (oldRecord && oldRecord.frequency !== '一次');
       if (isEditing && oldWasPeriodic) {
         updateFuture = window.confirm('這是一筆設定了「週期」的歷史紀錄。\n\n請問您要一併變更「未來的」紀錄嗎？\n\n(按【確定】變更當次與未來，按【取消】則僅修改這單一筆。\n💡 放心，過去既有的紀錄絕對不會被更動)');
       } else if (isEditing && !oldWasPeriodic && record.frequency !== '一次') {
         updateFuture = true;
-      }
-      
-      const docId = isEditing ? recordToEdit.id : doc(collection(db, 'placeholder')).id;
-      let finalPhotoUrl = record.photoUrl || '';
-      if (record.photoBase64) {
-        finalPhotoUrl = await uploadPhotoToCloud(record.photoBase64, docId);
       }
 
       const currentGroupId = oldRecord?.groupId || null;
@@ -101,16 +89,14 @@ const RecordFormView = ({ recordToEdit, copyRecordData, onClose, setCrossRoomRec
       }
 
       const timestamp = new Date(record.date + 'T07:00:00').getTime();
-      const baseData = { 
-        ...record, amount: parsedAmt, timestamp, roomId: activeRoomId, addedBy: user.uid, 
-        addedByRole: currentUserRole, groupId: newGroupId, photoUrl: finalPhotoUrl, photoBase64: deleteField() 
-      };
+      const baseData = { ...record, amount: parsedAmt, timestamp, roomId: activeRoomId, addedBy: user.uid, addedByRole: currentUserRole, groupId: newGroupId };
       if (record.type === 'transfer') baseData.excludeFromBalance = false;
 
       const batch = writeBatch(db);
       let opsCount = 0;
 
       if (!isEditing) {
+        const docId = doc(collection(db, 'placeholder')).id;
         batch.set(doc(db, 'artifacts', appId, 'public', 'data', 'expenses', docId), { ...baseData, timestamp: Date.now() }); opsCount++;
         if (record.frequency !== '一次') {
           generateFutureDates(record.date, record.frequency, record.frequencyDays, record.frequencyInterval, record.frequencyCustomText, 1).forEach(d => {
@@ -121,12 +107,15 @@ const RecordFormView = ({ recordToEdit, copyRecordData, onClose, setCrossRoomRec
           });
         }
       } else {
-        const curRef = doc(db, 'artifacts', appId, 'public', 'data', 'expenses', docId);
+        const curRef = doc(db, 'artifacts', appId, 'public', 'data', 'expenses', recordToEdit.id);
+        if (!record.photoBase64 && oldRecord?.photoBase64) baseData.photoBase64 = deleteField();
+        
         if (!updateFuture && oldWasPeriodic) {
           baseData.frequency = '一次'; baseData.frequencyDays = []; baseData.frequencyInterval = ''; baseData.frequencyCustomText = ''; baseData.groupId = null;
         }
         batch.update(curRef, { ...baseData, timestamp: oldRecord.timestamp }); opsCount++;
 
+        // 💡 週期性防呆第二關：嚴格保護歷史資料，只修改 r.date > oldRecord.date 的未來紀錄！
         if (updateFuture && currentGroupId) {
           records.filter(r => r.groupId === currentGroupId && r.date > oldRecord.date && r.id !== recordToEdit.id).forEach(r => {
             if(opsCount >= 490) return;
@@ -158,6 +147,7 @@ const RecordFormView = ({ recordToEdit, copyRecordData, onClose, setCrossRoomRec
   };
 
   const calcKeys = ['C', '(', ')', '÷', '7', '8', '9', '×', '4', '5', '6', '-', '1', '2', '3', '+', '0', '00', '.', '⌫'];
+  
   const handlePhotoUpload = (e) => {
     const file = e.target.files[0]; if (!file) return;
     const reader = new FileReader();
@@ -184,7 +174,6 @@ const RecordFormView = ({ recordToEdit, copyRecordData, onClose, setCrossRoomRec
         </div>
         {!recordToEdit && (
           <div className="flex bg-white/20 p-1 rounded-xl shadow-inner mb-1">
-            {/* 💡 修正：嚴格使用 prev 更新，確保類別點選不卡死 */}
             <button type="button" onClick={() => { setRecord(prev => ({...prev, type: 'expense', category: currentRoom?.categories?.[0] || '', title: ''})); setCalcInput(''); setAmount(0); }} className={`flex-1 py-1.5 rounded-lg font-bold text-[15px] text-center transition-all ${record.type === 'expense' ? 'bg-white text-orange-500 shadow-sm transform scale-100' : 'text-white hover:bg-white/10 scale-95'}`}>支出</button>
             <button type="button" onClick={() => { setRecord(prev => ({...prev, type: 'income', category: currentRoom?.incomeCategories?.[0] || '', title: '收入'})); setCalcInput(''); setAmount(0); }} className={`flex-1 py-1.5 rounded-lg font-bold text-[15px] text-center transition-all ${record.type === 'income' ? 'bg-white text-green-500 shadow-sm transform scale-100' : 'text-white hover:bg-white/10 scale-95'}`}>收入</button>
             <button type="button" onClick={() => { setRecord(prev => ({...prev, type: 'transfer', category: currentRoom?.transferCategories?.[0] || '', title: '轉帳'})); setCalcInput(''); setAmount(0); }} className={`flex-1 py-1.5 rounded-lg font-bold text-[15px] text-center transition-all ${record.type === 'transfer' ? 'bg-white text-blue-500 shadow-sm transform scale-100' : 'text-white hover:bg-white/10 scale-95'}`}>轉帳</button>
@@ -245,7 +234,6 @@ const RecordFormView = ({ recordToEdit, copyRecordData, onClose, setCrossRoomRec
           {record.type === 'expense' && (
             <>
               <div className="grid grid-cols-2 gap-2 z-30 mb-3.5">
-                {/* 💡 修正：嚴格使用 prev 更新，徹底解決選單卡死問題 */}
                 <CustomDropdown label="主分類 📂" options={currentRoom?.categories || []} value={record.category} onChange={(val) => { setRecord(prev => ({...prev, category: val, title: ''})); }} placeholder="選擇分類..." />
                 <CustomDropdown label="項目清單 🛒" options={currentRoom?.categoryItems?.[record.category] || []} value={record.title} onChange={(val) => { setRecord(prev => ({...prev, title: val})); }} placeholder="選擇項目..." />
               </div>
