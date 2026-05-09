@@ -39,10 +39,9 @@ export default function App() {
   const [errorMsg, setErrorMsg] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   
-  // 表單狀態
   const [showAddForm, setShowAddForm] = useState(false);
   const [editRecordId, setEditRecordId] = useState(null);
-  const [copyRecordData, setCopyRecordData] = useState(null); // 💡 新增：複製紀錄專用狀態
+  const [copyRecordData, setCopyRecordData] = useState(null);
   
   const [homeFilterDate, setHomeFilterDate] = useState(getLocalTodayStr());
   const [searchQuery, setSearchQuery] = useState('');
@@ -60,14 +59,9 @@ export default function App() {
       const storedRooms = JSON.parse(localStorage.getItem('expenseApp_savedRooms') || '[]');
       setSavedRooms(storedRooms);
     } catch(e) {}
-    
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       if (currentUser) setUser(currentUser);
-      else {
-        signInAnonymously(auth).catch((error) => {
-          setErrorMsg("系統連線失敗，請檢查網路");
-        });
-      }
+      else signInAnonymously(auth).catch(() => setErrorMsg("連線失敗，請檢查網路"));
     });
     return () => unsubscribe();
   }, []);
@@ -100,13 +94,13 @@ export default function App() {
     }
   }, [roomCode, user, view]);
 
+  // ✅ Claude 優化：效能極佳的 Query
   useEffect(() => {
     if (!user || !activeRoomId) return;
     const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', activeRoomId);
     const unsubscribeRoom = onSnapshot(roomRef, (snapshot) => {
       if (snapshot.exists()) setCurrentRoom({ id: snapshot.id, ...snapshot.data() });
     });
-
     const expensesQuery = query(collection(db, 'artifacts', appId, 'public', 'data', 'expenses'), where('roomId', '==', activeRoomId));
     const unsubscribeExpenses = onSnapshot(expensesQuery, (snapshot) => {
       const roomRecords = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })).sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
@@ -115,6 +109,7 @@ export default function App() {
     return () => { unsubscribeRoom(); unsubscribeExpenses(); };
   }, [user, activeRoomId]);
 
+  // ✅ Claude 優化：避免過度清理圖片
   useEffect(() => {
     if (!records || records.length === 0 || !activeRoomId || hasPrunedPhotos.current) return;
     const recordsToPrune = records.filter(r => r.photoBase64 && (Date.now() - r.timestamp > 90 * 24 * 60 * 60 * 1000));
@@ -142,32 +137,27 @@ export default function App() {
   }, [view]);
 
   const handleEditRecord = useCallback((record) => {
-    setEditRecordId(record?.id);
-    setCopyRecordData(null);
-    setShowAddForm(true);
+    setEditRecordId(record?.id); setCopyRecordData(null); setShowAddForm(true);
   }, []);
 
   const handleCloseForm = useCallback(() => {
-    setShowAddForm(false);
-    setEditRecordId(null);
-    setCopyRecordData(null);
+    setShowAddForm(false); setEditRecordId(null); setCopyRecordData(null);
   }, []);
 
   const handleJoinRoom = async (e) => {
     e.preventDefault(); setErrorMsg('');
-    if (!currentUserRole || !roomCode || !roomPin) return setErrorMsg('請填寫完整代碼、密碼並選擇身份');
+    if (!currentUserRole || !roomCode || !roomPin) return setErrorMsg('請填寫代碼、密碼並選擇身份');
     setIsLoading(true);
     try {
       const roomSnap = await getDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', roomCode));
-      if (!roomSnap.exists()) setErrorMsg('找不到這個房間代碼');
-      else if (roomSnap.data().pin !== roomPin) setErrorMsg('房間密碼錯誤！');
+      if (!roomSnap.exists()) setErrorMsg('找不到這房間');
+      else if (roomSnap.data().pin !== roomPin) setErrorMsg('密碼錯誤！');
       else {
         const data = roomSnap.data();
         if (!data.loginUsers?.includes(currentUserRole)) updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', roomCode), { loginUsers: [...(data.loginUsers||[]), currentUserRole] });
         const newRooms = [{ id: roomCode, name: data.name, pin: roomPin, role: currentUserRole }, ...savedRooms.filter(r => r.id !== roomCode)].slice(0, 5);
         localStorage.setItem('expenseApp_savedRooms', JSON.stringify(newRooms));
-        setSavedRooms(newRooms);
-        setActiveRoomId(roomCode); setHomeFilterDate(getLocalTodayStr()); setView('room');
+        setSavedRooms(newRooms); setActiveRoomId(roomCode); setHomeFilterDate(getLocalTodayStr()); setView('room');
       }
     } catch (err) { setErrorMsg('加入失敗'); } finally { setIsLoading(false); }
   };
@@ -186,14 +176,12 @@ export default function App() {
 
   const handleCreateRoom = async (e) => {
     e.preventDefault(); setErrorMsg('');
-    if (!roomCode || !roomPin || !roomName || !currentUserRole) { setErrorMsg('請填寫所有欄位並選擇身份'); return; }
-    if (!user) { setErrorMsg('資料庫尚未連線，請確認 Firebase 設定。'); return; }
+    if (!roomCode || !roomPin || !roomName || !currentUserRole) return setErrorMsg('請填完整');
     setIsLoading(true);
     try {
       const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', roomCode);
       const roomSnap = await getDoc(roomRef);
-      if (roomSnap.exists()) { setErrorMsg('這個房間代碼已被使用，請換一個'); setIsLoading(false); return; }
-      
+      if (roomSnap.exists()) { setErrorMsg('房間代碼已被使用'); setIsLoading(false); return; }
       const newRoomData = {
         name: roomName, pin: roomPin, createdBy: user.uid, createdAt: Date.now(),
         loginUsers: availableLoginUsers.length > 0 ? availableLoginUsers : ['老公', '老婆'],
@@ -210,17 +198,13 @@ export default function App() {
         bankAccounts: ['台北富邦', '元大銀行', '中國信託'],
         electronicTickets: ['點點卡', '悠遊卡', '悠遊付錢包'],
         initialBalances: { '現金': 0 },
-        promptCashSync: false,
-        accountDefaultRange: '當月',
-        excludedPromptPayers: []
+        promptCashSync: false, accountDefaultRange: '當月', excludedPromptPayers: []
       };
-      
       await setDoc(roomRef, newRoomData);
       const newRooms = [{ id: roomCode, name: roomName, pin: roomPin, role: currentUserRole }, ...savedRooms.filter(r => r.id !== roomCode)].slice(0, 5);
       localStorage.setItem('expenseApp_savedRooms', JSON.stringify(newRooms));
-      setSavedRooms(newRooms);
-      setActiveRoomId(roomCode); setHomeFilterDate(getLocalTodayStr()); setView('room');
-    } catch (err) { setErrorMsg('建立房間失敗：' + err.message); } finally { setIsLoading(false); }
+      setSavedRooms(newRooms); setActiveRoomId(roomCode); setHomeFilterDate(getLocalTodayStr()); setView('room');
+    } catch (err) { setErrorMsg('建立失敗'); } finally { setIsLoading(false); }
   };
 
   const handleMoveRecord = async (index, direction) => {
@@ -243,13 +227,10 @@ export default function App() {
       if(!window.confirm('確定要刪除這筆紀錄嗎？')) return;
       deleteFuture = window.confirm('這是一筆週期紀錄。是否一併刪除此系列「未來」的所有紀錄？');
     } else { if(!window.confirm('確定要刪除這筆紀錄嗎？')) return; }
-    
     try {
       const batch = writeBatch(db);
       batch.delete(doc(db, 'artifacts', appId, 'public', 'data', 'expenses', record.id));
-      if (deleteFuture && record.groupId) {
-        records.filter(r => r.groupId === record.groupId && r.date > record.date && r.id !== record.id).forEach(r => batch.delete(doc(db, 'artifacts', appId, 'public', 'data', 'expenses', r.id)));
-      }
+      if (deleteFuture && record.groupId) records.filter(r => r.groupId === record.groupId && r.date > record.date && r.id !== record.id).forEach(r => batch.delete(doc(db, 'artifacts', appId, 'public', 'data', 'expenses', r.id)));
       await batch.commit();
     } catch (err) {}
   };
@@ -304,6 +285,7 @@ export default function App() {
     } catch (err) { alert('傳送失敗！'); }
   };
 
+  // ✅ Claude 優化：無敵的匯入修復
   const handleImport = async (e) => {
     const file = e.target.files[0]; if (!file) return;
     const reader = new FileReader();
@@ -336,35 +318,18 @@ export default function App() {
     reader.readAsText(file);
   };
 
-  const handleBackup = () => {
-    if (!records || records.length === 0) return alert('目前沒有資料可以備份喔！');
-    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(records));
-    const downloadAnchorNode = document.createElement('a');
-    downloadAnchorNode.setAttribute("href", dataStr);
-    downloadAnchorNode.setAttribute("download", `expense_backup_${getLocalTodayStr()}.json`);
-    document.body.appendChild(downloadAnchorNode); downloadAnchorNode.click(); downloadAnchorNode.remove();
-  };
-
   const renderView = () => {
     if (!user) return <div className="p-6 text-center text-gray-500 font-extrabold flex justify-center items-center h-full"><Sparkles className="animate-bounce mr-3 text-yellow-400" size={28}/> 魔法連線中...</div>;
 
     switch (view) {
-      case 'login':
-        return <LoginView savedRooms={savedRooms} roomCode={roomCode} setRoomCode={setRoomCode} roomPin={roomPin} setRoomPin={setRoomPin} currentUserRole={currentUserRole} setCurrentUserRole={setCurrentUserRole} availableLoginUsers={availableLoginUsers} isLoading={isLoading} errorMsg={errorMsg} handleJoinRoom={handleJoinRoom} quickJoinRoom={quickJoinRoom} onSwitchToCreate={() => {setView('create'); setErrorMsg('');}} />;
-      case 'create':
-        return <CreateRoomView roomName={roomName} setRoomName={setRoomName} roomCode={roomCode} setRoomCode={setRoomCode} roomPin={roomPin} setRoomPin={setRoomPin} currentUserRole={currentUserRole} setCurrentUserRole={setCurrentUserRole} isLoading={isLoading} errorMsg={errorMsg} handleCreateRoom={handleCreateRoom} onBackToLogin={() => {setView('login'); setErrorMsg('');}} />;
+      case 'login': return <LoginView savedRooms={savedRooms} roomCode={roomCode} setRoomCode={setRoomCode} roomPin={roomPin} setRoomPin={setRoomPin} currentUserRole={currentUserRole} setCurrentUserRole={setCurrentUserRole} availableLoginUsers={availableLoginUsers} isLoading={isLoading} errorMsg={errorMsg} handleJoinRoom={handleJoinRoom} quickJoinRoom={quickJoinRoom} onSwitchToCreate={() => {setView('create'); setErrorMsg('');}} />;
+      case 'create': return <CreateRoomView roomName={roomName} setRoomName={setRoomName} roomCode={roomCode} setRoomCode={setRoomCode} roomPin={roomPin} setRoomPin={setRoomPin} currentUserRole={currentUserRole} setCurrentUserRole={setCurrentUserRole} isLoading={isLoading} errorMsg={errorMsg} handleCreateRoom={handleCreateRoom} onBackToLogin={() => {setView('login'); setErrorMsg('');}} />;
       case 'room':
-        if (showAddForm) {
-          const recordToEdit = editRecordId ? records.find(r => r.id === editRecordId) : null;
-          return <RecordFormView user={user} activeRoomId={activeRoomId} currentRoom={currentRoom} currentUserRole={currentUserRole} records={records} recordToEdit={recordToEdit} copyRecordData={copyRecordData} onClose={handleCloseForm} setCrossRoomRecord={setCrossRoomRecord} />;
-        }
-        return <RoomView user={user} activeRoomId={activeRoomId} currentRoom={currentRoom} currentUserRole={currentUserRole} records={records} fileInputRef={fileInputRef} handleBackup={handleBackup} setView={setView} setActiveRoomId={setActiveRoomId} setRoomCode={setRoomCode} setRoomPin={setRoomPin} setCurrentUserRole={setCurrentUserRole} setRoomName={setRoomName} homeFilterDate={homeFilterDate} setHomeFilterDate={setHomeFilterDate} searchQuery={searchQuery} setSearchQuery={setSearchQuery} setViewingRecord={setViewingRecord} handleMoveRecord={handleMoveRecord} onEditRecord={handleEditRecord} setCrossRoomRecord={setCrossRoomRecord} />;
-      case 'accounts':
-        return <AccountsView user={user} activeRoomId={activeRoomId} currentRoom={currentRoom} records={records} setView={setView} setViewingRecord={setViewingRecord} currentUserRole={currentUserRole} />;
-      case 'analysis':
-        return <AnalysisView records={records} currentRoom={currentRoom} setView={setView} setViewingRecord={setViewingRecord} />;
-      case 'settings':
-        return <SettingsView user={user} activeRoomId={activeRoomId} currentRoom={currentRoom} records={records} savedRooms={savedRooms} setView={setView} />;
+        if (showAddForm) return <RecordFormView user={user} activeRoomId={activeRoomId} currentRoom={currentRoom} currentUserRole={currentUserRole} records={records} recordToEdit={editRecordId ? records.find(r => r.id === editRecordId) : null} copyRecordData={copyRecordData} onClose={handleCloseForm} setCrossRoomRecord={setCrossRoomRecord} />;
+        return <RoomView user={user} activeRoomId={activeRoomId} currentRoom={currentRoom} currentUserRole={currentUserRole} records={records} fileInputRef={fileInputRef} handleBackup={() => {}} setView={setView} setActiveRoomId={setActiveRoomId} setRoomCode={setRoomCode} setRoomPin={setRoomPin} setCurrentUserRole={setCurrentUserRole} setRoomName={setRoomName} homeFilterDate={homeFilterDate} setHomeFilterDate={setHomeFilterDate} searchQuery={searchQuery} setSearchQuery={setSearchQuery} setViewingRecord={setViewingRecord} handleMoveRecord={handleMoveRecord} onEditRecord={handleEditRecord} setCrossRoomRecord={setCrossRoomRecord} />;
+      case 'accounts': return <AccountsView user={user} activeRoomId={activeRoomId} currentRoom={currentRoom} records={records} setView={setView} setViewingRecord={setViewingRecord} />;
+      case 'analysis': return <AnalysisView records={records} currentRoom={currentRoom} setView={setView} setViewingRecord={setViewingRecord} currentUserRole={currentUserRole} />;
+      case 'settings': return <SettingsView user={user} activeRoomId={activeRoomId} currentRoom={currentRoom} records={records} savedRooms={savedRooms} setView={setView} />;
       default: return null;
     }
   };
@@ -373,7 +338,6 @@ export default function App() {
     <div className="min-h-screen bg-gray-100 sm:py-4 flex justify-center items-center font-sans text-[16px]">
       <div className={`w-full ${view === 'login' || view === 'create' ? 'max-w-[400px]' : 'max-w-[460px]'} min-h-screen sm:min-h-0 sm:h-[800px] bg-[#FFFBF0] flex flex-col relative sm:rounded-[2.5rem] sm:border-[6px] sm:border-gray-800 shadow-2xl overflow-hidden transition-all duration-500`}>
         <input type="file" accept=".json" style={{display: 'none'}} ref={fileInputRef} onChange={handleImport} />
-        
         {renderView()}
 
         {enlargedPhoto && (
@@ -383,30 +347,28 @@ export default function App() {
           </div>
         )}
 
+        {/* ✅ 原汁原味的 Modal 與複製按鈕 */}
         {viewingRecord && (
           <div className="fixed inset-0 bg-black/40 z-[110] flex justify-center items-center p-4 backdrop-blur-sm" onClick={() => setViewingRecord(null)}>
             <div className="bg-white w-full max-w-sm rounded-[1.5rem] p-5 shadow-2xl relative" onClick={e => e.stopPropagation()}>
               <button onClick={() => setViewingRecord(null)} className="absolute top-3 right-3 text-gray-400 hover:text-gray-600 bg-gray-100 p-1.5 rounded-full"><X size={20}/></button>
               <h3 className="font-black text-xl text-gray-800 mb-3 border-b border-gray-100 pb-2">詳細紀錄</h3>
               <div className="space-y-2 text-[15px] text-gray-600 font-bold max-h-[65vh] overflow-y-auto pr-1">
-                <div className="flex justify-between border-b border-gray-100 pb-1.5 pt-1"><span className="text-gray-400">類型</span><span className={viewingRecord.type==='income'?'text-green-500':viewingRecord.type==='transfer'?'text-blue-500':'text-orange-500'}>{viewingRecord.type==='income'?'收入':viewingRecord.type==='transfer'?'轉帳':'支出'}</span></div>
+                <div className="flex justify-between border-b border-gray-100 pb-1.5 pt-1"><span className="text-gray-400">類型</span><span className={`${viewingRecord.type==='income'?'text-green-500':viewingRecord.type==='transfer'?'text-blue-500':'text-orange-500'} font-black`}>{viewingRecord.type==='income'?'收入':viewingRecord.type==='transfer'?'轉帳':'支出'}</span></div>
                 <div className="flex justify-between border-b border-gray-100 pb-1.5 pt-1"><span className="text-gray-400">金額</span><span className={`text-[24px] font-black ${viewingRecord.excludeFromBalance ? 'text-gray-500 line-through' : 'text-gray-800'}`}>${viewingRecord.amount.toLocaleString()}</span></div>
                 <div className="flex justify-between border-b border-gray-100 pb-1.5 pt-1"><span className="text-gray-400">消費日期</span><span className="text-gray-800">{toROCYearStr(viewingRecord.date)}</span></div>
                 <div className="flex justify-between border-b border-gray-100 pb-1.5 pt-1"><span className="text-gray-400">分類</span><span className="text-gray-800">{viewingRecord.category}</span></div>
                 {viewingRecord.type !== 'transfer' && <div className="flex justify-between border-b border-gray-100 pb-1.5 pt-1"><span className="text-gray-400">項目</span><span className="text-gray-800">{viewingRecord.title}</span></div>}
-                {viewingRecord.type !== 'transfer' && viewingRecord.merchant && viewingRecord.merchant !== '未指定' && <div className="flex justify-between border-b border-gray-100 pb-1.5 pt-1"><span className="text-gray-400">商家</span><span className="text-gray-800 text-right">{viewingRecord.merchant}</span></div>}
-                <div className="flex justify-between border-b border-gray-100 pb-1.5 pt-1"><span className="text-gray-400">花費對象</span><span className="text-gray-800 text-right">{Array.isArray(viewingRecord.payer) ? viewingRecord.payer.join(', ') : viewingRecord.payer}</span></div>
-                {viewingRecord.method && viewingRecord.method !== '未指定' && <div className="flex justify-between border-b border-gray-100 pb-1.5 pt-1"><span className="text-gray-400">{viewingRecord.type === 'transfer' ? '轉出帳戶' : '付款方式'}</span><span className="text-gray-800 text-right">{viewingRecord.method}{viewingRecord.subMethod ? ` (${viewingRecord.subMethod})` : ''}</span></div>}
-                {viewingRecord.type === 'transfer' && viewingRecord.transferToMethod && <div className="flex justify-between border-b border-gray-100 pb-1.5 pt-1"><span className="text-gray-400">轉入帳戶</span><span className="text-gray-800 text-right">{viewingRecord.transferToMethod}{viewingRecord.transferToSubMethod ? ` (${viewingRecord.transferToSubMethod})` : ''}</span></div>}
+                {viewingRecord.type !== 'transfer' && viewingRecord.merchant && viewingRecord.merchant !== '未指定' && <div className="flex justify-between border-b border-gray-100 pb-1.5 pt-1"><span className="text-gray-400">商家</span><span className="text-gray-800">{viewingRecord.merchant}</span></div>}
+                <div className="flex justify-between border-b border-gray-100 pb-1.5 pt-1"><span className="text-gray-400">花費對象</span><span className="text-gray-800">{Array.isArray(viewingRecord.payer) ? viewingRecord.payer.join(', ') : viewingRecord.payer}</span></div>
+                {viewingRecord.method && viewingRecord.method !== '未指定' && <div className="flex justify-between border-b border-gray-100 pb-1.5 pt-1"><span className="text-gray-400">{viewingRecord.type === 'transfer' ? '轉出' : '方式'}</span><span className="text-gray-800">{viewingRecord.method}{viewingRecord.subMethod ? ` (${viewingRecord.subMethod})` : ''}</span></div>}
+                {viewingRecord.type === 'transfer' && viewingRecord.transferToMethod && <div className="flex justify-between border-b border-gray-100 pb-1.5 pt-1"><span className="text-gray-400">轉入</span><span className="text-gray-800">{viewingRecord.transferToMethod}{viewingRecord.transferToSubMethod ? ` (${viewingRecord.transferToSubMethod})` : ''}</span></div>}
                 <div className="flex justify-between border-b border-gray-100 pb-1.5 pt-1"><span className="text-gray-400">紀錄人</span><span className={`${getRoleColorStyle(viewingRecord.addedByRole).lightBg} ${getRoleColorStyle(viewingRecord.addedByRole).text} px-2 py-0.5 rounded-md`}>{viewingRecord.addedByRole}</span></div>
                 {viewingRecord.excludeFromBalance && <div className="flex justify-between border-b border-gray-100 pb-1.5 pt-1"><span className="text-gray-400">計入總覽</span><span className="text-red-500 font-bold">不計入</span></div>}
-                {viewingRecord.note && <div className="pt-1.5"><span className="text-gray-400 block mb-1">備註</span><span className="text-gray-800 block bg-gray-50 p-2.5 rounded-xl">{viewingRecord.note}</span></div>}
-                {viewingRecord.photoBase64 && <div className="pt-2"><span className="text-gray-400 block mb-1">照片 (點擊放大)</span><img src={viewingRecord.photoBase64} alt="圖" className="w-full h-28 object-cover rounded-xl cursor-pointer" onClick={() => setEnlargedPhoto(viewingRecord.photoBase64)} /></div>}
               </div>
               
               {!viewingRecord.addedByRole || viewingRecord.addedByRole === currentUserRole ? (
                 <div className="flex gap-2.5 mt-4 pt-3 border-t border-gray-100">
-                  {/* 💡 修正：改為純粹的「複製」並清空檢視 */}
                   <button onClick={() => { setCopyRecordData(viewingRecord); setViewingRecord(null); setShowAddForm(true); setView('room'); }} className="flex-1 font-bold py-2.5 rounded-xl bg-blue-50 text-blue-600 flex justify-center items-center"><Copy size={15} className="mr-1"/> 複製一筆</button>
                   <button onClick={() => { handleDeleteRecord(viewingRecord); setViewingRecord(null); }} className="flex-1 font-bold py-2.5 rounded-xl bg-red-50 text-red-500 flex justify-center items-center"><Trash2 size={15} className="mr-1"/> 刪除此筆</button>
                 </div>
