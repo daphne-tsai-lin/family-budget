@@ -1,13 +1,17 @@
-import React, { useState, useEffect, useRef } from 'react';
-// 💡 修復點 1：補上漏掉的 CreditCard 信用卡圖示，解決白畫面崩潰
+import React, { useState, useEffect, useRef, useContext } from 'react';
+// 💡 確保包含 CreditCard，不再白畫面
 import { ChevronLeft, Save, Upload, Tag, Store, Receipt, Calendar, Settings, Image as ImageIcon, Camera, Calculator, Wallet, PiggyBank, Check, Trash2, Sparkles, User, RefreshCw, X, CreditCard } from 'lucide-react';
 import { collection, doc, writeBatch, deleteField } from 'firebase/firestore';
 import { db, appId } from '../firebase/firebaseConfig';
 import { CustomDropdown, MethodSelector, PillGroupMulti } from '../components/SharedUI';
-// 💡 修復點 2：補上漏掉的 toROCYearStr 民國年轉換，解決日期選擇器崩潰
 import { getLocalTodayStr, generateFutureDates, evaluateCalc, toROCYearStr } from '../utils/helpers';
+// 💡 匯入 Context
+import { AppContext } from '../App';
 
-const RecordFormView = ({ user, activeRoomId, currentRoom, currentUserRole, records, recordToEdit, copyRecordData, onClose, setCrossRoomRecord }) => {
+const RecordFormView = ({ recordToEdit, copyRecordData, onClose, setCrossRoomRecord }) => {
+  // 💡 從 Context 取得資料
+  const { user, activeRoomId, currentRoom, currentUserRole, records } = useContext(AppContext);
+
   const [record, setRecord] = useState(() => {
     if (recordToEdit) return recordToEdit;
     if (copyRecordData) {
@@ -44,7 +48,6 @@ const RecordFormView = ({ user, activeRoomId, currentRoom, currentUserRole, reco
     }
   }, [record.merchant, recordToEdit, copyRecordData, currentRoom]);
 
-  // ✅ 100% 復刻原版最強的防呆驗證邏輯
   let isFormValid = false;
   const parsedAmt = Number(String(amount).replace(/,/g, '').replace(/[^\d]/g, ''));
   if (parsedAmt > 0 && record.date && record.payer.length > 0) {
@@ -56,7 +59,6 @@ const RecordFormView = ({ user, activeRoomId, currentRoom, currentUserRole, reco
       const needsSubMethod = (m) => ['行動支付', '信用卡', '信用卡 / 行動支付', '銀行', '銀行 / 電子票證', '電子票證'].includes(m);
       if (needsSubMethod(record.method) && !record.subMethod) isFormValid = false;
       if (record.type === 'transfer') { if (needsSubMethod(record.transferToMethod) && !record.transferToSubMethod) isFormValid = false; }
-
       if (record.frequency === '每週' && record.frequencyDays.length === 0) isFormValid = false;
       if (record.frequency === '區間' && !record.frequencyInterval) isFormValid = false;
       if (record.frequency === '區間' && record.frequencyInterval === '自訂' && !record.frequencyCustomText) isFormValid = false;
@@ -135,7 +137,9 @@ const RecordFormView = ({ user, activeRoomId, currentRoom, currentUserRole, reco
         const isExcluded = payers.some(p => currentRoom.excludedPromptPayers.includes(p));
         if (isExcluded) shouldPrompt = false;
       }
-      if (shouldPrompt) setCrossRoomRecord({ ...baseData, id: `auto_${Date.now()}` });
+      if (shouldPrompt) {
+        setCrossRoomRecord({ ...baseData, id: `auto_${Date.now()}` });
+      }
       onClose();
     } catch (err) { alert('儲存過程發生錯誤！'); }
   };
@@ -301,7 +305,6 @@ const RecordFormView = ({ user, activeRoomId, currentRoom, currentUserRole, reco
         </button>
       </main>
 
-      {/* 原版復刻智慧計算機 */}
       {showCalc && (
         <div className="fixed inset-0 z-[150] bg-black/60 flex flex-col justify-center items-center p-4 backdrop-blur-[2px] animate-in fade-in duration-200" onClick={() => { setAmount(evaluateCalc(calcInput)); setShowCalc(false); }}>
           <div className="bg-gray-50 w-full max-w-[320px] rounded-[2rem] p-5 shadow-2xl animate-in zoom-in-95 duration-200 border border-gray-200" onClick={e => e.stopPropagation()}>
