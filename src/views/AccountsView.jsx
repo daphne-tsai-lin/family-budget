@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Landmark, Calendar, Wallet, X } from 'lucide-react';
 import { doc, updateDoc } from 'firebase/firestore';
-import { db, appId } from '../firebase/Config';
+import { db, appId } from '../firebase/firebaseConfig';
 import { getLocalMonthStartStr, getLocalLastMonthStartStr, getLocalLastMonthEndStr, getLocalTodayStr, toROCYearStr, getRoleColorStyle } from '../utils/helpers';
 
 const AccountsView = ({ user, activeRoomId, currentRoom, records, setView, setViewingRecord }) => {
