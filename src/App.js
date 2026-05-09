@@ -130,7 +130,7 @@ export default function App() {
   const handleCloseForm = useCallback(() => { setShowAddForm(false); setEditRecordId(null); setCopyRecordData(null); }, []);
 
   const handleBackup = useCallback(() => {
-    if (!records || records.length === 0) return alert('目前沒有資料可以備份喔！');
+    if (!records || records.length === 0) return alert('目前沒有資料可以備份哦！');
     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(records));
     const downloadAnchorNode = document.createElement('a');
     downloadAnchorNode.setAttribute("href", dataStr);
@@ -209,7 +209,7 @@ export default function App() {
     let deleteFuture = false;
     if (record.groupId) {
       if(!window.confirm('確定要刪除這筆紀錄嗎？')) return;
-      deleteFuture = window.confirm('這是一筆週期紀錄。是否一併刪除此系列「未來」的所有紀錄？');
+      deleteFuture = window.confirm('這是週期性紀錄。是否一併刪除此系列「未來」的所有紀錄？');
     } else { if(!window.confirm('確定要刪除這筆紀錄嗎？')) return; }
     try {
       const batch = writeBatch(db); batch.delete(doc(db, 'artifacts', appId, 'public', 'data', 'expenses', record.id));
@@ -361,7 +361,7 @@ export default function App() {
                   </>
                 ) : (
                   <div>
-                    <p className="text-[15px] font-bold text-gray-600 mb-4">目標：{selectedTransferRoom.name}<br/>這是一筆週期性紀錄，如何傳送？</p>
+                    <p className="text-[15px] font-bold text-gray-600 mb-4">目標：{selectedTransferRoom.name}<br/>這是週期性紀錄，如何傳送？</p>
                     <button onClick={() => handleSendToOtherRoom(selectedTransferRoom.id, true)} className="w-full bg-blue-500 text-white font-black py-3.5 rounded-xl mb-3">🔄 完整傳送 (含未來排程)</button>
                     <button onClick={() => handleSendToOtherRoom(selectedTransferRoom.id, false)} className="w-full bg-orange-100 text-orange-700 font-black py-3.5 rounded-xl mb-5">📌 僅傳送單次</button>
                     <button onClick={() => setSelectedTransferRoom(null)} className="w-full bg-gray-100 text-gray-600 font-extrabold py-3 rounded-xl">返回重選</button>
