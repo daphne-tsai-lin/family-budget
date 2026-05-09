@@ -1,62 +1,30 @@
-import { db } from "../firebase/firebaseConfig";
+import { db } from "../../services/firebase";
 import {
   collection,
   addDoc,
+  getDocs,
   deleteDoc,
-  doc,
-  query,
-  orderBy,
-  onSnapshot,
-  serverTimestamp
+  doc
 } from "firebase/firestore";
 
-const expenseCollection = collection(db, "expenses");
+const col = collection(db, "expenses");
 
-/*
-即時監聽資料
-*/
+export const expenseService = {
 
-export const subscribeExpenses = (callback) => {
+  async create(data) {
+    return await addDoc(col, data);
+  },
 
-  const q = query(
-    expenseCollection,
-    orderBy("date", "desc")
-  );
-
-  return onSnapshot(q, (snapshot) => {
-
-    const expenses = snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
+  async list() {
+    const snap = await getDocs(col);
+    return snap.docs.map((d) => ({
+      id: d.id,
+      ...d.data()
     }));
+  },
 
-    callback(expenses);
-
-  });
-
-};
-
-/*
-新增記帳
-*/
-
-export const addExpense = async (expense) => {
-
-  return await addDoc(expenseCollection, {
-    ...expense,
-    createdAt: serverTimestamp()
-  });
-
-};
-
-/*
-刪除記帳
-*/
-
-export const deleteExpense = async (id) => {
-
-  const ref = doc(db, "expenses", id);
-
-  await deleteDoc(ref);
+  async remove(id) {
+    return await deleteDoc(doc(db, "expenses", id));
+  }
 
 };
