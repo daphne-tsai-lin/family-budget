@@ -2,10 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Sparkles, Copy, Trash2, X, Send } from 'lucide-react';
 import { onAuthStateChanged } from 'firebase/auth';
 import { doc, getDoc, updateDoc, onSnapshot, collection, writeBatch, deleteField, setDoc } from 'firebase/firestore';
-
-// ⚠️ 修正點 1：將路徑改為最常見的全小寫 config，或是你原本的 firebaseConfig
-// 如果你 GitHub 上的檔名叫 firebaseConfig.js，請把 './firebase/config' 改成 './firebase/firebaseConfig'
-import { auth, db, appId } from './firebase/config'; 
+import { auth, db, appId } from './firebase/firebaseConfig'; 
 import { getLocalTodayStr, toROCYearStr, getRoleColorStyle, generateFutureDates } from './utils/helpers';
 
 import LoginView from './views/LoginView';
