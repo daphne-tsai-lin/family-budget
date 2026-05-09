@@ -1,47 +1,48 @@
-import React, { useRef } from 'react';
-import { RefreshCw, Upload, Download, Settings, LogOut, Calendar, Search, X, PiggyBank, Wallet, Plus, BarChart } from 'lucide-react';
+import React, { useRef, useMemo } from 'react';
+import { Upload, Download, Settings, LogOut, Calendar, Search, X, PiggyBank, Wallet, Plus, BarChart } from 'lucide-react';
 import { getRoomHeaderColor, toROCShortStr, getLocalTodayStr, getLocalMonthStartStr } from '../utils/helpers';
 import { RecordItem } from '../components/SharedUI';
 
 const RoomView = ({
   user, activeRoomId, currentRoom, currentUserRole, records,
-  setRefreshTrigger, fileInputRef, handleBackup, setView,
+  fileInputRef, handleBackup, setView,
   setActiveRoomId, setRoomCode, setRoomPin, setCurrentUserRole, setRoomName,
   homeFilterDate, setHomeFilterDate, searchQuery, setSearchQuery,
-  setViewingRecord, handleMoveRecord, onEditRecord, setCrossRoomRecord,
-  setAccountStartDate, setAccountEndDate, 
-  setAnalysisStartDate, setAnalysisEndDate, setAnalysisType, 
-  setAnalysisMenus, setAnalysisSubSelections, setAnalysisRoleFilter
+  setViewingRecord, handleMoveRecord, onEditRecord, setCrossRoomRecord
 }) => {
 
   const touchStartX = useRef(null);
   const touchStartY = useRef(null);
   const headerColorClass = currentRoom?.headerTheme || getRoomHeaderColor(activeRoomId);
 
-  // 篩選與排序邏輯
-  const displayRecords = records.filter(r => {
-    if (searchQuery) {
-      if (r.date > getLocalTodayStr()) return false;
-      const q = searchQuery.toLowerCase();
-      return `${r.title || ''} ${r.merchant || ''} ${r.note || ''} ${r.category || ''} ${r.method || ''} ${r.subMethod || ''} ${r.transferToMethod || ''} ${r.transferToSubMethod || ''} ${Array.isArray(r.payer)?r.payer.join(' '):r.payer || ''}`.toLowerCase().includes(q);
-    }
-    if (homeFilterDate) return r.date === homeFilterDate;
-    return true;
-  });
-
-  if (searchQuery || !homeFilterDate) {
-    displayRecords.sort((a, b) => {
-      if (a.date !== b.date) return a.date > b.date ? -1 : 1;
-      return b.timestamp - a.timestamp;
+  // 💡 效能升級：加上 useMemo，只有當 records 或搜尋條件改變時，才重新計算與排序過濾，避免輸入文字時卡頓。
+  const displayRecords = useMemo(() => {
+    const filtered = records.filter(r => {
+      if (searchQuery) {
+        if (r.date > getLocalTodayStr()) return false;
+        const q = searchQuery.toLowerCase();
+        return `${r.title || ''} ${r.merchant || ''} ${r.note || ''} ${r.category || ''} ${r.method || ''} ${r.subMethod || ''} ${r.transferToMethod || ''} ${r.transferToSubMethod || ''} ${Array.isArray(r.payer)?r.payer.join(' '):r.payer || ''}`.toLowerCase().includes(q);
+      }
+      if (homeFilterDate) return r.date === homeFilterDate;
+      return true;
     });
-  }
 
-  // 計算首頁總計 (排除「不計入帳戶」的紀錄)
-  const totalIncome = displayRecords.filter(r => r.type === 'income' && !r.excludeFromBalance).reduce((sum, r) => sum + r.amount, 0);
-  const totalExpense = displayRecords.filter(r => (r.type === 'expense' || !r.type) && !r.excludeFromBalance).reduce((sum, r) => sum + r.amount, 0);
-  const netBalance = totalIncome - totalExpense;
+    if (searchQuery || !homeFilterDate) {
+      filtered.sort((a, b) => {
+        if (a.date !== b.date) return a.date > b.date ? -1 : 1;
+        return b.timestamp - a.timestamp;
+      });
+    }
+    return filtered;
+  }, [records, searchQuery, homeFilterDate]);
 
-  // 滑動切換日期邏輯
+  // 💡 效能升級：總計數字同樣利用 useMemo 緩存
+  const { totalIncome, totalExpense, netBalance } = useMemo(() => {
+    const income = displayRecords.filter(r => r.type === 'income' && !r.excludeFromBalance).reduce((sum, r) => sum + r.amount, 0);
+    const expense = displayRecords.filter(r => (r.type === 'expense' || !r.type) && !r.excludeFromBalance).reduce((sum, r) => sum + r.amount, 0);
+    return { totalIncome: income, totalExpense: expense, netBalance: income - expense };
+  }, [displayRecords]);
+
   const handleTouchStart = (e) => {
     touchStartX.current = e.touches[0].clientX;
     touchStartY.current = e.touches[0].clientY;
@@ -75,7 +76,7 @@ const RoomView = ({
             </p>
           </div>
           <div className="flex items-center gap-1.5">
-            <button onClick={() => setRefreshTrigger(prev => prev + 1)} className="p-1.5 bg-white/20 hover:bg-white/30 text-white rounded-lg transition backdrop-blur-sm"><RefreshCw size={18} /></button>
+            {/* 💡 已移除失效的 RefreshCw 按鈕，讓介面更乾淨 */}
             <button onClick={() => fileInputRef.current?.click()} className="p-1.5 bg-white/20 hover:bg-white/30 text-white rounded-lg transition backdrop-blur-sm"><Upload size={18} /></button>
             <button onClick={handleBackup} className="p-1.5 bg-white/20 hover:bg-white/30 text-white rounded-lg transition backdrop-blur-sm"><Download size={18} /></button>
             <button onClick={() => setView('settings')} className="p-1.5 bg-white/20 hover:bg-white/30 text-white rounded-lg transition backdrop-blur-sm"><Settings size={18} /></button>
@@ -128,22 +129,11 @@ const RoomView = ({
 
       {/* 底部導覽列 */}
       <div className="absolute bottom-0 left-0 w-full bg-white/95 backdrop-blur-xl p-2 pb-6 sm:pb-3 rounded-t-[1.5rem] shadow-[0_-15px_40px_rgba(0,0,0,0.08)] flex justify-between items-center z-20 border-t border-gray-100 px-6">
-        <button onClick={() => {
-          const defaultRange = currentRoom?.accountDefaultRange || '當月';
-          if (defaultRange === '全部') { setAccountStartDate(''); setAccountEndDate(getLocalTodayStr()); } 
-          else { setAccountStartDate(getLocalMonthStartStr()); setAccountEndDate(getLocalTodayStr()); }
-          setView('accounts');
-        }} className="flex flex-col items-center gap-1 text-gray-400 hover:text-indigo-500 transition px-4 py-2"><Wallet size={22} /><span className="font-extrabold text-[11px]">帳戶</span></button>
+        <button onClick={() => setView('accounts')} className="flex flex-col items-center gap-1 text-gray-400 hover:text-indigo-500 transition px-4 py-2"><Wallet size={22} /><span className="font-extrabold text-[11px]">帳戶</span></button>
         
         <button onClick={() => onEditRecord(null)} className="absolute left-1/2 -translate-x-1/2 -top-5 bg-gradient-to-tr from-pink-400 to-orange-400 text-white w-[60px] h-[60px] rounded-full flex items-center justify-center shadow-[0_10px_20px_rgba(251,146,60,0.4)] border-[3px] border-[#FFFBF0] transform hover:scale-105 transition active:scale-95"><Plus size={32} strokeWidth={3} /></button>
         
-        <button onClick={() => {
-          const defaultRange = currentRoom?.accountDefaultRange || '當月';
-          if (defaultRange === '全部') { setAnalysisStartDate(''); setAnalysisEndDate(getLocalTodayStr()); } 
-          else { setAnalysisStartDate(getLocalMonthStartStr()); setAnalysisEndDate(getLocalTodayStr()); }
-          setAnalysisType('expense'); setAnalysisMenus([]); setAnalysisSubSelections({ category: [], title: [], merchant: [], method: [], subMethod: [], payer: [] }); setAnalysisRoleFilter('全部'); 
-          setView('analysis');
-        }} className="flex flex-col items-center gap-1 text-gray-400 hover:text-teal-500 transition px-4 py-2"><BarChart size={24} /><span className="font-extrabold text-[11px]">統計</span></button>
+        <button onClick={() => setView('analysis')} className="flex flex-col items-center gap-1 text-gray-400 hover:text-teal-500 transition px-4 py-2"><BarChart size={24} /><span className="font-extrabold text-[11px]">統計</span></button>
       </div>
     </>
   );
