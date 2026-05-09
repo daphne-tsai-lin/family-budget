@@ -1,14 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
-// 💡 修正：補齊了所有遺漏的圖示，解決白畫面問題！
-import { ChevronLeft, Save, Upload, Tag, Store, Receipt, Calendar, Settings, Image as ImageIcon, Wallet, PiggyBank, Sparkles, X } from 'lucide-react';
-import { collection, doc, writeBatch } from 'firebase/firestore';
+import { ChevronLeft, Save, Upload, Tag, Store, Receipt, Calendar, Settings, Image as ImageIcon, Camera, Calculator, Wallet, PiggyBank, Check, Trash2, Sparkles, User, RefreshCw, X } from 'lucide-react';
+import { collection, doc, writeBatch, deleteField } from 'firebase/firestore';
 import { db, appId } from '../firebase/firebaseConfig';
 import { CustomDropdown, MethodSelector, PillGroupMulti } from '../components/SharedUI';
 import { getLocalTodayStr, generateFutureDates, evaluateCalc } from '../utils/helpers';
 
 const RecordFormView = ({ user, activeRoomId, currentRoom, currentUserRole, records, recordToEdit, copyRecordData, onClose, setCrossRoomRecord }) => {
-  
-  // 💡 修正：處理傳入的複製資料 (移除舊ID，保留內容，日期預設為今天)
   const [record, setRecord] = useState(() => {
     if (recordToEdit) return recordToEdit;
     if (copyRecordData) {
@@ -27,246 +24,316 @@ const RecordFormView = ({ user, activeRoomId, currentRoom, currentUserRole, reco
   const [calcInput, setCalcInput] = useState((recordToEdit || copyRecordData) ? String((recordToEdit || copyRecordData).amount) : '');
   const [amount, setAmount] = useState((recordToEdit || copyRecordData) ? (recordToEdit || copyRecordData).amount : 0);
   const [isUploading, setIsUploading] = useState(false);
+  const [showCalc, setShowCalc] = useState(false);
   const fileInputRef = useRef(null);
+  const photoInputRef = useRef(null);
+  const recordDateInputRef = useRef(null);
 
-  const handleCalcInput = (val) => {
-    if (val === 'C') { setCalcInput(''); setAmount(0); }
-    else if (val === '⌫') { const newVal = calcInput.slice(0, -1); setCalcInput(newVal); setAmount(Number(evaluateCalc(newVal)) || 0); }
-    else if (val === '=') { const result = evaluateCalc(calcInput); setCalcInput(result); setAmount(Number(result) || 0); }
-    else { const newVal = calcInput + val; setCalcInput(newVal); setAmount(Number(evaluateCalc(newVal)) || 0); }
+  // Auto-fill logic
+  useEffect(() => {
+    if (!recordToEdit && !copyRecordData && record.title && currentRoom?.autoFillRules?.[record.title]) {
+      setRecord(prev => ({ ...prev, merchant: currentRoom.autoFillRules[record.title] }));
+    }
+  }, [record.title, recordToEdit, copyRecordData, currentRoom]);
+
+  useEffect(() => {
+    if (!recordToEdit && !copyRecordData && record.merchant && currentRoom?.methodRules?.[record.merchant]) {
+      const rule = currentRoom.methodRules[record.merchant];
+      setRecord(prev => ({ ...prev, method: rule.method, subMethod: rule.subMethod || '' }));
+    }
+  }, [record.merchant, recordToEdit, copyRecordData, currentRoom]);
+
+  // 完美復刻原版 4521行的最嚴格驗證
+  let isFormValid = false;
+  const parsedAmt = Number(String(amount).replace(/,/g, '').replace(/[^\d]/g, ''));
+  if (parsedAmt > 0 && record.date && record.payer.length > 0) {
+    if (record.type === 'expense' || !record.type) isFormValid = !!(record.category && record.title && record.method);
+    else if (record.type === 'income') isFormValid = !!(record.category && record.method);
+    else if (record.type === 'transfer') isFormValid = !!(record.category && record.method && record.transferToMethod);
+
+    if (isFormValid) {
+      const needsSubMethod = (m) => ['行動支付', '信用卡', '信用卡 / 行動支付', '銀行', '銀行 / 電子票證', '電子票證'].includes(m);
+      if (needsSubMethod(record.method) && !record.subMethod) isFormValid = false;
+      if (record.type === 'transfer') { if (needsSubMethod(record.transferToMethod) && !record.transferToSubMethod) isFormValid = false; }
+
+      if (record.frequency === '每週' && record.frequencyDays.length === 0) isFormValid = false;
+      if (record.frequency === '區間' && !record.frequencyInterval) isFormValid = false;
+      if (record.frequency === '區間' && record.frequencyInterval === '自訂' && !record.frequencyCustomText) isFormValid = false;
+    }
+  }
+
+  const handleSave = async () => {
+    if (!isFormValid || !user) return;
+    try {
+      const isEditing = !!recordToEdit;
+      const oldRecord = isEditing ? recordToEdit : null;
+      let updateFuture = false;
+
+      const oldWasPeriodic = oldRecord?.groupId || (oldRecord && oldRecord.frequency !== '一次');
+      if (isEditing && oldWasPeriodic) {
+        updateFuture = window.confirm('這是一筆設定了「週期」的歷史紀錄。\n\n請問您要一併變更「未來的」紀錄嗎？\n\n(按【確定】變更當次與未來，按【取消】則僅修改這單一筆。\n💡 放心，過去既有的紀錄絕對不會被更動)');
+      } else if (isEditing && !oldWasPeriodic && record.frequency !== '一次') {
+        updateFuture = true;
+      }
+      const currentGroupId = oldRecord?.groupId || null;
+      let newGroupId = null;
+
+      if (isEditing) {
+        if (updateFuture) {
+          newGroupId = record.frequency === '一次' ? null : (Date.now().toString() + Math.random().toString(36).substring(2, 9));
+        } else {
+          newGroupId = null;
+        }
+      } else {
+        newGroupId = record.frequency === '一次' ? null : (Date.now().toString() + Math.random().toString(36).substring(2, 9));
+      }
+
+      const timestamp = new Date(record.date + 'T07:00:00').getTime();
+      const baseData = { ...record, amount: parsedAmt, timestamp, roomId: activeRoomId, addedBy: user.uid, addedByRole: currentUserRole, groupId: newGroupId };
+      if (record.type === 'transfer') baseData.excludeFromBalance = false;
+
+      const batch = writeBatch(db);
+      let opsCount = 0;
+
+      if (!isEditing) {
+        batch.set(doc(collection(db, 'artifacts', appId, 'public', 'data', 'expenses')), { ...baseData, timestamp: Date.now() }); opsCount++;
+        if (record.frequency !== '一次') {
+          generateFutureDates(record.date, record.frequency, record.frequencyDays, record.frequencyInterval, record.frequencyCustomText, 1).forEach(d => {
+            if(opsCount >= 490) return;
+            const [y, m, day] = d.split('-').map(Number);
+            const safeTs = new Date(y, m - 1, day, 7, 0, 0).getTime();
+            batch.set(doc(collection(db, 'artifacts', appId, 'public', 'data', 'expenses')), { ...baseData, date: d, timestamp: safeTs }); opsCount++;
+          });
+        }
+      } else {
+        const curRef = doc(db, 'artifacts', appId, 'public', 'data', 'expenses', recordToEdit.id);
+        if (!record.photoBase64 && oldRecord?.photoBase64) baseData.photoBase64 = deleteField();
+        
+        if (!updateFuture && oldWasPeriodic) {
+          baseData.frequency = '一次'; baseData.frequencyDays = []; baseData.frequencyInterval = ''; baseData.frequencyCustomText = ''; baseData.groupId = null;
+        }
+        batch.update(curRef, { ...baseData, timestamp: oldRecord.timestamp }); opsCount++;
+
+        if (updateFuture && currentGroupId) {
+          records.filter(r => r.groupId === currentGroupId && r.date > oldRecord.date && r.id !== recordToEdit.id).forEach(r => {
+            if(opsCount >= 490) return;
+            batch.delete(doc(db, 'artifacts', appId, 'public', 'data', 'expenses', r.id)); opsCount++;
+          });
+        }
+        if (updateFuture && record.frequency !== '一次') {
+          generateFutureDates(record.date, record.frequency, record.frequencyDays, record.frequencyInterval, record.frequencyCustomText, 1).filter(d => d > record.date).forEach(d => {
+            if(opsCount >= 490) return;
+            const [y, m, day] = d.split('-').map(Number);
+            const safeTs = new Date(y, m - 1, day, 7, 0, 0).getTime();
+            batch.set(doc(collection(db, 'artifacts', appId, 'public', 'data', 'expenses')), { ...baseData, date: d, timestamp: safeTs }); opsCount++;
+          });
+        }
+      }
+      await batch.commit();
+
+      let shouldPrompt = !isEditing && (record.type === 'expense' || !record.type) && currentRoom.promptCashSync && !record.excludeFromBalance;
+      if (shouldPrompt && currentRoom?.excludedPromptPayers?.length > 0) {
+        const payers = Array.isArray(record.payer) ? record.payer : [record.payer];
+        const isExcluded = payers.some(p => currentRoom.excludedPromptPayers.includes(p));
+        if (isExcluded) shouldPrompt = false;
+      }
+      if (shouldPrompt) {
+        setCrossRoomRecord({ ...baseData, id: `auto_${Date.now()}` });
+      }
+      onClose();
+    } catch (err) { alert('儲存過程發生錯誤！'); }
   };
 
+  const calcKeys = ['C', '(', ')', '÷', '7', '8', '9', '×', '4', '5', '6', '-', '1', '2', '3', '+', '0', '00', '.', '⌫'];
   const handlePhotoUpload = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
+    const file = e.target.files[0]; if (!file) return;
     setIsUploading(true);
     const reader = new FileReader();
     reader.onload = (event) => {
-      const img = new Image();
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        const MAX_WIDTH = 800; const MAX_HEIGHT = 800;
-        let width = img.width; let height = img.height;
-        if (width > height) { if (width > MAX_WIDTH) { height *= MAX_WIDTH / width; width = MAX_WIDTH; } } 
-        else { if (height > MAX_HEIGHT) { width *= MAX_HEIGHT / height; height = MAX_HEIGHT; } }
-        canvas.width = width; canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0, width, height);
-        const compressedBase64 = canvas.toDataURL('image/jpeg', 0.4);
-        setRecord({ ...record, photoBase64: compressedBase64 });
-        setIsUploading(false);
-      };
-      img.src = event.target.result;
-    };
-    reader.readAsDataURL(file);
+      const img = new Image(); img.onload = () => {
+        const canvas = document.createElement('canvas'); let width = img.width; let height = img.height; const MAX_SIZE = 800;
+        if (width > height) { if (width > MAX_SIZE) { height *= MAX_SIZE / width; width = MAX_SIZE; } } else { if (height > MAX_SIZE) { width *= MAX_SIZE / height; height = MAX_SIZE; } }
+        canvas.width = width; canvas.height = height; const ctx = canvas.getContext('2d'); ctx.drawImage(img, 0, 0, width, height);
+        setRecord({ ...record, photoBase64: canvas.toDataURL('image/jpeg', 0.4) }); setIsUploading(false);
+      }; img.src = event.target.result;
+    }; reader.readAsDataURL(file);
   };
 
-  const isFormValid = () => {
-    if (amount <= 0 || !record.date || record.payer.length === 0) return false;
-    if (record.type === 'expense' || !record.type) {
-      if (!record.category || !record.title) return false;
-      if (['行動支付', '信用卡', '信用卡 / 行動支付', '銀行', '銀行 / 電子票證', '電子票證'].includes(record.method) && !record.subMethod) return false;
-    } else if (record.type === 'income') {
-      if (!record.category) return false;
-      if (['行動支付', '信用卡', '信用卡 / 行動支付', '銀行', '銀行 / 電子票證', '電子票證'].includes(record.method) && !record.subMethod) return false;
-    } else if (record.type === 'transfer') {
-      if (!record.method || (['行動支付', '信用卡', '信用卡 / 行動支付', '銀行', '銀行 / 電子票證', '電子票證'].includes(record.method) && !record.subMethod)) return false;
-      if (!record.transferToMethod || (['行動支付', '信用卡', '信用卡 / 行動支付', '銀行', '銀行 / 電子票證', '電子票證'].includes(record.transferToMethod) && !record.transferToSubMethod)) return false;
-    }
-    if (record.frequency === '每週' && record.frequencyDays.length === 0) return false;
-    return true;
-  };
-
-  const handleSave = async () => {
-    if (!isFormValid()) return;
-    try {
-      const timestamp = new Date(record.date + 'T07:00:00').getTime();
-      const finalAmount = amount;
-      const baseData = { ...record, amount: finalAmount, timestamp, roomId: activeRoomId, addedBy: user.uid, addedByRole: currentUserRole };
-
-      let datesToGenerate = [record.date];
-      let newGroupId = null;
-      let deleteOldFutureRecords = false;
-
-      if (recordToEdit) {
-        if (recordToEdit.groupId && record.frequency !== '一次') {
-          const mode = window.prompt("您正在修改一筆週期性紀錄。\n\n請輸入代碼選擇修改範圍：\n1 = 僅變更單次 (未來紀錄不變)\n2 = 變更當次及未來所有紀錄", "1");
-          if (mode === "2") {
-            deleteOldFutureRecords = true;
-            newGroupId = recordToEdit.groupId;
-            datesToGenerate = generateFutureDates(record.date, record.frequency, record.frequencyDays, record.frequencyInterval, record.frequencyCustomText, 1);
-            if(!datesToGenerate.includes(record.date)) datesToGenerate.unshift(record.date);
-          } else {
-            baseData.frequency = '一次';
-            baseData.groupId = null;
-          }
-        } else if (record.frequency !== '一次') {
-          newGroupId = Date.now().toString();
-          datesToGenerate = generateFutureDates(record.date, record.frequency, record.frequencyDays, record.frequencyInterval, record.frequencyCustomText, 1);
-        } else {
-          baseData.groupId = null;
-        }
-      } else {
-        if (record.frequency !== '一次') {
-          newGroupId = Date.now().toString();
-          datesToGenerate = generateFutureDates(record.date, record.frequency, record.frequencyDays, record.frequencyInterval, record.frequencyCustomText, 1);
-        }
-      }
-
-      baseData.groupId = newGroupId;
-      const batch = writeBatch(db);
-
-      if (deleteOldFutureRecords && recordToEdit.groupId) {
-        records.filter(r => r.groupId === recordToEdit.groupId && r.date > recordToEdit.date && r.id !== recordToEdit.id)
-               .forEach(r => batch.delete(doc(db, 'artifacts', appId, 'public', 'data', 'expenses', r.id)));
-      }
-
-      if (recordToEdit) {
-        batch.update(doc(db, 'artifacts', appId, 'public', 'data', 'expenses', recordToEdit.id), baseData);
-        datesToGenerate.filter(d => d !== record.date).forEach(d => {
-          const newDocRef = doc(collection(db, 'artifacts', appId, 'public', 'data', 'expenses'));
-          batch.set(newDocRef, { ...baseData, date: d, timestamp: new Date(d + 'T07:00:00').getTime() });
-        });
-      } else {
-        datesToGenerate.forEach(d => {
-          const newDocRef = doc(collection(db, 'artifacts', appId, 'public', 'data', 'expenses'));
-          batch.set(newDocRef, { ...baseData, date: d, timestamp: new Date(d + 'T07:00:00').getTime() });
-        });
-      }
-
-      await batch.commit();
-
-      if (!recordToEdit && (record.type === 'expense' || !record.type) && currentRoom.promptCashSync && currentRoom.excludedPromptPayers) {
-        const isExcluded = record.payer.some(p => currentRoom.excludedPromptPayers.includes(p));
-        if (!isExcluded && activeRoomId) {
-          setCrossRoomRecord({ ...baseData, id: 'temp' });
-        }
-      }
-      onClose();
-    } catch (err) { alert('儲存失敗！'); }
-  };
-
-  const TypeButton = ({ type, label, activeColor }) => (
-    <button type="button" onClick={() => {
-      setRecord({ ...record, type, category: type === 'income' ? currentRoom?.incomeCategories?.[0] : type === 'transfer' ? currentRoom?.transferCategories?.[0] : currentRoom?.categories?.[0], title: '', method: '現金', subMethod: '', transferToMethod: '現金', transferToSubMethod: '' });
-      setCalcInput(''); setAmount(0);
-    }} className={`flex-1 py-2 rounded-xl text-[15px] font-black transition-all ${record.type === type ? `${activeColor} text-white shadow-md transform -translate-y-0.5` : 'bg-white text-gray-400 border border-gray-100 hover:bg-gray-50'}`}>
-      {label}
-    </button>
-  );
-
-  const calcKeys = ['C', '(', ')', '÷', '7', '8', '9', '×', '4', '5', '6', '-', '1', '2', '3', '+', '0', '00', '.', '⌫'];
+  const themeBg = record.type === 'income' ? 'bg-green-500' : record.type === 'transfer' ? 'bg-blue-500' : 'bg-orange-500';
+  const themeBorder = record.type === 'income' ? 'border-green-100' : record.type === 'transfer' ? 'border-blue-100' : 'border-orange-100';
+  const themeText = record.type === 'income' ? 'text-green-500' : record.type === 'transfer' ? 'text-blue-500' : 'text-orange-500';
 
   return (
     <div className="absolute inset-0 bg-[#FFFBF0] z-50 flex flex-col overflow-hidden">
-      <header className="bg-white px-4 py-3 border-b border-gray-100 shadow-sm shrink-0 flex justify-between items-center z-10 rounded-b-2xl">
-        <button onClick={onClose} className="p-2 text-gray-400 hover:bg-gray-50 rounded-full transition"><ChevronLeft size={24}/></button>
-        <h2 className="text-[18px] font-black text-gray-800 tracking-wide">{recordToEdit ? '✏️ 編輯紀錄' : copyRecordData ? '✨ 複製新增' : '✨ 新增紀錄'}</h2>
-        <button onClick={handleSave} disabled={!isFormValid()} className={`px-4 py-2 rounded-xl font-bold text-[14px] flex items-center shadow-sm transition-all ${isFormValid() ? 'bg-orange-500 text-white hover:bg-orange-600 hover:-translate-y-0.5' : 'bg-gray-100 text-gray-300 cursor-not-allowed'}`}>
-          <Save size={16} className="mr-1.5"/> 儲存
-        </button>
+      <header className={`${themeBg} text-white px-4 py-3 shadow-md shrink-0 z-10 border-b-4 border-white/20 rounded-b-[1.5rem] transition-colors duration-300`}>
+        <div className="flex justify-between items-center mb-2.5">
+          <h1 className="text-xl font-black flex items-center gap-2 drop-shadow-md">{recordToEdit ? '✏️ 編輯紀錄' : copyRecordData ? '✨ 複製新增' : '✨ 新增紀錄'}</h1>
+          <button onClick={onClose} className="bg-white/20 hover:bg-white/30 text-white rounded-full p-1.5 transition shadow-inner"><X size={20} strokeWidth={3} /></button>
+        </div>
+        {!recordToEdit && (
+          <div className="flex bg-white/20 p-1 rounded-xl shadow-inner mb-1">
+            <button type="button" onClick={() => { setRecord({...record, type: 'expense', category: currentRoom?.categories?.[0] || '', title: ''}); setCalcInput(''); setAmount(0); }} className={`flex-1 py-1.5 rounded-lg font-bold text-[15px] text-center transition-all ${record.type === 'expense' ? 'bg-white text-orange-500 shadow-sm transform scale-100' : 'text-white hover:bg-white/10 scale-95'}`}>支出</button>
+            <button type="button" onClick={() => { setRecord({...record, type: 'income', category: currentRoom?.incomeCategories?.[0] || '', title: '收入'}); setCalcInput(''); setAmount(0); }} className={`flex-1 py-1.5 rounded-lg font-bold text-[15px] text-center transition-all ${record.type === 'income' ? 'bg-white text-green-500 shadow-sm transform scale-100' : 'text-white hover:bg-white/10 scale-95'}`}>收入</button>
+            <button type="button" onClick={() => { setRecord({...record, type: 'transfer', category: currentRoom?.transferCategories?.[0] || '', title: '轉帳'}); setCalcInput(''); setAmount(0); }} className={`flex-1 py-1.5 rounded-lg font-bold text-[15px] text-center transition-all ${record.type === 'transfer' ? 'bg-white text-blue-500 shadow-sm transform scale-100' : 'text-white hover:bg-white/10 scale-95'}`}>轉帳</button>
+          </div>
+        )}
       </header>
 
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4 scroll-smooth pb-20">
-        <div className="flex gap-2 bg-gray-50 p-1.5 rounded-2xl border border-gray-100 shadow-inner">
-          <TypeButton type="expense" label="支出" activeColor="bg-orange-500" />
-          <TypeButton type="income" label="收入" activeColor="bg-green-500" />
-          <TypeButton type="transfer" label="轉帳" activeColor="bg-blue-500" />
+      <main className="scroll-container px-3 py-3 space-y-3 flex-1 overflow-y-auto pb-[80px] [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+        <div role="button" tabIndex={0} className={`w-full block bg-white rounded-2xl pt-2.5 pb-2 px-4 shadow-sm border-2 ${themeBorder} text-center relative overflow-hidden cursor-pointer active:scale-[0.98] transition-transform select-none`} onClick={() => { setCalcInput(String(amount || '0')); setShowCalc(true); }}>
+          <div className={`absolute top-0 left-0 w-full h-1.5 ${themeBg} opacity-20`}></div>
+          <p className={`${themeText} font-extrabold text-[13px] mb-1 flex items-center justify-center gap-1.5`}>輸入金額 💰 <span className="bg-gray-50 border border-gray-100 px-2 py-0.5 rounded text-[10px] text-gray-400 flex items-center gap-1"><Calculator size={12}/> 點擊計算</span></p>
+          <div className={`text-center text-[36px] leading-none font-black w-full text-gray-800 py-1 tracking-tight`}>{amount === '' || amount === 0 ? '0' : Number(amount).toLocaleString()}</div>
         </div>
 
-        <div className="bg-white p-4 rounded-[1.5rem] shadow-sm border border-gray-100 flex flex-col items-end">
-          <div className="text-gray-400 font-bold text-[14px] mb-1 text-left w-full">TWD 金額</div>
-          <div className="text-[40px] font-black text-gray-800 tracking-tighter leading-none mb-1 break-all">${calcInput || '0'}</div>
-          <div className="text-[16px] font-bold text-gray-400">目前結算: <span className={amount > 0 ? 'text-orange-500' : ''}>${amount.toLocaleString()}</span></div>
-        </div>
-
-        <div className="bg-white p-4 rounded-[1.5rem] shadow-sm border border-gray-100 space-y-4">
-          <div className="relative">
-            <label className="flex items-center gap-1.5 text-[14px] font-bold text-gray-500 mb-1 ml-1"><Calendar size={14}/> 日期</label>
-            <input type="date" value={record.date} onChange={e => setRecord({...record, date: e.target.value})} className="w-full bg-gray-50 border border-gray-200 p-3 rounded-xl font-bold text-[15px] text-gray-700 outline-none focus:border-orange-400 transition" />
-          </div>
-
-          <div className="flex gap-3">
-            <div className="flex-1">
-              <CustomDropdown label="分類" icon={Tag} options={record.type === 'income' ? (currentRoom?.incomeCategories || []) : record.type === 'transfer' ? (currentRoom?.transferCategories || []) : (currentRoom?.categories || [])} value={record.category} onChange={v => setRecord({...record, category: v, title: ''})} placeholder="選擇分類" />
+        <div className={`bg-white rounded-2xl p-4 shadow-sm border-2 ${themeBorder}`}>
+          <div className="grid grid-cols-2 gap-2 mb-3.5 z-40">
+            <div>
+              <label className="flex items-center justify-between text-[14px] font-bold text-gray-500 mb-2 ml-1 w-full pr-1">
+                <span className="flex items-center gap-1.5"><Calendar size={16} className="text-gray-400" /> 日期 🗓️</span>
+                <button type="button" onClick={() => setRecord({...record, date: getLocalTodayStr()})} className={`px-2 py-1 rounded text-[12px] font-bold transition-all duration-300 shadow-sm ${record.date === getLocalTodayStr() ? `${themeBg} text-white scale-105 shadow-md` : 'bg-gray-200 hover:bg-gray-300 text-gray-700'}`}>今天</button>
+              </label>
+              <div className="relative w-full bg-gray-50 border border-gray-100 p-2.5 rounded-xl flex items-center shadow-sm cursor-pointer hover:bg-white transition overflow-hidden" onClick={() => { if (recordDateInputRef.current) { try { recordDateInputRef.current.showPicker(); } catch (e) { recordDateInputRef.current.focus(); } } }}>
+                <input ref={recordDateInputRef} type="date" required className="absolute inset-0 w-full h-full opacity-0 z-10 cursor-pointer" value={record.date} onChange={(e) => setRecord({...record, date: e.target.value})} />
+                <span className="font-bold text-gray-700 text-[15px] z-0 pointer-events-none">{record.date ? toROCYearStr(record.date) : '選擇日期'}</span>
+                <span className="absolute right-2 text-gray-400 text-[12px] z-0 pointer-events-none">▼</span>
+              </div>
             </div>
-            {record.type !== 'transfer' && (
-              <div className="flex-1">
-                {record.type === 'income' ? (
-                  <div className="w-full">
-                    <label className="flex items-center gap-1.5 text-[14px] font-bold text-gray-500 mb-1 ml-1"><Receipt size={14}/> 項目</label>
-                    <input type="text" value={record.title} onChange={e => setRecord({...record, title: e.target.value})} placeholder="收入來源" className="w-full bg-gray-50 border border-gray-200 p-2.5 rounded-xl font-bold text-[14px] outline-none focus:border-orange-400 transition" />
+            <div className="z-40">
+              <CustomDropdown label="頻率 🔄" icon={RefreshCw} options={['一次', '每週', '每月', '區間']} value={record.frequency} onChange={(val) => { setRecord({...record, frequency: val, frequencyDays: [], frequencyInterval: '', frequencyCustomText: ''}); }} placeholder="選擇頻率" />
+            </div>
+          </div>
+          {record.frequency === '每週' && (
+            <div className="mb-3.5 bg-gray-50 p-3 rounded-xl border border-gray-100 shadow-sm">
+              <label className="text-[14px] font-bold text-gray-500 mb-2 block">請選擇星期 (可複選)</label>
+              <div className="flex flex-wrap gap-1.5">
+                {['週一', '週二', '週三', '週四', '週五', '週六', '週日'].map(d => (
+                  <button key={d} type="button" onClick={() => {
+                    const newDays = record.frequencyDays.includes(d) ? record.frequencyDays.filter(v => v !== d) : [...record.frequencyDays, d];
+                    setRecord({...record, frequencyDays: newDays});
+                  }} className={`px-2.5 py-1.5 rounded-lg text-[13px] font-bold transition-all ${record.frequencyDays.includes(d) ? 'bg-[#FFE28A] text-gray-800 shadow-sm border-2 border-[#FCD34D] transform -translate-y-0.5' : 'bg-white text-gray-500 border border-gray-100'}`}>{d}</button>
+                ))}
+              </div>
+            </div>
+          )}
+          {record.frequency === '區間' && (
+            <div className="mb-3.5 bg-gray-50 p-3 rounded-xl border border-gray-100 shadow-sm">
+              <div className="flex flex-wrap gap-1.5 mb-2">
+                {['3個月', '半年', '一年', '自訂'].map(opt => (
+                  <button key={opt} type="button" onClick={() => setRecord({...record, frequencyInterval: opt})} className={`px-2.5 py-1.5 rounded-lg text-[13px] font-bold transition-all ${record.frequencyInterval === opt ? 'bg-[#FFE28A] text-gray-800 shadow-sm border-2 border-[#FCD34D] transform -translate-y-0.5' : 'bg-white text-gray-500 border border-gray-100'}`}>{opt}</button>
+                ))}
+              </div>
+              {record.frequencyInterval === '自訂' && <input type="text" placeholder="自行填寫區間天數 (例如: 30)" value={record.frequencyCustomText} onChange={e => setRecord({...record, frequencyCustomText: e.target.value})} className="w-full bg-white border border-gray-100 p-2.5 rounded-lg font-bold text-[14px] outline-none focus:border-[#FCD34D] transition shadow-sm" />}
+            </div>
+          )}
+
+          {record.type === 'expense' && (
+            <>
+              <div className="grid grid-cols-2 gap-2 z-30 mb-3.5">
+                <CustomDropdown label="主分類 📂" options={currentRoom?.categories || []} value={record.category} onChange={(val) => { setRecord({...record, category: val, title: ''}); }} placeholder="選擇分類..." />
+                <CustomDropdown label="項目清單 🛒" options={currentRoom?.categoryItems?.[record.category] || []} value={record.title} onChange={(val) => { setRecord({...record, title: val}); }} placeholder="選擇項目..." />
+              </div>
+              <div className="flex items-end gap-2 mb-3.5 w-full">
+                <div className="flex-1 min-w-0">
+                  <CustomDropdown label="商家 🏪" icon={Store} options={currentRoom?.merchants || []} value={record.merchant} onChange={(val) => { setRecord({...record, merchant: val}); }} placeholder="選擇商家..." />
+                </div>
+                <label className="shrink-0 flex items-center justify-center gap-1.5 h-[44px] px-3 bg-gray-50 border border-gray-100 rounded-xl cursor-pointer hover:bg-gray-200 transition shadow-sm">
+                  <input type="checkbox" checked={record.excludeFromBalance} onChange={e => setRecord({...record, excludeFromBalance: e.target.checked})} className="w-4 h-4 rounded border-gray-300 text-orange-500" />
+                  <span className="font-bold text-[13px] text-gray-500">不計入</span>
+                </label>
+              </div>
+              <div className="flex flex-col gap-3 mb-3.5 z-10">
+                <PillGroupMulti label="花費對象 👥" icon={User} options={currentRoom?.payers || []} values={record.payer} onChange={v => setRecord({...record, payer: v})} isPayer={true} />
+              </div>
+              <MethodSelector label="付款方式 💳" icon={CreditCard} method={record.method} subMethod={record.subMethod} setMethod={m => setRecord({...record, method: m})} setSubMethod={sm => setRecord({...record, subMethod: sm})} currentRoom={currentRoom} />
+            </>
+          )}
+
+          {record.type === 'income' && (
+            <>
+              <div className="z-30 mb-3.5 flex items-end gap-2 w-full">
+                <div className="flex-1 min-w-0">
+                  <CustomDropdown label="收入分類 📈" icon={Tag} options={currentRoom?.incomeCategories || []} value={record.category} onChange={v => setRecord({...record, category: v})} placeholder="選擇收入分類..." />
+                </div>
+                <label className="shrink-0 flex items-center justify-center gap-1.5 h-[44px] px-3 bg-gray-50 border border-gray-100 rounded-xl cursor-pointer hover:bg-gray-200 transition shadow-sm">
+                  <input type="checkbox" checked={record.excludeFromBalance} onChange={e => setRecord({...record, excludeFromBalance: e.target.checked})} className="w-4 h-4 rounded border-gray-300 text-green-500" />
+                  <span className="font-bold text-[13px] text-gray-500">不計入</span>
+                </label>
+              </div>
+              <PillGroupMulti label="對象 (可複選) 👥" icon={User} options={currentRoom?.payers || []} values={record.payer} onChange={v => setRecord({...record, payer: v})} isPayer={true} />
+              <MethodSelector label="存入帳戶 🏦" icon={Wallet} method={record.method} subMethod={record.subMethod} setMethod={m => setRecord({...record, method: m})} setSubMethod={sm => setRecord({...record, subMethod: sm})} currentRoom={currentRoom} />
+            </>
+          )}
+
+          {record.type === 'transfer' && (
+            <>
+              <div className="z-40 mb-3.5">
+                <CustomDropdown label="轉帳分類 🔄" icon={Tag} options={currentRoom?.transferCategories || []} value={record.category} onChange={v => setRecord({...record, category: v})} placeholder="選擇轉帳分類..." />
+              </div>
+              <PillGroupMulti label="對象 (可複選) 👥" icon={User} options={currentRoom?.payers || []} values={record.payer} onChange={v => setRecord({...record, payer: v})} isPayer={true} />
+              <MethodSelector label="📤 轉出帳戶 (扣款)" icon={Wallet} method={record.method} subMethod={record.subMethod} setMethod={m => setRecord({...record, method: m})} setSubMethod={sm => setRecord({...record, subMethod: sm})} currentRoom={currentRoom} />
+              <MethodSelector label="📥 轉入帳戶 (存入)" icon={PiggyBank} method={record.transferToMethod} subMethod={record.transferToSubMethod} setMethod={m => setRecord({...record, transferToMethod: m})} setSubMethod={sm => setRecord({...record, transferToSubMethod: sm})} currentRoom={currentRoom} />
+            </>
+          )}
+
+          <div className="mt-3.5 pt-3.5 border-t border-gray-100 flex gap-2 items-start">
+            <div className="flex-1 w-full min-w-0">
+              <label className="flex items-center gap-1.5 text-[14px] font-bold text-gray-500 mb-1.5 ml-1">📝 備註 (選填)</label>
+              <input type="text" placeholder="輸入額外備註..." className="bg-gray-50 border border-gray-100 rounded-xl p-2.5 outline-none w-full text-gray-700 font-bold text-[15px]" value={record.note} onChange={(e) => setRecord({...record, note: e.target.value})} />
+            </div>
+            <div className="shrink-0 w-[86px]">
+              <label className="flex items-center justify-center gap-1.5 text-[14px] font-bold text-gray-500 mb-1.5 w-full text-center">📷 照片</label>
+              <div className="relative w-[86px] h-[46px] flex gap-1.5 group">
+                {record.photoBase64 ? (
+                  <div className="relative w-full h-full bg-gray-50 border border-gray-100 rounded-xl shadow-sm overflow-hidden cursor-pointer">
+                    <img src={record.photoBase64} alt="預覽" className="w-full h-full object-cover" />
+                    <div onClick={(e) => { e.stopPropagation(); setRecord({...record, photoBase64: null}); }} className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 hover:opacity-100 transition"><Trash2 size={18} className="text-white" /></div>
                   </div>
                 ) : (
-                  <CustomDropdown label="項目" icon={Receipt} options={currentRoom?.categoryItems?.[record.category] || []} value={record.title} onChange={v => setRecord({...record, title: v})} placeholder="選擇項目" />
+                  <>
+                    <div className="relative flex-1 bg-gray-50 border border-gray-100 rounded-xl shadow-sm hover:bg-gray-200 transition flex items-center justify-center cursor-pointer overflow-hidden"><Camera size={18} className="text-gray-500" /><input type="file" accept="image/*" capture="environment" className="absolute inset-0 opacity-0 cursor-pointer" onChange={handlePhotoUpload} ref={photoInputRef} /></div>
+                    <div className="relative flex-1 bg-gray-50 border border-gray-100 rounded-xl shadow-sm hover:bg-gray-200 transition flex items-center justify-center cursor-pointer overflow-hidden"><ImageIcon size={18} className="text-gray-500" /><input type="file" accept="image/*" className="absolute inset-0 opacity-0 cursor-pointer" onChange={handlePhotoUpload} /></div>
+                  </>
                 )}
               </div>
-            )}
-          </div>
-
-          {record.type !== 'transfer' && (
-            <div className="relative">
-              <label className="flex items-center gap-1.5 text-[14px] font-bold text-gray-500 mb-1 ml-1"><Store size={14}/> 商家 (選填)</label>
-              <input type="text" value={record.merchant} onChange={e => setRecord({...record, merchant: e.target.value})} placeholder="例如：7-11、全聯..." className="w-full bg-gray-50 border border-gray-200 p-3 rounded-xl font-bold text-[15px] text-gray-700 outline-none focus:border-orange-400 transition" />
             </div>
-          )}
-
-          <PillGroupMulti label="花費對象" icon={Tag} options={currentRoom?.payers || []} values={record.payer} onChange={v => setRecord({...record, payer: v})} isPayer={true} />
-
-          {record.type !== 'transfer' ? (
-            <MethodSelector label="付款方式" icon={Wallet} method={record.method} subMethod={record.subMethod} setMethod={m => setRecord({...record, method: m})} setSubMethod={sm => setRecord({...record, subMethod: sm})} currentRoom={currentRoom} />
-          ) : (
-            <div className="space-y-4 bg-blue-50/50 p-3 rounded-2xl border border-blue-100">
-              <MethodSelector label="轉出帳戶 (扣款)" icon={Wallet} method={record.method} subMethod={record.subMethod} setMethod={m => setRecord({...record, method: m})} setSubMethod={sm => setRecord({...record, subMethod: sm})} currentRoom={currentRoom} />
-              <div className="flex justify-center -my-2 relative z-20"><div className="bg-blue-500 text-white w-8 h-8 rounded-full flex items-center justify-center shadow-md font-black text-lg">↓</div></div>
-              <MethodSelector label="轉入帳戶 (入帳)" icon={PiggyBank} method={record.transferToMethod} subMethod={record.transferToSubMethod} setMethod={m => setRecord({...record, transferToMethod: m})} setSubMethod={sm => setRecord({...record, transferToSubMethod: sm})} currentRoom={currentRoom} />
-            </div>
-          )}
-
-          <div className="pt-2">
-            <label className="flex items-center gap-1.5 text-[14px] font-bold text-gray-500 mb-1 ml-1">📝 備註 (選填)</label>
-            <textarea value={record.note} onChange={e => setRecord({...record, note: e.target.value})} placeholder="寫點什麼..." className="w-full bg-gray-50 border border-gray-200 p-3 rounded-xl font-bold text-[14px] text-gray-700 outline-none focus:border-orange-400 transition min-h-[80px] resize-none"></textarea>
-          </div>
-
-          <div>
-            <label className="flex items-center gap-1.5 text-[14px] font-bold text-gray-500 mb-2 ml-1"><ImageIcon size={14}/> 附上照片 (收據/商品)</label>
-            {record.photoBase64 ? (
-              <div className="relative w-full h-32 rounded-xl overflow-hidden shadow-sm border border-gray-200">
-                <img src={record.photoBase64} alt="已上傳" className="w-full h-full object-cover" />
-                <button onClick={() => setRecord({ ...record, photoBase64: '' })} className="absolute top-2 right-2 bg-black/60 text-white p-1.5 rounded-full hover:bg-red-500 transition backdrop-blur-sm"><X size={16}/></button>
-              </div>
-            ) : (
-              <button onClick={() => fileInputRef.current?.click()} className="w-full h-16 border-2 border-dashed border-gray-300 rounded-xl flex items-center justify-center text-gray-400 font-bold hover:bg-gray-50 hover:border-orange-400 transition gap-2">
-                {isUploading ? <Sparkles className="animate-spin" size={20} /> : <><Upload size={18} /> 點擊上傳照片</>}
-              </button>
-            )}
-            <input type="file" accept="image/*" style={{display: 'none'}} ref={fileInputRef} onChange={handlePhotoUpload} />
-          </div>
-
-          <div className="flex items-center justify-between bg-gray-50 p-3 rounded-xl border border-gray-100">
-            <div className="flex items-center gap-2"><Settings size={18} className="text-gray-400"/> <span className="text-[14px] font-bold text-gray-700">此筆不計入帳戶總覽</span></div>
-            <label className="relative inline-flex items-center cursor-pointer">
-              <input type="checkbox" className="sr-only peer" checked={record.excludeFromBalance} onChange={e => setRecord({...record, excludeFromBalance: e.target.checked})} />
-              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-orange-500"></div>
-            </label>
           </div>
         </div>
 
-        <div className="bg-gray-800 p-4 sm:p-5 rounded-[1.5rem] shadow-lg mb-8">
-          <div className="grid grid-cols-4 gap-2 sm:gap-3">
-            {calcKeys.map(key => (
-              <button key={key} type="button" onClick={() => handleCalcInput(key)} className={`h-12 sm:h-14 rounded-[1rem] text-[18px] sm:text-[20px] font-black transition active:scale-95 shadow-sm flex items-center justify-center
-                ${['C', '⌫'].includes(key) ? 'bg-red-400 text-white shadow-[0_4px_0_#ef4444]' : 
-                  ['+', '-', '×', '÷', '(', ')'].includes(key) ? 'bg-gray-600 text-white shadow-[0_4px_0_#4b5563]' : 
-                  key === '=' ? 'bg-orange-500 text-white shadow-[0_4px_0_#f97316]' : 'bg-white text-gray-800 shadow-[0_4px_0_#e5e7eb] hover:bg-gray-50'}`}>
-                {key}
-              </button>
-            ))}
+        <button onClick={handleSave} disabled={!isFormValid} className={`w-full font-extrabold text-[18px] py-3.5 mt-1 rounded-[1.2rem] transition-all duration-300 shadow-md ${isFormValid ? `${themeBg} text-white hover:opacity-90 transform hover:-translate-y-1 active:translate-y-0` : 'bg-gray-200 text-gray-400 cursor-not-allowed opacity-70 shadow-none'}`}>
+          {isFormValid ? '儲存紀錄 ✨' : '請填寫完整資料'}
+        </button>
+      </main>
+
+      {/* 原版復刻智慧計算機 */}
+      {showCalc && (
+        <div className="fixed inset-0 z-[150] bg-black/60 flex flex-col justify-center items-center p-4 backdrop-blur-[2px] animate-in fade-in duration-200" onClick={() => { setAmount(evaluateCalc(calcInput)); setShowCalc(false); }}>
+          <div className="bg-gray-50 w-full max-w-[320px] rounded-[2rem] p-5 shadow-2xl animate-in zoom-in-95 duration-200 border border-gray-200" onClick={e => e.stopPropagation()}>
+            <div className="flex justify-between items-center mb-3">
+              <span className="text-gray-500 font-bold text-[14px] flex items-center gap-1.5"><Calculator size={16}/> 智慧計算機</span>
+              <button onClick={() => { setAmount(evaluateCalc(calcInput)); setShowCalc(false); }} className="text-gray-500 bg-gray-200 hover:bg-gray-300 rounded-full p-1.5 transition"><X size={16}/></button>
+            </div>
+            <div className="text-right text-[38px] font-black text-gray-800 mb-4 overflow-x-auto whitespace-nowrap pb-1.5 border-b-2 border-gray-200 tracking-wider">{calcInput}</div>
+            <div className="grid grid-cols-4 gap-2">
+              {calcKeys.map(k => (
+                <button key={k} onClick={() => {
+                  if (k === 'C') setCalcInput('0');
+                  else if (k === '⌫') setCalcInput(prev => prev.length > 1 ? prev.slice(0, -1) : '0');
+                  else if (k === '=') setCalcInput(prev => evaluateCalc(prev));
+                  else setCalcInput(prev => prev === '0' && !['+','-','×','÷','.'].includes(k) ? k : prev + k);
+                }} className={`py-4 rounded-xl text-[20px] font-black active:scale-95 transition-transform flex items-center justify-center shadow-sm 
+                  ${['C', '⌫'].includes(k) ? 'bg-[#FFD1DC] text-[#9F1239]' : ['+', '-', '×', '÷', '(', ')'].includes(k) ? 'bg-[#FEF08A] text-[#B45309]' : k === '=' ? 'bg-[#38BDF8] text-white shadow-md' : 'bg-white text-gray-800'}`}>
+                  {k}
+                </button>
+              ))}
+            </div>
+            <button onClick={() => { setAmount(evaluateCalc(calcInput)); setShowCalc(false); }} className={`w-full mt-3 ${themeBg} text-white py-3.5 rounded-xl font-black text-[18px] shadow-md active:scale-95 transition flex justify-center items-center gap-2`}>
+              <Check size={20}/> 確認金額
+            </button>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };
-
 export default RecordFormView;
