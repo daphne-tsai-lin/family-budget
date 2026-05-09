@@ -2,10 +2,12 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Sparkles, Copy, Trash2, X, Send } from 'lucide-react';
 import { onAuthStateChanged } from 'firebase/auth';
 import { doc, getDoc, updateDoc, onSnapshot, collection, writeBatch, deleteField, setDoc } from 'firebase/firestore';
-import { auth, db, appId } from './firebase/config';
-import { getLocalTodayStr, toROCYearStr, getRoleColorStyle } from './utils/helpers';
 
-// 引入我們剛建立的所有模組化畫面
+// ⚠️ 修正點 1：將路徑改為最常見的全小寫 config，或是你原本的 firebaseConfig
+// 如果你 GitHub 上的檔名叫 firebaseConfig.js，請把 './firebase/config' 改成 './firebase/firebaseConfig'
+import { auth, db, appId } from './firebase/config'; 
+import { getLocalTodayStr, toROCYearStr, getRoleColorStyle, generateFutureDates } from './utils/helpers';
+
 import LoginView from './views/LoginView';
 import CreateRoomView from './views/CreateRoomView';
 import RoomView from './views/RoomView';
@@ -71,6 +73,8 @@ export default function App() {
         } catch (e) {}
       } , 400);
       return () => clearTimeout(timer);
+    } else if ((view === 'login' || view === 'create') && !roomCode) {
+      setAvailableLoginUsers(['老公', '老婆']);
     }
   }, [roomCode, user, view]);
 
@@ -143,26 +147,16 @@ export default function App() {
     } catch(err) { setErrorMsg('連線失敗'); } finally { setIsLoading(false); }
   };
 
+  // ⚠️ 修正點 2：補齊完整的建立房間邏輯
   const handleCreateRoom = async (e) => {
-    e.preventDefault(); 
-    setErrorMsg('');
-    if (!roomCode || !roomPin || !roomName || !currentUserRole) { 
-      setErrorMsg('請填寫所有欄位並選擇身份'); 
-      return; 
-    }
-    if (!user) { 
-      setErrorMsg('資料庫尚未連線，請稍後再試。'); 
-      return; 
-    }
+    e.preventDefault(); setErrorMsg('');
+    if (!roomCode || !roomPin || !roomName || !currentUserRole) { setErrorMsg('請填寫所有欄位並選擇身份'); return; }
+    if (!user) { setErrorMsg('資料庫尚未連線，請確認 Firebase 設定。'); return; }
     setIsLoading(true);
     try {
       const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', roomCode);
       const roomSnap = await getDoc(roomRef);
-      if (roomSnap.exists()) { 
-        setErrorMsg('這個房間代碼已被使用，請換一個'); 
-        setIsLoading(false); 
-        return; 
-      }
+      if (roomSnap.exists()) { setErrorMsg('這個房間代碼已被使用，請換一個'); setIsLoading(false); return; }
       
       const newRoomData = {
         name: roomName, pin: roomPin, createdBy: user.uid, createdAt: Date.now(),
@@ -186,22 +180,13 @@ export default function App() {
       };
       
       await setDoc(roomRef, newRoomData);
-      
-      // 更新本地端快速切換紀錄
       const newRooms = [{ id: roomCode, name: roomName, pin: roomPin, role: currentUserRole }, ...savedRooms.filter(r => r.id !== roomCode)].slice(0, 5);
       localStorage.setItem('expenseApp_savedRooms', JSON.stringify(newRooms));
       setSavedRooms(newRooms);
-
-      setActiveRoomId(roomCode); 
-      setHomeFilterDate(getLocalTodayStr()); 
-      setView('room');
-    } catch (err) { 
-      setErrorMsg('建立房間失敗：' + err.message); 
-    } finally { 
-      setIsLoading(false); 
-    }
+      setActiveRoomId(roomCode); setHomeFilterDate(getLocalTodayStr()); setView('room');
+    } catch (err) { setErrorMsg('建立房間失敗：' + err.message); } finally { setIsLoading(false); }
   };
-  // 排序調整
+
   const handleMoveRecord = async (index, direction) => {
     const displayRecs = searchQuery ? records.filter(r => r.date <= getLocalTodayStr() && JSON.stringify(r).toLowerCase().includes(searchQuery.toLowerCase())) : records.filter(r => r.date === homeFilterDate);
     if (index + direction < 0 || index + direction >= displayRecs.length) return;
@@ -216,7 +201,6 @@ export default function App() {
     } catch (err) {}
   };
 
-  // 刪除紀錄
   const handleDeleteRecord = async (record) => {
     let deleteFuture = false;
     if (record.groupId) {
@@ -234,7 +218,6 @@ export default function App() {
     } catch (err) {}
   };
 
-  // 跨房間傳送邏輯
   const handleSendToOtherRoom = async (targetRoomId, keepFrequency) => {
     if (!crossRoomRecord) return;
     try {
@@ -245,12 +228,29 @@ export default function App() {
       const { id, ...dataToCopy } = crossRoomRecord;
       dataToCopy.roomId = targetRoomId;
       dataToCopy.timestamp = Date.now();
-      if (!keepFrequency) { dataToCopy.frequency = '一次'; dataToCopy.groupId = null; }
       
-      await writeBatch(db).set(doc(collection(db, 'artifacts', appId, 'public', 'data', 'expenses')), dataToCopy).commit();
+      if (!keepFrequency) { 
+          dataToCopy.frequency = '一次'; 
+          dataToCopy.frequencyDays = [];
+          dataToCopy.frequencyInterval = '';
+          dataToCopy.groupId = null; 
+      } else {
+          dataToCopy.groupId = dataToCopy.frequency !== '一次' ? Date.now().toString() : null;
+      }
+      
+      const batch = writeBatch(db);
+      batch.set(doc(collection(db, 'artifacts', appId, 'public', 'data', 'expenses')), dataToCopy);
+
+      if (keepFrequency && dataToCopy.frequency !== '一次') {
+        generateFutureDates(dataToCopy.date, dataToCopy.frequency, dataToCopy.frequencyDays, dataToCopy.frequencyInterval, dataToCopy.frequencyCustomText, 1).forEach(d => {
+          batch.set(doc(collection(db, 'artifacts', appId, 'public', 'data', 'expenses')), { ...dataToCopy, date: d, timestamp: new Date(d + 'T07:00:00').getTime() });
+        });
+      }
+
+      await batch.commit();
       alert(`✅ 成功傳送紀錄至另一個房間！`);
       setCrossRoomRecord(null); setSelectedTransferRoom(null);
-    } catch (err) {}
+    } catch (err) { alert('傳送失敗！'); }
   };
 
   const handleBackup = () => {
@@ -262,15 +262,14 @@ export default function App() {
     document.body.appendChild(downloadAnchorNode); downloadAnchorNode.click(); downloadAnchorNode.remove();
   };
 
-  // === 視圖分發器 ===
   const renderView = () => {
     if (!user) return <div className="p-6 text-center text-gray-500 font-extrabold flex justify-center items-center h-full"><Sparkles className="animate-bounce mr-3 text-yellow-400" size={28}/> 魔法連線中...</div>;
 
     switch (view) {
       case 'login':
-        return <LoginView savedRooms={savedRooms} roomCode={roomCode} setRoomCode={setRoomCode} roomPin={roomPin} setRoomPin={setRoomPin} currentUserRole={currentUserRole} setCurrentUserRole={setCurrentUserRole} availableLoginUsers={availableLoginUsers} isLoading={isLoading} errorMsg={errorMsg} handleJoinRoom={handleJoinRoom} quickJoinRoom={quickJoinRoom} onSwitchToCreate={() => setView('create')} />;
+        return <LoginView savedRooms={savedRooms} roomCode={roomCode} setRoomCode={setRoomCode} roomPin={roomPin} setRoomPin={setRoomPin} currentUserRole={currentUserRole} setCurrentUserRole={setCurrentUserRole} availableLoginUsers={availableLoginUsers} isLoading={isLoading} errorMsg={errorMsg} handleJoinRoom={handleJoinRoom} quickJoinRoom={quickJoinRoom} onSwitchToCreate={() => {setView('create'); setErrorMsg('');}} />;
       case 'create':
-        return <CreateRoomView roomName={roomName} setRoomName={setRoomName} roomCode={roomCode} setRoomCode={setRoomCode} roomPin={roomPin} setRoomPin={setRoomPin} currentUserRole={currentUserRole} setCurrentUserRole={setCurrentUserRole} isLoading={isLoading} errorMsg={errorMsg} handleCreateRoom={handleCreateRoom} onBackToLogin={() => setView('login')} />;
+        return <CreateRoomView roomName={roomName} setRoomName={setRoomName} roomCode={roomCode} setRoomCode={setRoomCode} roomPin={roomPin} setRoomPin={setRoomPin} currentUserRole={currentUserRole} setCurrentUserRole={setCurrentUserRole} isLoading={isLoading} errorMsg={errorMsg} handleCreateRoom={handleCreateRoom} onBackToLogin={() => {setView('login'); setErrorMsg('');}} />;
       case 'room':
         if (showAddForm) {
           const recordToEdit = editRecordId ? records.find(r => r.id === editRecordId) : null;
@@ -292,12 +291,10 @@ export default function App() {
   return (
     <div className="min-h-screen bg-gray-100 sm:py-4 flex justify-center items-center font-sans text-[16px]">
       <div className={`w-full ${view === 'login' || view === 'create' ? 'max-w-[400px]' : 'max-w-[460px]'} min-h-screen sm:min-h-0 sm:h-[800px] bg-[#FFFBF0] flex flex-col relative sm:rounded-[2.5rem] sm:border-[6px] sm:border-gray-800 shadow-2xl overflow-hidden transition-all duration-500`}>
-        {/* 用於匯入 JSON 的隱藏按鈕 */}
         <input type="file" accept=".json" style={{display: 'none'}} ref={fileInputRef} />
         
         {renderView()}
 
-        {/* 1. 放大圖片 Modal */}
         {enlargedPhoto && (
           <div className="fixed inset-0 bg-black/90 z-[150] flex flex-col items-center justify-center p-4 backdrop-blur-md" onClick={() => setEnlargedPhoto(null)}>
             <div className="absolute top-6 right-6 p-2 bg-white/20 hover:bg-white/40 rounded-full cursor-pointer"><X size={28} className="text-white" /></div>
@@ -305,7 +302,6 @@ export default function App() {
           </div>
         )}
 
-        {/* 2. 單筆紀錄詳細資訊 Modal */}
         {viewingRecord && (
           <div className="fixed inset-0 bg-black/40 z-[110] flex justify-center items-center p-4 backdrop-blur-sm" onClick={() => setViewingRecord(null)}>
             <div className="bg-white w-full max-w-sm rounded-[1.5rem] p-5 shadow-2xl relative" onClick={e => e.stopPropagation()}>
@@ -329,7 +325,6 @@ export default function App() {
           </div>
         )}
 
-        {/* 3. 跨房間傳送 Modal */}
         {crossRoomRecord && (
           <div className="fixed inset-0 bg-black/40 z-[120] flex justify-center items-center p-4 backdrop-blur-sm">
             <div className="bg-white w-full max-w-sm rounded-[1.5rem] p-5 shadow-2xl">
