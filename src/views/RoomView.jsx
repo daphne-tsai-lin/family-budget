@@ -15,7 +15,6 @@ const RoomView = ({
   const touchStartY = useRef(null);
   const headerColorClass = currentRoom?.headerTheme || getRoomHeaderColor(activeRoomId);
 
-  // 💡 效能升級：加上 useMemo，只有當 records 或搜尋條件改變時，才重新計算與排序過濾，避免輸入文字時卡頓。
   const displayRecords = useMemo(() => {
     const filtered = records.filter(r => {
       if (searchQuery) {
@@ -26,7 +25,6 @@ const RoomView = ({
       if (homeFilterDate) return r.date === homeFilterDate;
       return true;
     });
-
     if (searchQuery || !homeFilterDate) {
       filtered.sort((a, b) => {
         if (a.date !== b.date) return a.date > b.date ? -1 : 1;
@@ -36,7 +34,6 @@ const RoomView = ({
     return filtered;
   }, [records, searchQuery, homeFilterDate]);
 
-  // 💡 效能升級：總計數字同樣利用 useMemo 緩存
   const { totalIncome, totalExpense, netBalance } = useMemo(() => {
     const income = displayRecords.filter(r => r.type === 'income' && !r.excludeFromBalance).reduce((sum, r) => sum + r.amount, 0);
     const expense = displayRecords.filter(r => (r.type === 'expense' || !r.type) && !r.excludeFromBalance).reduce((sum, r) => sum + r.amount, 0);
@@ -76,7 +73,6 @@ const RoomView = ({
             </p>
           </div>
           <div className="flex items-center gap-1.5">
-            {/* 💡 已移除失效的 RefreshCw 按鈕，讓介面更乾淨 */}
             <button onClick={() => fileInputRef.current?.click()} className="p-1.5 bg-white/20 hover:bg-white/30 text-white rounded-lg transition backdrop-blur-sm"><Upload size={18} /></button>
             <button onClick={handleBackup} className="p-1.5 bg-white/20 hover:bg-white/30 text-white rounded-lg transition backdrop-blur-sm"><Download size={18} /></button>
             <button onClick={() => setView('settings')} className="p-1.5 bg-white/20 hover:bg-white/30 text-white rounded-lg transition backdrop-blur-sm"><Settings size={18} /></button>
@@ -120,19 +116,17 @@ const RoomView = ({
           ) : (
             <div className="space-y-2">
               {displayRecords.map((exp, idx) => (
-                <RecordItem key={exp.id} exp={exp} idx={idx} isSortable={!searchQuery && homeFilterDate} onRecordClick={setViewingRecord} handleMoveRecord={handleMoveRecord} openEditForm={() => onEditRecord(exp)} setCrossRoomRecord={setCrossRoomRecord} />
+                {/* 💡 傳遞 currentUserId 讓 RecordItem 判斷是否為本人 */}
+                <RecordItem key={exp.id} exp={exp} idx={idx} currentUserId={user.uid} isSortable={!searchQuery && homeFilterDate} onRecordClick={setViewingRecord} handleMoveRecord={handleMoveRecord} openEditForm={() => onEditRecord(exp)} setCrossRoomRecord={setCrossRoomRecord} />
               ))}
             </div>
           )}
         </div>
       </main>
 
-      {/* 底部導覽列 */}
       <div className="absolute bottom-0 left-0 w-full bg-white/95 backdrop-blur-xl p-2 pb-6 sm:pb-3 rounded-t-[1.5rem] shadow-[0_-15px_40px_rgba(0,0,0,0.08)] flex justify-between items-center z-20 border-t border-gray-100 px-6">
         <button onClick={() => setView('accounts')} className="flex flex-col items-center gap-1 text-gray-400 hover:text-indigo-500 transition px-4 py-2"><Wallet size={22} /><span className="font-extrabold text-[11px]">帳戶</span></button>
-        
         <button onClick={() => onEditRecord(null)} className="absolute left-1/2 -translate-x-1/2 -top-5 bg-gradient-to-tr from-pink-400 to-orange-400 text-white w-[60px] h-[60px] rounded-full flex items-center justify-center shadow-[0_10px_20px_rgba(251,146,60,0.4)] border-[3px] border-[#FFFBF0] transform hover:scale-105 transition active:scale-95"><Plus size={32} strokeWidth={3} /></button>
-        
         <button onClick={() => setView('analysis')} className="flex flex-col items-center gap-1 text-gray-400 hover:text-teal-500 transition px-4 py-2"><BarChart size={24} /><span className="font-extrabold text-[11px]">統計</span></button>
       </div>
     </>
