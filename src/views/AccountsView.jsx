@@ -1,259 +1,181 @@
-import React, { useState, useEffect } from 'react';
-import { Landmark, Calendar, Wallet, X } from 'lucide-react';
-import { doc, updateDoc } from 'firebase/firestore';
-import { db, appId } from '../firebase/firebaseConfig';
-import { getLocalMonthStartStr, getLocalLastMonthStartStr, getLocalLastMonthEndStr, getLocalTodayStr, toROCYearStr, getRoleColorStyle } from '../utils/helpers';
+import React, { useState, useMemo } from 'react';
+import { X, ChevronRight, Wallet, CreditCard, PiggyBank } from 'lucide-react';
+import { RecordItem } from '../components/SharedUI';
 
-const AccountsView = ({ user, activeRoomId, currentRoom, records, setView, setViewingRecord }) => {
-  const [accountStartDate, setAccountStartDate] = useState('');
-  const [accountEndDate, setAccountEndDate] = useState('');
-  const [isEditingBalances, setIsEditingBalances] = useState(false);
-  const [tempBalances, setTempBalances] = useState({});
-  const [viewingAccountHistory, setViewingAccountHistory] = useState(null);
+const AccountsView = ({ user, activeRoomId, currentRoom, records, setView, setViewingRecord, currentUserRole }) => {
+  const [filterRange, setFilterRange] = useState(currentRoom?.accountDefaultRange || '當月');
+  const [selectedAccount, setSelectedAccount] = useState(null);
 
-  // 初始化預設日期區間
-  useEffect(() => {
-    const defaultRange = currentRoom?.accountDefaultRange || '當月';
-    if (defaultRange === '全部') {
-      setAccountStartDate(''); setAccountEndDate(getLocalTodayStr());
-    } else {
-      setAccountStartDate(getLocalMonthStartStr()); setAccountEndDate(getLocalTodayStr());
+  const displayRecords = useMemo(() => {
+    let filtered = records;
+    if (filterRange === '當月') {
+      const thisMonth = new Date().toISOString().slice(0, 7);
+      filtered = filtered.filter(r => r.date.startsWith(thisMonth));
     }
-  }, [currentRoom?.accountDefaultRange]);
+    return filtered;
+  }, [records, filterRange]);
 
-  const renderMethodText = (method, subMethod) => {
-    if (!method || method === '未指定') return null;
-    return `${method}${subMethod ? `(${subMethod})` : ''}`;
-  };
+  const accountData = useMemo(() => {
+    const balances = { ...currentRoom?.initialBalances };
+    const creditCards = {};
+    (currentRoom?.creditCards || []).forEach(c => creditCards[c] = 0);
+    (currentRoom?.mobilePayCards || []).forEach(c => { if(creditCards[c] === undefined) creditCards[c] = 0; });
+    (currentRoom?.bankAccounts || []).forEach(b => { if(balances[b] === undefined) balances[b] = 0; });
+    if(balances['現金'] === undefined) balances['現金'] = 0;
 
-  const getAccKey = (method, subMethod) => {
-    if (method === '現金') return '現金';
-    if (['信用卡 / 行動支付', '信用卡', '行動支付'].includes(method)) return `cc_${subMethod}`;
-    if (['銀行 / 電子票證', '銀行 / 儲值卡', '銀行 / 卡片', '銀行'].includes(method)) return `bank_${subMethod}`;
-    if (method === '電子票證') return `et_${subMethod}`;
-    if ((currentRoom?.creditCards || []).includes(method)) return `cc_${method}`;
-    if ((currentRoom?.electronicTickets || []).includes(method)) return `et_${method}`;
-    return `bank_${method}`;
-  };
+    displayRecords.forEach(r => {
+      // 💡 修正：嚴格排除勾選了「不計入總覽」的明細
+      if (r.excludeFromBalance) return; 
 
-  const getBalances = () => {
-    const initial = currentRoom?.initialBalances || {}; 
-    const balances = { '現金': initial['現金'] || 0 };
-    (currentRoom?.bankAccounts || []).forEach(b => balances[`bank_${b}`] = initial[`bank_${b}`] !== undefined ? initial[`bank_${b}`] : (initial[b] || 0));
-    (currentRoom?.electronicTickets || []).forEach(e => balances[`et_${e}`] = initial[`et_${e}`] !== undefined ? initial[`et_${e}`] : (initial[e] || 0));
-    (currentRoom?.creditCards || []).forEach(c => balances[`cc_${c}`] = initial[`cc_${c}`] !== undefined ? initial[`cc_${c}`] : (initial[c] || 0));
-    
-    records.forEach(r => {
-      if (accountStartDate && r.date < accountStartDate) return;
-      if (accountEndDate && r.date > accountEndDate) return;
-      if (!accountEndDate && r.date > getLocalTodayStr()) return;
-      if (r.excludeFromBalance) return;
-
-      const amt = Number(r.amount) || 0;
-      if (r.type === 'expense' || !r.type) { 
-        const key = getAccKey(r.method, r.subMethod);
-        if (key) balances[key] = (balances[key] || 0) + (key.startsWith('cc_') ? amt : -amt); 
-      } else if (r.type === 'income') { 
-        const key = getAccKey(r.method, r.subMethod);
-        if (key) balances[key] = (balances[key] || 0) + (key.startsWith('cc_') ? -amt : amt); 
+      if (r.type === 'expense' || !r.type) {
+        if (['信用卡', '行動支付', '信用卡 / 行動支付'].includes(r.method)) {
+          if (r.subMethod) creditCards[r.subMethod] = (creditCards[r.subMethod] || 0) + r.amount;
+        } else if (['銀行', '銀行 / 電子票證'].includes(r.method)) {
+          if (r.subMethod) balances[r.subMethod] = (balances[r.subMethod] || 0) - r.amount;
+        } else if (r.method === '現金') {
+          balances['現金'] = (balances['現金'] || 0) - r.amount;
+        } else if (r.method === '電子票證') {
+          if (r.subMethod) balances[r.subMethod] = (balances[r.subMethod] || 0) - r.amount;
+        }
+      } else if (r.type === 'income') {
+        if (['銀行', '銀行 / 電子票證'].includes(r.method)) {
+          if (r.subMethod) balances[r.subMethod] = (balances[r.subMethod] || 0) + r.amount;
+        } else if (r.method === '現金') {
+          balances['現金'] = (balances['現金'] || 0) + r.amount;
+        } else if (r.method === '電子票證') {
+          if (r.subMethod) balances[r.subMethod] = (balances[r.subMethod] || 0) + r.amount;
+        } else if (['信用卡', '行動支付', '信用卡 / 行動支付'].includes(r.method)) {
+          if (r.subMethod) creditCards[r.subMethod] = (creditCards[r.subMethod] || 0) - r.amount;
+        }
       } else if (r.type === 'transfer') {
-        const fromKey = getAccKey(r.method, r.subMethod), toKey = getAccKey(r.transferToMethod, r.transferToSubMethod);
-        if (fromKey) balances[fromKey] = (balances[fromKey] || 0) + (fromKey.startsWith('cc_') ? amt : -amt);
-        if (toKey) balances[toKey] = (balances[toKey] || 0) + (toKey.startsWith('cc_') ? -amt : amt);
+        if (['信用卡', '行動支付', '信用卡 / 行動支付'].includes(r.method)) { if (r.subMethod) creditCards[r.subMethod] = (creditCards[r.subMethod] || 0) - r.amount; } 
+        else if (['銀行', '銀行 / 電子票證'].includes(r.method)) { if (r.subMethod) balances[r.subMethod] = (balances[r.subMethod] || 0) - r.amount; } 
+        else if (r.method === '現金') { balances['現金'] = (balances['現金'] || 0) - r.amount; } 
+        else if (r.method === '電子票證') { if (r.subMethod) balances[r.subMethod] = (balances[r.subMethod] || 0) - r.amount; }
+
+        if (['信用卡', '行動支付', '信用卡 / 行動支付'].includes(r.transferToMethod)) { if (r.transferToSubMethod) creditCards[r.transferToSubMethod] = (creditCards[r.transferToSubMethod] || 0) + r.amount; } 
+        else if (['銀行', '銀行 / 電子票證'].includes(r.transferToMethod)) { if (r.transferToSubMethod) balances[r.transferToSubMethod] = (balances[r.transferToSubMethod] || 0) + r.amount; } 
+        else if (r.transferToMethod === '現金') { balances['現金'] = (balances['現金'] || 0) + r.amount; } 
+        else if (r.transferToMethod === '電子票證') { if (r.transferToSubMethod) balances[r.transferToSubMethod] = (balances[r.transferToSubMethod] || 0) + r.amount; }
       }
     });
-    return balances;
+
+    const totalAssets = Object.values(balances).reduce((sum, val) => sum + val, 0);
+    const totalLiabilities = Object.values(creditCards).reduce((sum, val) => sum + val, 0);
+    return { balances, creditCards, totalAssets, totalLiabilities, netAssets: totalAssets - totalLiabilities };
+  }, [displayRecords, currentRoom]);
+
+  const { balances, creditCards, totalAssets, totalLiabilities, netAssets } = accountData;
+
+  const handleAccountClick = (type, name) => {
+    // 顯示帳戶反查的明細，這裡的資料包含了所有勾或沒勾的項目，
+    // 以便在點進去看的時候，依然能看到被打上刪除線的紀錄
+    const accountRecords = displayRecords.filter(r => {
+      if (r.type === 'transfer') {
+        if (type === 'balance' && ((['銀行', '現金', '電子票證'].includes(r.method) && r.subMethod === name) || (r.method === '現金' && name === '現金'))) return true;
+        if (type === 'balance' && ((['銀行', '現金', '電子票證'].includes(r.transferToMethod) && r.transferToSubMethod === name) || (r.transferToMethod === '現金' && name === '現金'))) return true;
+        if (type === 'credit' && ['信用卡', '行動支付'].some(m => r.method.includes(m)) && r.subMethod === name) return true;
+        if (type === 'credit' && ['信用卡', '行動支付'].some(m => r.transferToMethod.includes(m)) && r.transferToSubMethod === name) return true;
+      } else {
+        if (type === 'balance') return (['銀行', '現金', '電子票證'].includes(r.method) && r.subMethod === name) || (r.method === '現金' && name === '現金');
+        if (type === 'credit') return ['信用卡', '行動支付'].some(m => r.method.includes(m)) && r.subMethod === name;
+      }
+      return false;
+    }).sort((a, b) => b.timestamp - a.timestamp);
+    setSelectedAccount({ name, records: accountRecords });
   };
 
-  const handleSaveBalances = async () => {
-    if (!user) return;
-    try {
-      const updatedBalances = { ...currentRoom?.initialBalances };
-      for (const [key, val] of Object.entries(tempBalances)) if (val !== '') updatedBalances[key] = Number(val);
-      await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', activeRoomId), { initialBalances: updatedBalances });
-      setIsEditingBalances(false);
-    } catch (err) { alert("儲存餘額失敗：請檢查網路連線"); }
-  };
-
-  const balances = getBalances();
-  const cashBal = balances['現金'] || 0;
-  const banks = currentRoom?.bankAccounts || [];
-  const eTickets = currentRoom?.electronicTickets || [];
-  const bankTotal = banks.reduce((sum, b) => sum + (balances[`bank_${b}`] || 0), 0) + eTickets.reduce((sum, e) => sum + (balances[`et_${e}`] || 0), 0);
-  const ccs = currentRoom?.creditCards || [];
-  const ccTotal = ccs.reduce((sum, c) => sum + (balances[`cc_${c}`] || 0), 0);
-  const totalAssets = cashBal + bankTotal;
-  const totalLiabilities = ccTotal;
-  const netWorth = totalAssets - totalLiabilities;
+  const AccountCard = ({ name, amount, type, icon: Icon }) => (
+    <div onClick={() => handleAccountClick(type, name)} className="bg-white p-3.5 rounded-2xl shadow-sm border border-gray-100 flex justify-between items-center cursor-pointer hover:shadow-md transition group">
+      <div className="flex items-center gap-3">
+        <div className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-inner ${type === 'credit' ? 'bg-orange-50 text-orange-500' : 'bg-blue-50 text-blue-500'}`}><Icon size={20} /></div>
+        <span className="font-bold text-[15px] text-gray-700">{name}</span>
+      </div>
+      <div className="flex items-center gap-2">
+        <span className={`font-black text-[18px] ${type === 'credit' ? (amount > 0 ? 'text-red-500' : 'text-gray-400') : (amount < 0 ? 'text-red-500' : 'text-gray-800')}`}>
+          {type === 'credit' ? (amount > 0 ? `-$${amount.toLocaleString()}` : '$0') : `$${amount.toLocaleString()}`}
+        </span>
+        <ChevronRight size={16} className="text-gray-300 group-hover:text-blue-400 transition" />
+      </div>
+    </div>
+  );
 
   return (
-    <>
-      <header className="bg-gradient-to-r from-indigo-500 to-purple-500 px-4 py-3.5 shadow-md shrink-0 z-10 rounded-b-[1.5rem] border-b-4 border-white/20">
-        <div className="flex justify-between items-center">
-          <h1 className="text-[20px] font-black text-white flex items-center gap-2 drop-shadow-md"><Landmark size={22} className="text-white/80"/> 帳戶總覽</h1>
-          <div className="flex gap-2">
-            <button onClick={() => setView('room')} className="px-3 py-1.5 bg-white/20 hover:bg-white/30 text-white rounded-lg transition text-[14px] font-bold">返回</button>
-            {isEditingBalances ? (
-              <button onClick={handleSaveBalances} className="px-3 py-1.5 bg-white/20 hover:bg-white/30 text-white rounded-lg transition text-[14px] font-bold">儲存</button>
-            ) : (
-              <button onClick={() => {
-                const initBal = currentRoom?.initialBalances || {};
-                const temp = { '現金': initBal['現金'] !== undefined ? initBal['現金'] : 0 };
-                banks.forEach(b => temp[`bank_${b}`] = initBal[`bank_${b}`] !== undefined ? initBal[`bank_${b}`] : (initBal[b] !== undefined ? initBal[b] : 0));
-                eTickets.forEach(e => temp[`et_${e}`] = initBal[`et_${e}`] !== undefined ? initBal[`et_${e}`] : (initBal[e] !== undefined ? initBal[e] : 0));
-                ccs.forEach(c => temp[`cc_${c}`] = initBal[`cc_${c}`] !== undefined ? initBal[`cc_${c}`] : (initBal[c] !== undefined ? initBal[c] : 0));
-                setTempBalances(temp); setIsEditingBalances(true);
-              }} className="px-3 py-1.5 bg-white/20 hover:bg-white/30 text-white rounded-lg transition text-[14px] font-bold">初始餘額</button>
-            )}
-          </div>
-        </div>
+    <div className="h-full flex flex-col bg-[#FFFBF0]">
+      <header className="bg-white px-4 py-3 border-b border-gray-100 shadow-sm shrink-0 flex justify-between items-center z-10 rounded-b-2xl">
+        <button onClick={() => setView('room')} className="p-2 text-gray-400 hover:bg-gray-50 rounded-full transition"><X size={24}/></button>
+        <h2 className="text-[18px] font-black text-gray-800 tracking-wide">帳戶總覽</h2>
+        <div className="w-10 h-10"></div>
       </header>
 
-      <main className="scroll-container px-3 py-3 space-y-3 flex-1 overflow-y-auto pb-[90px] [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-        {/* 日期選擇區塊 */}
-        <div className="flex flex-col gap-2 bg-white p-2 rounded-2xl shadow-sm border border-indigo-100">
-          <div className="flex items-center gap-1.5">
-            <Calendar size={14} className="text-indigo-400 shrink-0 ml-1 hidden sm:block" />
-            <div className="relative flex-1 bg-gray-50 border border-gray-100 px-2 py-1.5 rounded-lg overflow-hidden flex justify-center items-center cursor-pointer min-w-0">
-              <input type="date" value={accountStartDate} onChange={e => setAccountStartDate(e.target.value)} className="absolute inset-0 w-full h-full opacity-0 z-10 cursor-pointer" />
-              <span className="font-bold text-gray-600 text-[12px] z-0 pointer-events-none truncate">{accountStartDate ? toROCYearStr(accountStartDate) : '不限'}</span>
-            </div>
-            <span className="text-gray-300 text-[12px] font-black shrink-0">~</span>
-            <div className="relative flex-1 bg-gray-50 border border-gray-100 px-2 py-1.5 rounded-lg overflow-hidden flex justify-center items-center cursor-pointer min-w-0">
-              <input type="date" value={accountEndDate} onChange={e => setAccountEndDate(e.target.value)} className="absolute inset-0 w-full h-full opacity-0 z-10 cursor-pointer" />
-              <span className="font-bold text-gray-600 text-[12px] z-0 pointer-events-none truncate">{accountEndDate ? toROCYearStr(accountEndDate) : '不限'}</span>
-            </div>
-            <div className="flex shrink-0 gap-0.5 ml-0.5">
-              <button onClick={() => { setAccountStartDate(getLocalLastMonthStartStr()); setAccountEndDate(getLocalLastMonthEndStr()); }} className={`px-2 py-1.5 rounded-lg text-[11px] sm:text-[12px] font-bold transition-all ${(accountStartDate === getLocalLastMonthStartStr() && accountEndDate === getLocalLastMonthEndStr()) ? 'bg-indigo-500 text-white shadow-sm' : 'bg-indigo-50 text-indigo-600 hover:bg-indigo-100'}`}>上月</button>
-              <button onClick={() => { setAccountStartDate(''); setAccountEndDate(getLocalTodayStr()); }} className={`px-2 py-1.5 rounded-lg text-[11px] sm:text-[12px] font-bold transition-all ${accountStartDate === '' ? 'bg-indigo-500 text-white shadow-sm' : 'bg-indigo-50 text-indigo-600 hover:bg-indigo-100'}`}>全部</button>
-            </div>
+      <div className="px-4 py-3 shrink-0">
+        <div className="bg-gray-100 p-1 rounded-xl flex shadow-inner border border-gray-200">
+          {['當月', '全部'].map(opt => (
+            <button key={opt} onClick={() => setFilterRange(opt)} className={`flex-1 py-1.5 rounded-lg text-[14px] font-black transition-all ${filterRange === opt ? 'bg-white text-blue-600 shadow-sm transform -translate-y-0.5' : 'text-gray-400 hover:text-gray-600'}`}>{opt}</button>
+          ))}
+        </div>
+      </div>
+
+      <div className="flex-1 overflow-y-auto px-4 pb-[90px] space-y-5 scroll-smooth">
+        <div className="bg-gradient-to-br from-indigo-500 to-purple-600 p-5 rounded-[1.5rem] shadow-lg text-white">
+          <div className="flex justify-between items-end mb-4">
+            <div><div className="text-white/80 text-[13px] font-bold mb-1">淨資產</div><div className="text-[32px] font-black leading-none">${netAssets.toLocaleString()}</div></div>
+            <PiggyBank size={36} className="text-white/20" />
+          </div>
+          <div className="flex justify-between border-t border-white/20 pt-3">
+            <div><div className="text-white/70 text-[11px] font-bold">總資產</div><div className="font-bold text-[16px]">${totalAssets.toLocaleString()}</div></div>
+            <div className="text-right"><div className="text-white/70 text-[11px] font-bold">總負債 (卡費)</div><div className="font-bold text-[16px]">${totalLiabilities.toLocaleString()}</div></div>
           </div>
         </div>
 
-        {/* 淨資產卡片 */}
-        <div className="bg-white py-3 px-4 rounded-2xl border-2 border-indigo-100 text-center shadow-sm relative overflow-hidden">
-          <div className="absolute -right-6 -top-6 bg-indigo-50 w-24 h-24 rounded-full opacity-50"></div>
-          <p className="text-indigo-400 font-extrabold text-[14px] relative z-10">💎 淨資產</p>
-          <p className={`text-[36px] leading-tight font-black relative z-10 ${netWorth < 0 ? 'text-red-500' : 'text-indigo-700'}`}>${netWorth.toLocaleString()}</p>
-          <div className="flex justify-center gap-4 mt-1.5 relative z-10 border-t border-indigo-50 pt-1.5">
-            <div className="flex flex-col">
-              <span className="text-gray-400 text-[11px] font-bold">💰 總資產 (現金+銀行)</span>
-              <span className="text-indigo-500 font-black text-[15px]">${totalAssets.toLocaleString()}</span>
-            </div>
-            <div className="flex flex-col border-l border-indigo-50 pl-4">
-              <span className="text-gray-400 text-[11px] font-bold">💳 總負債 (信用卡)</span>
-              <span className="text-orange-500 font-black text-[15px]">${totalLiabilities.toLocaleString()}</span>
-            </div>
-          </div>
-        </div>
-
-        {/* 現金 */}
-        <div className="bg-white p-4 rounded-2xl shadow-sm border border-emerald-50">
-          <h2 className="font-bold text-[17px] text-gray-700 mb-3 flex items-center gap-1.5"><Wallet size={18} className="text-emerald-500"/> 現金餘額</h2>
-          <div onClick={() => !isEditingBalances && setViewingAccountHistory('現金')} className={`flex justify-between items-center bg-gray-50 p-2.5 rounded-xl border border-gray-100 ${!isEditingBalances ? 'cursor-pointer hover:bg-emerald-50 hover:border-emerald-200 transition' : ''}`}>
-            <span className="font-bold text-gray-600 text-[16px]">現金</span>
-            {isEditingBalances ? (
-              <input type="text" inputMode="numeric" className="w-24 text-right border border-emerald-200 focus:border-emerald-400 p-1 rounded-lg font-bold text-[16px] outline-none transition" value={tempBalances['現金'] === '-' ? '-' : (tempBalances['現金'] === undefined || tempBalances['現金'] === '' ? '' : Number(tempBalances['現金']).toLocaleString())} onChange={e => { let val = e.target.value.replace(/,/g, ''); if (val === '') val = '0'; if (val === '-') return setTempBalances({...tempBalances, '現金': '-'}); if (!isNaN(val)) setTempBalances({...tempBalances, '現金': val}); }} onFocus={e => e.target.select()} placeholder="0" />
-            ) : (
-              <span className={`font-black text-[20px] ${cashBal < 0 ? 'text-red-500' : 'text-gray-800'}`}>${cashBal.toLocaleString()}</span>
-            )}
-          </div>
-        </div>
-
-        {/* 銀行/電子票證 */}
-        <div className="bg-white p-4 rounded-2xl shadow-sm border border-blue-50">
-          <div className="flex justify-between items-end mb-3 flex-nowrap">
-            <h2 className="font-bold text-[17px] text-gray-700 flex items-center gap-1.5 min-w-0 shrink">
-              <Landmark size={18} className="text-blue-500 shrink-0"/> <span className="truncate">銀行/電子票證</span>
-            </h2>
-            <span className="text-[14px] font-extrabold text-blue-500 bg-blue-50 px-2 py-1 rounded-lg shrink-0 ml-2 whitespace-nowrap">小計: ${bankTotal.toLocaleString()}</span>
-          </div>
+        <div>
+          <h3 className="font-bold text-gray-400 mb-2 ml-1 text-[14px] flex items-center gap-1.5"><Wallet size={16}/> 現金與銀行帳戶</h3>
           <div className="space-y-2">
-            {banks.length === 0 && eTickets.length === 0 && <p className="text-gray-400 text-[14px] font-bold text-center py-3 bg-gray-50 rounded-xl">無銀行與電子票證，請至設定新增</p>}
-            {banks.map(b => (
-              <div key={`bank_${b}`} onClick={() => !isEditingBalances && setViewingAccountHistory(b)} className={`flex justify-between items-center bg-gray-50 p-2.5 rounded-xl border border-gray-100 ${!isEditingBalances ? 'cursor-pointer hover:bg-blue-50 hover:border-blue-200 transition' : ''}`}>
-                <span className="font-bold text-gray-600 text-[16px] truncate pr-2">🏦 {b}</span>
-                {isEditingBalances ? (
-                  <input type="text" inputMode="numeric" className="w-24 text-right border border-blue-200 focus:border-blue-400 p-1 rounded-lg font-bold text-[16px] outline-none transition" value={tempBalances[`bank_${b}`] === '-' ? '-' : (tempBalances[`bank_${b}`] === undefined || tempBalances[`bank_${b}`] === '' ? '' : Number(tempBalances[`bank_${b}`]).toLocaleString())} onChange={e => { let val = e.target.value.replace(/,/g, ''); if (val === '') val = '0'; if (val === '-') return setTempBalances({...tempBalances, [`bank_${b}`]: '-'}); if (!isNaN(val)) setTempBalances({...tempBalances, [`bank_${b}`]: val}); }} onFocus={e => e.target.select()} placeholder="0" />
-                ) : (
-                  <span className={`font-black text-[18px] shrink-0 ${(balances[`bank_${b}`] || 0) < 0 ? 'text-red-500' : 'text-gray-800'}`}>${(balances[`bank_${b}`] || 0).toLocaleString()}</span>
-                )}
-              </div>
-            ))}
-            {eTickets.map(eItem => (
-              <div key={`et_${eItem}`} onClick={() => !isEditingBalances && setViewingAccountHistory(eItem)} className={`flex justify-between items-center bg-gray-50 p-2.5 rounded-xl border border-gray-100 ${!isEditingBalances ? 'cursor-pointer hover:bg-teal-50 hover:border-teal-200 transition' : ''}`}>
-                <span className="font-bold text-gray-600 text-[16px] truncate pr-2">🎟️ {eItem}</span>
-                {isEditingBalances ? (
-                  <input type="text" inputMode="numeric" className="w-24 text-right border border-teal-200 focus:border-teal-400 p-1 rounded-lg font-bold text-[16px] outline-none transition" value={tempBalances[`et_${eItem}`] === '-' ? '-' : (tempBalances[`et_${eItem}`] === undefined || tempBalances[`et_${eItem}`] === '' ? '' : Number(tempBalances[`et_${eItem}`]).toLocaleString())} onChange={e => { let val = e.target.value.replace(/,/g, ''); if (val === '') val = '0'; if (val === '-') return setTempBalances({...tempBalances, [`et_${eItem}`]: '-'}); if (!isNaN(val)) setTempBalances({...tempBalances, [`et_${eItem}`]: val}); }} onFocus={e => e.target.select()} placeholder="0" />
-                ) : (
-                  <span className={`font-black text-[18px] shrink-0 ${(balances[`et_${eItem}`] || 0) < 0 ? 'text-red-500' : 'text-gray-800'}`}>${(balances[`et_${eItem}`] || 0).toLocaleString()}</span>
-                )}
-              </div>
-            ))}
+            <AccountCard name="現金" amount={balances['現金'] || 0} type="balance" icon={Wallet} />
+            {currentRoom?.bankAccounts?.map(b => <AccountCard key={b} name={b} amount={balances[b] || 0} type="balance" icon={PiggyBank} />)}
+            {currentRoom?.electronicTickets?.map(b => <AccountCard key={b} name={b} amount={balances[b] || 0} type="balance" icon={Wallet} />)}
           </div>
         </div>
 
-        {/* 信用卡刷卡 */}
-        <div className="bg-white p-4 rounded-2xl shadow-sm border border-orange-50">
-          <div className="flex justify-between items-end mb-3 flex-nowrap">
-            <h2 className="font-bold text-[17px] text-gray-700 flex items-center gap-1.5 min-w-0 shrink">
-              <Wallet size={18} className="text-orange-500 shrink-0"/> <span className="truncate">信用卡刷卡</span>
-            </h2>
-            <span className="text-[14px] font-extrabold text-orange-500 bg-orange-50 px-2 py-1 rounded-lg shrink-0 ml-2 whitespace-nowrap">小計: ${ccTotal.toLocaleString()}</span>
-          </div>
+        <div>
+          <h3 className="font-bold text-gray-400 mb-2 ml-1 text-[14px] flex items-center gap-1.5"><CreditCard size={16}/> 信用卡負債</h3>
           <div className="space-y-2">
-            {ccs.length === 0 && <p className="text-gray-400 text-[14px] font-bold text-center py-3 bg-gray-50 rounded-xl">無信用卡，請至設定新增</p>}
-            {ccs.map(c => (
-              <div key={c} onClick={() => !isEditingBalances && setViewingAccountHistory(c)} className={`flex justify-between items-center bg-gray-50 p-2.5 rounded-xl border border-gray-100 ${!isEditingBalances ? 'cursor-pointer hover:bg-orange-50 hover:border-orange-200 transition' : ''}`}>
-                <span className="font-bold text-gray-600 text-[16px] truncate pr-2">💳 {c}</span>
-                {isEditingBalances ? (
-                  <input type="text" inputMode="numeric" className="w-24 text-right border border-orange-200 focus:border-orange-400 p-1 rounded-lg font-bold text-[17px] outline-none transition" value={tempBalances[`cc_${c}`] === '-' ? '-' : (tempBalances[`cc_${c}`] === undefined || tempBalances[`cc_${c}`] === '' ? '' : Number(tempBalances[`cc_${c}`]).toLocaleString())} onChange={e => { let val = e.target.value.replace(/,/g, ''); if (val === '') val = '0'; if (val === '-') return setTempBalances({...tempBalances, [`cc_${c}`]: '-'}); if (!isNaN(val)) setTempBalances({...tempBalances, [`cc_${c}`]: val}); }} onFocus={e => e.target.select()} placeholder="0" />
-                ) : (
-                  <span className={`font-black text-[18px] shrink-0 ${(balances[`cc_${c}`] || 0) > 0 ? 'text-orange-500' : 'text-gray-800'}`}>${(balances[`cc_${c}`] || 0).toLocaleString()}</span>
-                )}
-              </div>
-            ))}
+            {Object.keys(creditCards).map(c => <AccountCard key={c} name={c} amount={creditCards[c]} type="credit" icon={CreditCard} />)}
+            {Object.keys(creditCards).length === 0 && <div className="text-center py-6 bg-white rounded-2xl border border-dashed border-gray-200 text-gray-400 font-bold text-[13px]">目前無信用卡資料</div>}
           </div>
         </div>
-      </main>
+      </div>
 
-      {/* 歷史明細彈跳視窗 Modal */}
-      {viewingAccountHistory && (
-        <div className="fixed inset-0 bg-black/40 z-[100] flex justify-center items-center p-3 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setViewingAccountHistory(null)}>
-          <div className="bg-white w-full max-w-md max-h-[85vh] flex flex-col rounded-[1.5rem] p-4 shadow-2xl relative" onClick={e => e.stopPropagation()}>
-            <button onClick={() => setViewingAccountHistory(null)} className="absolute top-3 right-3 text-gray-400 hover:text-gray-600 bg-gray-100 p-1.5 rounded-full transition"><X size={16}/></button>
-            <h3 className="font-black text-[18px] text-gray-800 mb-3 border-b border-gray-100 pb-2 flex items-center gap-1.5"><Wallet size={18} className="text-indigo-500" /> {viewingAccountHistory} 明細</h3>
-            <div className="flex-1 overflow-y-auto space-y-1.5 pr-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-              {(() => {
-                const todayStr = getLocalTodayStr();
-                const accHistory = records.filter(r => {
-                  if (accountStartDate && r.date < accountStartDate) return false;
-                  if (accountEndDate && r.date > accountEndDate) return false;
-                  if (!accountEndDate && r.date > todayStr) return false;
-                  const getAccName = (method, subMethod) => method === '現金' ? '現金' : subMethod;
-                  return getAccName(r.method, r.subMethod) === viewingAccountHistory || getAccName(r.transferToMethod, r.transferToSubMethod) === viewingAccountHistory;
-                }).sort((a, b) => (a.date !== b.date ? (a.date > b.date ? -1 : 1) : b.timestamp - a.timestamp));
-                
-                if (accHistory.length === 0) return <p className="text-center text-gray-400 font-bold py-10 text-[14px]">此區間尚無明細</p>;
-                return accHistory.map(exp => {
-                  const getAccName = (method, subMethod) => method === '現金' ? '現金' : subMethod;
-                  const isPositive = (exp.type === 'income' && getAccName(exp.method, exp.subMethod) === viewingAccountHistory) || (exp.type === 'transfer' && getAccName(exp.transferToMethod, exp.transferToSubMethod) === viewingAccountHistory);
-                  return (
-                    <div key={exp.id} onClick={() => setViewingRecord(exp)} className="bg-gray-50 p-2.5 rounded-xl border border-gray-100 flex justify-between items-center cursor-pointer hover:bg-gray-100 transition">
-                      <div className="flex-1 pr-2">
-                        <div className="text-[11px] font-bold text-gray-400 mb-0.5">{toROCYearStr(exp.date)} {exp.addedByRole && <span className={`${getRoleColorStyle(exp.addedByRole).text} ml-1`}>{exp.addedByRole}</span>}</div>
-                        <div className="font-black text-black text-[14px]">{exp.type === 'transfer' ? `轉帳: ${renderMethodText(exp.method, exp.subMethod)} ➜ ${renderMethodText(exp.transferToMethod, exp.transferToSubMethod)}` : exp.title}</div>
-                      </div>
-                      <div className={`font-black text-[16px] shrink-0 ${isPositive ? 'text-green-500' : 'text-gray-800'}`}>{isPositive ? '+' : '-'}${exp.amount.toLocaleString()}</div>
-                    </div>
-                  )
-                });
-              })()}
+      {selectedAccount && (
+        <div className="fixed inset-0 bg-black/40 z-[100] flex justify-center items-end sm:items-center sm:p-4 backdrop-blur-sm">
+          <div className="bg-[#FFFBF0] w-full sm:max-w-[420px] h-[85vh] sm:h-[600px] rounded-t-[2rem] sm:rounded-[2rem] shadow-2xl flex flex-col relative animate-in slide-in-from-bottom-full sm:slide-in-from-bottom-10">
+            <header className="bg-white px-5 py-4 border-b border-gray-100 shadow-sm flex justify-between items-center shrink-0 rounded-t-[2rem]">
+              <div>
+                <h3 className="text-[18px] font-black text-gray-800 tracking-wide">{selectedAccount.name} 明細</h3>
+                <p className="text-gray-400 text-[12px] font-bold">共 {selectedAccount.records.length} 筆紀錄</p>
+              </div>
+              <button onClick={() => setSelectedAccount(null)} className="p-2 bg-gray-50 text-gray-400 hover:bg-gray-100 hover:text-gray-600 rounded-full transition"><X size={20}/></button>
+            </header>
+            <div className="flex-1 overflow-y-auto p-4 space-y-2 pb-8">
+              {selectedAccount.records.length === 0 ? (
+                <div className="text-center py-10 text-gray-400 font-bold text-[14px]">這個區間目前沒有紀錄喔！</div>
+              ) : (
+                selectedAccount.records.map((exp, idx) => (
+                  <RecordItem 
+                    key={exp.id} 
+                    exp={exp} 
+                    idx={idx} 
+                    currentUserRole={currentUserRole}
+                    hideActions={true} 
+                    onRecordClick={setViewingRecord} 
+                  />
+                ))
+              )}
             </div>
           </div>
         </div>
       )}
-    </>
+    </div>
   );
 };
 
