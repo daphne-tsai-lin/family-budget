@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Sparkles, Copy, Trash2, X, Send } from 'lucide-react';
 import { onAuthStateChanged } from 'firebase/auth';
-// 💡 新增了 query, where 用於精準抓取資料
 import { doc, getDoc, updateDoc, onSnapshot, collection, writeBatch, deleteField, setDoc, query, where } from 'firebase/firestore';
 
 import { auth, db, appId } from './firebase/firebaseConfig'; 
@@ -45,7 +44,6 @@ export default function App() {
   
   const fileInputRef = useRef(null);
 
-  // 1. 初始化與登入快取監聽
   useEffect(() => {
     try {
       const storedRooms = JSON.parse(localStorage.getItem('expenseApp_savedRooms') || '[]');
@@ -55,27 +53,19 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
-  // 2. 防誤觸退出機制
   useEffect(() => {
     window.history.pushState({ trap: true }, '');
     const handleBeforeUnload = (e) => { e.preventDefault(); e.returnValue = ''; };
     const handlePopState = (e) => {
       const confirmExit = window.confirm("確定要關閉記帳本嗎？\n\n(免煩惱！您的資料都已經即時安全儲存至雲端囉 ✨ )");
-      if (!confirmExit) {
-        window.history.pushState({ trap: true }, '');
-      } else {
-        setTimeout(() => { try { window.close(); } catch(err) {} window.history.back(); }, 100);
-      }
+      if (!confirmExit) window.history.pushState({ trap: true }, '');
+      else setTimeout(() => { try { window.close(); } catch(err) {} window.history.back(); }, 100);
     };
     window.addEventListener('beforeunload', handleBeforeUnload);
     window.addEventListener('popstate', handlePopState);
-    return () => {
-      window.removeEventListener('beforeunload', handleBeforeUnload);
-      window.removeEventListener('popstate', handlePopState);
-    };
+    return () => { window.removeEventListener('beforeunload', handleBeforeUnload); window.removeEventListener('popstate', handlePopState); };
   }, []);
 
-  // 3. 監聽房間名稱與動態載入人員名單
   useEffect(() => {
     if ((view === 'login' || view === 'create') && roomCode && user) {
       const timer = setTimeout(async () => {
@@ -91,33 +81,24 @@ export default function App() {
     }
   }, [roomCode, user, view]);
 
-  // 4. 【核心效能優化】精準監聽房間設定與記帳明細
   useEffect(() => {
     if (!user || !activeRoomId) return;
-    
-    // 監聽房間設定
     const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', activeRoomId);
     const unsubscribeRoom = onSnapshot(roomRef, (snapshot) => {
       if (snapshot.exists()) setCurrentRoom({ id: snapshot.id, ...snapshot.data() });
     });
 
-    // 💡 效能升級：只向伺服器請求「目前房間」的明細，不再把全世界的資料抓下來過濾！
     const expensesQuery = query(
       collection(db, 'artifacts', appId, 'public', 'data', 'expenses'),
       where('roomId', '==', activeRoomId)
     );
-    
     const unsubscribeExpenses = onSnapshot(expensesQuery, (snapshot) => {
-      const roomRecords = snapshot.docs
-        .map(doc => ({ id: doc.id, ...doc.data() }))
-        .sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+      const roomRecords = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })).sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
       setRecords(roomRecords);
     });
-
     return () => { unsubscribeRoom(); unsubscribeExpenses(); };
   }, [user, activeRoomId]);
 
-  // 5. 自動清理 90 天以上舊圖片 (節省雲端空間)
   useEffect(() => {
     if (!records || records.length === 0 || !activeRoomId) return;
     const recordsToPrune = records.filter(r => r.photoBase64 && (Date.now() - r.timestamp > 90 * 24 * 60 * 60 * 1000));
@@ -136,15 +117,9 @@ export default function App() {
     }
   }, [records, activeRoomId]);
 
-  // 6. 狀態自動重置機制
   useEffect(() => {
-    if (view !== 'room') {
-      setSearchQuery('');
-      setHomeFilterDate(getLocalTodayStr());
-    }
+    if (view !== 'room') { setSearchQuery(''); setHomeFilterDate(getLocalTodayStr()); }
   }, [view]);
-
-  // === 業務與點擊邏輯 ===
 
   const handleJoinRoom = async (e) => {
     e.preventDefault(); setErrorMsg('');
@@ -156,9 +131,7 @@ export default function App() {
       else if (roomSnap.data().pin !== roomPin) setErrorMsg('房間密碼錯誤！');
       else {
         const data = roomSnap.data();
-        if (!data.loginUsers?.includes(currentUserRole)) {
-          updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', roomCode), { loginUsers: [...(data.loginUsers||[]), currentUserRole] });
-        }
+        if (!data.loginUsers?.includes(currentUserRole)) updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', roomCode), { loginUsers: [...(data.loginUsers||[]), currentUserRole] });
         const newRooms = [{ id: roomCode, name: data.name, pin: roomPin, role: currentUserRole }, ...savedRooms.filter(r => r.id !== roomCode)].slice(0, 5);
         localStorage.setItem('expenseApp_savedRooms', JSON.stringify(newRooms));
         setSavedRooms(newRooms);
@@ -219,11 +192,7 @@ export default function App() {
   };
 
   const handleMoveRecord = async (index, direction) => {
-    // 取得當前畫面上顯示的陣列（與 RoomView 的邏輯一致）
-    const displayRecs = searchQuery 
-      ? records.filter(r => r.date <= getLocalTodayStr() && JSON.stringify(r).toLowerCase().includes(searchQuery.toLowerCase()))
-      : records.filter(r => r.date === homeFilterDate);
-      
+    const displayRecs = searchQuery ? records.filter(r => r.date <= getLocalTodayStr() && JSON.stringify(r).toLowerCase().includes(searchQuery.toLowerCase())) : records.filter(r => r.date === homeFilterDate);
     if (index + direction < 0 || index + direction >= displayRecs.length) return;
     const currentTx = displayRecs[index], targetTx = displayRecs[index + direction];
     let targetTs = targetTx.timestamp;
@@ -273,7 +242,6 @@ export default function App() {
       } else if (data.type === 'transfer') {
         if (data.category && (!tRoom.transferCategories || !tRoom.transferCategories.includes(data.category))) missingOption = true;
       }
-      
       if (missingOption) return alert("因無相同選項故無法傳送，請先確認目標房間具備相同的分類、項目與商家！");
       
       const { id, ...dataToCopy } = crossRoomRecord;
@@ -338,8 +306,6 @@ export default function App() {
     document.body.appendChild(downloadAnchorNode); downloadAnchorNode.click(); downloadAnchorNode.remove();
   };
 
-  // === 畫面分發渲染器 ===
-
   const renderView = () => {
     if (!user) return <div className="p-6 text-center text-gray-500 font-extrabold flex justify-center items-center h-full"><Sparkles className="animate-bounce mr-3 text-yellow-400" size={28}/> 魔法連線中...</div>;
 
@@ -353,7 +319,6 @@ export default function App() {
           const recordToEdit = editRecordId ? records.find(r => r.id === editRecordId) : null;
           return <RecordFormView user={user} activeRoomId={activeRoomId} currentRoom={currentRoom} currentUserRole={currentUserRole} records={records} recordToEdit={recordToEdit} onClose={() => { setShowAddForm(false); setEditRecordId(null); }} setCrossRoomRecord={setCrossRoomRecord} />;
         }
-        // 💡 移除已淘汰的 setRefreshTrigger，保持組件乾淨
         return <RoomView user={user} activeRoomId={activeRoomId} currentRoom={currentRoom} currentUserRole={currentUserRole} records={records} fileInputRef={fileInputRef} handleBackup={handleBackup} setView={setView} setActiveRoomId={setActiveRoomId} setRoomCode={setRoomCode} setRoomPin={setRoomPin} setCurrentUserRole={setCurrentUserRole} setRoomName={setRoomName} homeFilterDate={homeFilterDate} setHomeFilterDate={setHomeFilterDate} searchQuery={searchQuery} setSearchQuery={setSearchQuery} setViewingRecord={setViewingRecord} handleMoveRecord={handleMoveRecord} onEditRecord={(record) => { setEditRecordId(record?.id); setShowAddForm(true); }} setCrossRoomRecord={setCrossRoomRecord} />;
       case 'accounts':
         return <AccountsView user={user} activeRoomId={activeRoomId} currentRoom={currentRoom} records={records} setView={setView} setViewingRecord={setViewingRecord} />;
@@ -394,10 +359,17 @@ export default function App() {
                 {viewingRecord.note && <div className="pt-1.5"><span className="text-gray-400 block mb-1">備註</span><span className="text-gray-800 block bg-gray-50 p-2.5 rounded-xl">{viewingRecord.note}</span></div>}
                 {viewingRecord.photoBase64 && <div className="pt-2"><span className="text-gray-400 block mb-1">照片 (點擊放大)</span><img src={viewingRecord.photoBase64} alt="圖" className="w-full h-28 object-cover rounded-xl cursor-pointer" onClick={() => setEnlargedPhoto(viewingRecord.photoBase64)} /></div>}
               </div>
-              <div className="flex gap-2.5 mt-4 pt-3 border-t border-gray-100">
-                <button onClick={() => { setEditRecordId(viewingRecord.id); setViewingRecord(null); setShowAddForm(true); setView('room'); }} className="flex-1 font-bold py-2.5 rounded-xl bg-green-50 text-green-600 flex justify-center items-center"><Copy size={15} className="mr-1"/> 複製/編輯</button>
-                <button onClick={() => { handleDeleteRecord(viewingRecord); setViewingRecord(null); }} className="flex-1 font-bold py-2.5 rounded-xl bg-red-50 text-red-500 flex justify-center items-center"><Trash2 size={15} className="mr-1"/> 刪除</button>
-              </div>
+              {/* 💡 權限防禦：判斷是不是自己的紀錄，不是的話就顯示溫馨提示並隱藏編輯按鈕 */}
+              {viewingRecord.addedBy === user?.uid ? (
+                <div className="flex gap-2.5 mt-4 pt-3 border-t border-gray-100">
+                  <button onClick={() => { setEditRecordId(viewingRecord.id); setViewingRecord(null); setShowAddForm(true); setView('room'); }} className="flex-1 font-bold py-2.5 rounded-xl bg-green-50 text-green-600 flex justify-center items-center"><Copy size={15} className="mr-1"/> 複製/編輯</button>
+                  <button onClick={() => { handleDeleteRecord(viewingRecord); setViewingRecord(null); }} className="flex-1 font-bold py-2.5 rounded-xl bg-red-50 text-red-500 flex justify-center items-center"><Trash2 size={15} className="mr-1"/> 刪除</button>
+                </div>
+              ) : (
+                <div className="mt-4 pt-3 border-t border-gray-100 text-center bg-gray-50 rounded-xl p-2.5 shadow-inner">
+                  <span className="text-[13px] font-bold text-gray-500 flex items-center justify-center gap-1.5">🔒 僅限新增者本人 ({viewingRecord.addedByRole}) 修改或刪除</span>
+                </div>
+              )}
             </div>
           </div>
         )}
