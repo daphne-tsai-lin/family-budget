@@ -4,7 +4,7 @@ import { onAuthStateChanged, signInAnonymously } from 'firebase/auth';
 import { doc, getDoc, updateDoc, onSnapshot, collection, writeBatch, deleteField, setDoc, query, where, deleteDoc } from 'firebase/firestore';
 
 import { auth, db, appId } from './firebase/firebaseConfig'; 
-import { AppContext, getLocalTodayStr, toROCYearStr, getRoleColorStyle, generateFutureDates } from './utils/helpers';
+import { AppContext, getLocalTodayStr, toROCYearStrWithDay, getRoleColorStyle, generateFutureDates, getPayerIcons } from './utils/helpers';
 import { renderMethodText } from './components/SharedUI';
 
 import LoginView from './views/LoginView';
@@ -196,7 +196,7 @@ export default function App() {
     } catch (err) { setErrorMsg('建立失敗'); } finally { setIsLoading(false); }
   };
 
-  // 💡 修正上下位置卡住的 Bug：時間戳完全相同時，強制給予正負偏移值錯開位置
+  // 💡 修正上下位置卡住的 Bug
   const handleMoveRecord = async (index, direction) => {
     const displayRecs = searchQuery ? records.filter(r => r.date <= getLocalTodayStr() && JSON.stringify(r).toLowerCase().includes(searchQuery.toLowerCase())) : records.filter(r => r.date === homeFilterDate);
     if (index + direction < 0 || index + direction >= displayRecs.length) return;
@@ -337,11 +337,12 @@ export default function App() {
                 <div className="space-y-2 text-[15px] text-gray-600 font-bold max-h-[65vh] overflow-y-auto pr-1">
                   <div className="flex justify-between border-b border-gray-100 pb-1.5 pt-1"><span className="text-gray-400">類型</span><span className={`${viewingRecord.type==='income'?'text-green-500':viewingRecord.type==='transfer'?'text-blue-500':'text-orange-500'} font-black`}>{viewingRecord.type==='income'?'收入':viewingRecord.type==='transfer'?'轉帳':'支出'}</span></div>
                   <div className="flex justify-between border-b border-gray-100 pb-1.5 pt-1"><span className="text-gray-400">金額</span><span className={`text-[24px] font-black ${viewingRecord.excludeFromBalance ? 'text-gray-500 line-through' : 'text-gray-800'}`}>${viewingRecord.amount.toLocaleString()}</span></div>
-                  <div className="flex justify-between border-b border-gray-100 pb-1.5 pt-1"><span className="text-gray-400">消費日期</span><span className="text-gray-800">{toROCYearStr(viewingRecord.date)}</span></div>
+                  {/* 💡 詳細明細加入星期幾 */}
+                  <div className="flex justify-between border-b border-gray-100 pb-1.5 pt-1"><span className="text-gray-400">消費日期</span><span className="text-gray-800">{toROCYearStrWithDay(viewingRecord.date)}</span></div>
                   <div className="flex justify-between border-b border-gray-100 pb-1.5 pt-1"><span className="text-gray-400">分類</span><span className="text-gray-800">{viewingRecord.category}</span></div>
                   {viewingRecord.type !== 'transfer' && <div className="flex justify-between border-b border-gray-100 pb-1.5 pt-1"><span className="text-gray-400">項目</span><span className="text-gray-800">{viewingRecord.title}</span></div>}
                   {viewingRecord.type !== 'transfer' && viewingRecord.merchant && viewingRecord.merchant !== '未指定' && <div className="flex justify-between border-b border-gray-100 pb-1.5 pt-1"><span className="text-gray-400">商家</span><span className="text-gray-800">{viewingRecord.merchant}</span></div>}
-                  <div className="flex justify-between border-b border-gray-100 pb-1.5 pt-1"><span className="text-gray-400">花費對象</span><span className="text-gray-800">{Array.isArray(viewingRecord.payer) ? viewingRecord.payer.join(', ') : viewingRecord.payer}</span></div>
+                  <div className="flex justify-between border-b border-gray-100 pb-1.5 pt-1"><span className="text-gray-400">花費對象</span><span className="text-gray-800">{getPayerIcons(viewingRecord.payer)} {Array.isArray(viewingRecord.payer) ? viewingRecord.payer.join(', ') : viewingRecord.payer}</span></div>
                   {viewingRecord.method && viewingRecord.method !== '未指定' && <div className="flex justify-between border-b border-gray-100 pb-1.5 pt-1"><span className="text-gray-400">{viewingRecord.type === 'transfer' ? '轉出帳戶' : '付款方式'}</span><span className="text-gray-800">{renderMethodText(viewingRecord.method, viewingRecord.subMethod)}</span></div>}
                   {viewingRecord.type === 'transfer' && viewingRecord.transferToMethod && <div className="flex justify-between border-b border-gray-100 pb-1.5 pt-1"><span className="text-gray-400">轉入帳戶</span><span className="text-gray-800">{renderMethodText(viewingRecord.transferToMethod, viewingRecord.transferToSubMethod)}</span></div>}
                   <div className="flex justify-between border-b border-gray-100 pb-1.5 pt-1"><span className="text-gray-400">付款人</span><span className={`${getRoleColorStyle(viewingRecord.addedByRole).lightBg} ${getRoleColorStyle(viewingRecord.addedByRole).text} px-2 py-0.5 rounded-md`}>{viewingRecord.addedByRole}</span></div>
