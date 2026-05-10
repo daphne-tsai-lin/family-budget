@@ -3,7 +3,6 @@ import { ChevronLeft, Save, Upload, Tag, Store, Receipt, Calendar, Settings, Ima
 import { collection, doc, writeBatch, deleteField } from 'firebase/firestore';
 import { db, appId } from '../firebase/firebaseConfig';
 import { CustomDropdown, MethodSelector, PillGroupMulti } from '../components/SharedUI';
-// 💡 引入帶有星期的 toROCYearStrWithDay
 import { AppContext, getLocalTodayStr, generateFutureDates, evaluateCalc, toROCYearStrWithDay } from '../utils/helpers';
 
 const RecordFormView = ({ recordToEdit, copyRecordData, onClose, setCrossRoomRecord, defaultDate }) => {
@@ -16,8 +15,9 @@ const RecordFormView = ({ recordToEdit, copyRecordData, onClose, setCrossRoomRec
       return { ...rest, date: defaultDate || getLocalTodayStr() };
     }
     return {
+      // 💡 修正：主分類預設清空！
       type: 'expense', amount: '', date: defaultDate || getLocalTodayStr(),
-      category: currentRoom?.categories?.[0] || '🍔 飲食',
+      category: '',
       title: '', merchant: '', method: '現金', subMethod: '', transferToMethod: '', transferToSubMethod: '',
       payer: ['全家'], note: '', photoBase64: '', excludeFromBalance: false,
       frequency: '一次', frequencyDays: [], frequencyInterval: '2個月', frequencyCustomText: '10'
@@ -204,9 +204,9 @@ const RecordFormView = ({ recordToEdit, copyRecordData, onClose, setCrossRoomRec
         </div>
         {!recordToEdit && (
           <div className="flex bg-white/20 p-1 rounded-xl shadow-inner mb-1">
-            <button type="button" onClick={() => { setRecord(prev => ({...prev, type: 'expense', category: currentRoom?.categories?.[0] || '', title: ''})); setCalcInput(''); setAmount(0); }} className={`flex-1 py-1.5 rounded-lg font-bold text-[15px] text-center transition-all ${record.type === 'expense' ? 'bg-white text-orange-500 shadow-sm transform scale-100' : 'text-white hover:bg-white/10 scale-95'}`}>支出</button>
-            <button type="button" onClick={() => { setRecord(prev => ({...prev, type: 'income', category: currentRoom?.incomeCategories?.[0] || '', title: '收入'})); setCalcInput(''); setAmount(0); }} className={`flex-1 py-1.5 rounded-lg font-bold text-[15px] text-center transition-all ${record.type === 'income' ? 'bg-white text-green-500 shadow-sm transform scale-100' : 'text-white hover:bg-white/10 scale-95'}`}>收入</button>
-            <button type="button" onClick={() => { setRecord(prev => ({...prev, type: 'transfer', category: currentRoom?.transferCategories?.[0] || '', title: '轉帳'})); setCalcInput(''); setAmount(0); }} className={`flex-1 py-1.5 rounded-lg font-bold text-[15px] text-center transition-all ${record.type === 'transfer' ? 'bg-white text-blue-500 shadow-sm transform scale-100' : 'text-white hover:bg-white/10 scale-95'}`}>轉帳</button>
+            <button type="button" onClick={() => { setRecord(prev => ({...prev, type: 'expense', category: '', title: ''})); setCalcInput(''); setAmount(0); }} className={`flex-1 py-1.5 rounded-lg font-bold text-[15px] text-center transition-all ${record.type === 'expense' ? 'bg-white text-orange-500 shadow-sm transform scale-100' : 'text-white hover:bg-white/10 scale-95'}`}>支出</button>
+            <button type="button" onClick={() => { setRecord(prev => ({...prev, type: 'income', category: '', title: '收入'})); setCalcInput(''); setAmount(0); }} className={`flex-1 py-1.5 rounded-lg font-bold text-[15px] text-center transition-all ${record.type === 'income' ? 'bg-white text-green-500 shadow-sm transform scale-100' : 'text-white hover:bg-white/10 scale-95'}`}>收入</button>
+            <button type="button" onClick={() => { setRecord(prev => ({...prev, type: 'transfer', category: '', title: '轉帳'})); setCalcInput(''); setAmount(0); }} className={`flex-1 py-1.5 rounded-lg font-bold text-[15px] text-center transition-all ${record.type === 'transfer' ? 'bg-white text-blue-500 shadow-sm transform scale-100' : 'text-white hover:bg-white/10 scale-95'}`}>轉帳</button>
           </div>
         )}
       </header>
@@ -224,7 +224,7 @@ const RecordFormView = ({ recordToEdit, copyRecordData, onClose, setCrossRoomRec
               <label className="flex items-center justify-between text-[14px] font-bold text-gray-500 mb-2 ml-1 w-full pr-1">
                 <span className="flex items-center gap-1.5">
                   <Calendar size={16} className="text-gray-400" /> 日期 🗓️
-                  {/* 💡 完美的直列三字警告標籤 */}
+                  {/* 💡 修改為您的直列要求 */}
                   {isNotToday && (
                     <div className="bg-red-100 text-red-600 px-1 py-0.5 rounded-[4px] text-[10px] font-black animate-pulse shadow-sm flex flex-col items-center leading-[1.1] ml-0.5 border border-red-200">
                       <span>非</span><span>今</span><span>日</span>
