@@ -1,11 +1,6 @@
 import { createContext } from 'react';
 
-// 💡 將全域資料庫建立在最底層，徹底斬斷循環依賴死結
 export const AppContext = createContext(null);
-
-// ==========================================
-// 輔助函數
-// ==========================================
 
 export const getRoomHeaderColor = (roomId) => {
   if (!roomId) return 'from-indigo-500 to-purple-600';
@@ -54,7 +49,6 @@ export const getLocalLastMonthEndStr = () => {
   return `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
 };
 
-// 💡 核心修復：這就是導致白畫面的元凶，現在已完美支援任何格式的時間戳與字串
 export const toROCYearStr = (dateVal) => {
   if (!dateVal) return '';
   let d;
@@ -135,7 +129,11 @@ export const generateFutureDates = (startDateStr, freq, days, interval, customDa
     }
   } else if (freq === '區間') {
     let addDays = 0;
-    if (interval === '自訂') addDays = parseInt(customDays, 10);
+    if (interval === '自訂') {
+        addDays = parseInt(customDays, 10);
+        // 💡 防呆機制：如果不小心輸入"2個月"等文字導致 NaN，強制給予 1 天的預設值，避免系統崩潰
+        if (isNaN(addDays) || addDays <= 0) addDays = 1; 
+    }
     else if (interval === '3個月') addDays = 90;
     else if (interval === '半年') addDays = 180;
     else if (interval === '一年') addDays = 365;
@@ -160,7 +158,6 @@ export const evaluateCalc = (expr) => {
   try {
     if (!expr) return '';
     const sanitized = expr.replace(/×/g, '*').replace(/÷/g, '/');
-    // 💡 核心修復：Vercel 報錯的元凶，減號已正確放置於陣列末端
     if (/[^0-9+*/.() -]/.test(sanitized)) return expr;
     const result = new Function(`return ${sanitized}`)();
     if (!isFinite(result)) return '';
