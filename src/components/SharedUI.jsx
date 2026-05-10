@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Pencil, Trash2, ArrowUp, ArrowDown, Send, Check } from 'lucide-react';
-// 💡 引入帶有星期的 toROCYearStrWithDay
-import { getRoleColorStyle, toROCYearStrWithDay } from '../utils/helpers';
+// 💡 加入 getPayerIcons
+import { getRoleColorStyle, toROCYearStrWithDay, getPayerIcons } from '../utils/helpers';
 
 export const SettingBlock = ({ title, items, onUpdate, themeClass, spanClass, btnClass, placeholder }) => {
     const [newItem, setNewItem] = useState('');
@@ -314,7 +314,6 @@ export const RecordItem = ({ exp, idx, currentUserRole, isSortable = false, hide
             <div className={`absolute left-0 top-1/2 -translate-y-1/2 h-1/2 w-1 rounded-r-md ${isIncome ? 'bg-green-400' : isTransfer ? 'bg-blue-400' : 'bg-orange-400'}`}></div>
             <div className="flex-1 pl-2.5 pr-2 overflow-hidden flex flex-col justify-center py-1">
                 <div className="flex flex-wrap items-center gap-1.5 mb-0.5">
-                    {/* 💡 修改點：列表明細也加入星期幾 */}
                     <span className="text-[11px] font-bold text-gray-400">{toROCYearStrWithDay(exp.timestamp ? new Date(exp.timestamp).toISOString().split('T')[0] : exp.date)} {exp.timestamp ? new Date(exp.timestamp).toLocaleTimeString('zh-TW', { hour12: false, hour: '2-digit', minute: '2-digit' }) : ''}</span>
                     {exp.addedByRole && <span className={`${getRoleColorStyle(exp.addedByRole).lightBg} ${getRoleColorStyle(exp.addedByRole).text} border ${getRoleColorStyle(exp.addedByRole).lightBorder} px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0`}>{exp.addedByRole}</span>}
                     <span className="bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0">{freqDisplay || '一次'}</span>
@@ -341,7 +340,8 @@ export const RecordItem = ({ exp, idx, currentUserRole, isSortable = false, hide
                             </span>
                         </>
                     )}
-                    {payerStr && payerStr !== '未指定' && <span className={`text-[11px] font-bold bg-white px-1.5 py-0.5 rounded border border-gray-200 ${exp.excludeFromBalance ? 'text-gray-400' : 'text-gray-500'}`}> 👤  {payerStr}</span>}
+                    {/* 💡 花費對象加入自動家庭圖示 */}
+                    {payerStr && payerStr !== '未指定' && <span className={`text-[11px] font-bold bg-white px-1.5 py-0.5 rounded border border-gray-200 ${exp.excludeFromBalance ? 'text-gray-400' : 'text-gray-500'}`}> {getPayerIcons(exp.payer)}  {payerStr}</span>}
                     {!isTransfer && exp.method && exp.method !== '未指定' && <span className={`text-[11px] font-bold bg-white px-1.5 py-0.5 rounded border border-gray-200 ${exp.excludeFromBalance ? 'text-gray-400' : 'text-gray-500'}`}> 💳  {renderMethodText(exp.method, exp.subMethod)}</span>}
                     {exp.merchant && exp.merchant !== '未指定' && <span className={`text-[11px] font-bold bg-white px-1.5 py-0.5 rounded border border-gray-200 ${exp.excludeFromBalance ? 'text-gray-400' : 'text-gray-500'}`}> 🏪  {exp.merchant}</span>}
                     {exp.photoBase64 && <span className="shrink-0 w-[18px] h-[18px] rounded overflow-hidden shadow-sm inline-block border border-gray-200" title="此紀錄附有照片"><img src={exp.photoBase64} alt="圖" className="w-full h-full object-cover" /></span>}
