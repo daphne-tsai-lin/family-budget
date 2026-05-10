@@ -62,7 +62,7 @@ const RoomView = ({
       <header className={`bg-gradient-to-r ${headerColorClass} px-3 py-2.5 shadow-md shrink-0 z-10 rounded-b-[1.5rem]`}>
         <div className="flex justify-between items-center mb-1.5">
           <div className="flex flex-col text-white">
-            <h1 className="text-[20px] font-black">{currentRoom?.name || '林北的小財庫'}</h1>
+            <h1 className="text-[20px] font-black">{currentRoom?.name || '共同記帳本'}</h1>
             <p className="text-[13px] opacity-90 font-bold">👤 {currentUserRole}</p>
           </div>
           <div className="flex items-center gap-1.5">
@@ -108,11 +108,18 @@ const RoomView = ({
       </header>
 
       <main className="flex-1 overflow-y-auto px-3 py-3 pb-[90px]" style={{ touchAction: 'pan-y' }} onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
-        <div className="space-y-2">
-          {displayRecords.map((exp, idx) => (
-            <RecordItem key={exp.id} exp={exp} idx={idx} currentUserRole={currentUserRole} isSortable={!searchQuery && !!homeFilterDate} onRecordClick={setViewingRecord} handleMoveRecord={handleMoveRecord} openEditForm={() => onEditRecord(exp)} setCrossRoomRecord={setCrossRoomRecord} />
-          ))}
-        </div>
+        {displayRecords.length === 0 ? (
+          <div className="text-center py-10 bg-white rounded-2xl border border-dashed border-gray-200 text-gray-400 font-bold text-[14px]">
+            <div className="bg-orange-50 w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-3"><PiggyBank size={24} className="text-orange-400" /></div>
+            <p>目前還沒有紀錄，快使用下方 ＋ 號開始記帳吧！</p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {displayRecords.map((exp, idx) => (
+              <RecordItem key={exp.id} exp={exp} idx={idx} currentUserRole={currentUserRole} isSortable={!searchQuery && !!homeFilterDate} onRecordClick={setViewingRecord} handleMoveRecord={handleMoveRecord} openEditForm={() => onEditRecord(exp)} setCrossRoomRecord={setCrossRoomRecord} />
+            ))}
+          </div>
+        )}
 
         {allFilteredRecords.length > displayCount && (
           <button 
