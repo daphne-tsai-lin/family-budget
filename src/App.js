@@ -129,7 +129,6 @@ export default function App() {
   const handleEditRecord = useCallback((record) => { setEditRecordId(record?.id); setCopyRecordData(null); setShowAddForm(true); }, []);
   const handleCloseForm = useCallback(() => { setShowAddForm(false); setEditRecordId(null); setCopyRecordData(null); }, []);
 
-  // 💡 修正下載錯誤：改用 Blob 將資料打包為真正的 JSON 檔案，手機就不會再誤判為 txt 了！
   const handleBackup = useCallback(() => {
     if (!records || records.length === 0) return alert('目前沒有資料可以備份喔！');
     const blob = new Blob([JSON.stringify(records, null, 2)], { type: 'application/json' });
@@ -157,7 +156,7 @@ export default function App() {
         const newRooms = [{ id: roomCode, name: data.name, pin: roomPin, role: currentUserRole }, ...savedRooms.filter(r => r.id !== roomCode)].slice(0, 5);
         localStorage.setItem('expenseApp_savedRooms', JSON.stringify(newRooms));
         setSavedRooms(newRooms); setActiveRoomId(roomCode); setHomeFilterDate(getLocalTodayStr()); setView('room');
-        setRoomCode(''); setRoomPin(''); // 清空
+        setRoomCode(''); setRoomPin('');
       }
     } catch (err) { setErrorMsg('加入失敗'); } finally { setIsLoading(false); }
   };
@@ -169,7 +168,7 @@ export default function App() {
       if (roomSnap.exists() && roomSnap.data().pin === savedRoom.pin) {
         let role = savedRoom.role || '其他家人'; setCurrentUserRole(role);
         setActiveRoomId(savedRoom.id); setHomeFilterDate(getLocalTodayStr()); setView('room');
-        setRoomCode(''); setRoomPin(''); // 清空
+        setRoomCode(''); setRoomPin('');
       } else { setErrorMsg('密碼可能已被更改'); }
     } catch(err) { setErrorMsg('連線失敗'); } finally { setIsLoading(false); }
   };
@@ -196,17 +195,13 @@ export default function App() {
       const newRooms = [{ id: roomCode, name: roomName, pin: roomPin, role: currentUserRole }, ...savedRooms.filter(r => r.id !== roomCode)].slice(0, 5);
       localStorage.setItem('expenseApp_savedRooms', JSON.stringify(newRooms));
       setSavedRooms(newRooms); setActiveRoomId(roomCode); setHomeFilterDate(getLocalTodayStr()); setView('room');
-      setRoomCode(''); setRoomPin(''); setRoomName(''); // 清空
+      setRoomCode(''); setRoomPin(''); setRoomName('');
     } catch (err) { setErrorMsg('建立失敗'); } finally { setIsLoading(false); }
   };
 
-  // 💡 修正上下移動卡住 Bug：這裡加入了與首頁一致的「降冪排序」，這樣 Index 才會真正對齊！
   const handleMoveRecord = async (index, direction) => {
     const displayRecs = searchQuery ? records.filter(r => r.date <= getLocalTodayStr() && JSON.stringify(r).toLowerCase().includes(searchQuery.toLowerCase())) : records.filter(r => r.date === homeFilterDate);
-    
-    // 強制套用與首頁相同的排序方向，讓點選的 Index 對應到正確的紀錄
     displayRecs.sort((a, b) => b.timestamp - a.timestamp);
-
     if (index + direction < 0 || index + direction >= displayRecs.length) return;
     const currentTx = displayRecs[index], targetTx = displayRecs[index + direction];
     
@@ -325,89 +320,96 @@ export default function App() {
 
   return (
     <AppContext.Provider value={contextValue}>
+      {/* 最外層灰色大背景 */}
       <div className="min-h-screen bg-gray-100 sm:py-4 flex justify-center items-center font-sans text-[16px]">
-        {/* 💡 修正匯入設定，加入 text/plain 讓舊版備份檔也能安全匯入 */}
-        <input type="file" accept=".json,application/json,text/plain" style={{display: 'none'}} ref={fileInputRef} onChange={handleImport} />
-        {renderView()}
+        
+        {/* 💡 核心修復：這就是剛剛遺失的「手機殼」！它負責奶白底色、圓角、陰影與定位 */}
+        <div className={`w-full ${view === 'login' || view === 'create' ? 'max-w-[400px]' : 'max-w-[460px]'} min-h-screen sm:min-h-0 sm:h-[800px] bg-[#FFFBF0] flex flex-col relative sm:rounded-[2.5rem] sm:border-[6px] sm:border-gray-800 shadow-2xl overflow-hidden transition-all duration-500`}>
+          
+          <input type="file" accept=".json,application/json,text/plain" style={{display: 'none'}} ref={fileInputRef} onChange={handleImport} />
+          
+          {renderView()}
 
-        {enlargedPhoto && (
-          <div className="fixed inset-0 bg-black/90 z-[150] flex flex-col items-center justify-center p-4 backdrop-blur-md" onClick={() => setEnlargedPhoto(null)}>
-            <div className="absolute top-6 right-6 p-2 bg-white/20 hover:bg-white/40 rounded-full cursor-pointer"><X size={28} className="text-white" /></div>
-            <img src={enlargedPhoto} alt="放大" className="max-w-full max-h-[85vh] object-contain rounded-2xl shadow-2xl" onClick={e => e.stopPropagation()} />
-          </div>
-        )}
+          {enlargedPhoto && (
+            <div className="fixed inset-0 bg-black/90 z-[150] flex flex-col items-center justify-center p-4 backdrop-blur-md" onClick={() => setEnlargedPhoto(null)}>
+              <div className="absolute top-6 right-6 p-2 bg-white/20 hover:bg-white/40 rounded-full cursor-pointer"><X size={28} className="text-white" /></div>
+              <img src={enlargedPhoto} alt="放大" className="max-w-full max-h-[85vh] object-contain rounded-2xl shadow-2xl" onClick={e => e.stopPropagation()} />
+            </div>
+          )}
 
-        {viewingRecord && (
-          <div className="fixed inset-0 bg-black/40 z-[110] flex justify-center items-center p-4 backdrop-blur-sm" onClick={() => setViewingRecord(null)}>
-            <div className="bg-white w-full max-w-sm rounded-[1.5rem] p-5 shadow-2xl relative" onClick={e => e.stopPropagation()}>
-              <button onClick={() => setViewingRecord(null)} className="absolute top-3 right-3 text-gray-400 hover:text-gray-600 bg-gray-100 p-1.5 rounded-full"><X size={20}/></button>
-              <h3 className="font-black text-xl text-gray-800 mb-3 border-b border-gray-100 pb-2">詳細紀錄</h3>
-              <div className="space-y-2 text-[15px] text-gray-600 font-bold max-h-[65vh] overflow-y-auto pr-1">
-                <div className="flex justify-between border-b border-gray-100 pb-1.5 pt-1"><span className="text-gray-400">類型</span><span className={`${viewingRecord.type==='income'?'text-green-500':viewingRecord.type==='transfer'?'text-blue-500':'text-orange-500'} font-black`}>{viewingRecord.type==='income'?'收入':viewingRecord.type==='transfer'?'轉帳':'支出'}</span></div>
-                <div className="flex justify-between border-b border-gray-100 pb-1.5 pt-1"><span className="text-gray-400">金額</span><span className={`text-[24px] font-black ${viewingRecord.excludeFromBalance ? 'text-gray-500 line-through' : 'text-gray-800'}`}>${viewingRecord.amount.toLocaleString()}</span></div>
-                <div className="flex justify-between border-b border-gray-100 pb-1.5 pt-1"><span className="text-gray-400">消費日期</span><span className="text-gray-800">{toROCYearStrWithDay(viewingRecord.date)}</span></div>
-                <div className="flex justify-between border-b border-gray-100 pb-1.5 pt-1"><span className="text-gray-400">分類</span><span className="text-gray-800">{viewingRecord.category}</span></div>
-                {viewingRecord.type !== 'transfer' && <div className="flex justify-between border-b border-gray-100 pb-1.5 pt-1"><span className="text-gray-400">項目</span><span className="text-gray-800">{viewingRecord.title}</span></div>}
-                {viewingRecord.type !== 'transfer' && viewingRecord.merchant && viewingRecord.merchant !== '未指定' && <div className="flex justify-between border-b border-gray-100 pb-1.5 pt-1"><span className="text-gray-400">商家</span><span className="text-gray-800">{viewingRecord.merchant}</span></div>}
-                <div className="flex justify-between border-b border-gray-100 pb-1.5 pt-1"><span className="text-gray-400">花費對象</span><span className="text-gray-800">{getPayerIcons(viewingRecord.payer)} {Array.isArray(viewingRecord.payer) ? viewingRecord.payer.join(', ') : viewingRecord.payer}</span></div>
-                {viewingRecord.method && viewingRecord.method !== '未指定' && <div className="flex justify-between border-b border-gray-100 pb-1.5 pt-1"><span className="text-gray-400">{viewingRecord.type === 'transfer' ? '轉出帳戶' : '付款方式'}</span><span className="text-gray-800">{renderMethodText(viewingRecord.method, viewingRecord.subMethod)}</span></div>}
-                {viewingRecord.type === 'transfer' && viewingRecord.transferToMethod && <div className="flex justify-between border-b border-gray-100 pb-1.5 pt-1"><span className="text-gray-400">轉入帳戶</span><span className="text-gray-800">{renderMethodText(viewingRecord.transferToMethod, viewingRecord.transferToSubMethod)}</span></div>}
-                <div className="flex justify-between border-b border-gray-100 pb-1.5 pt-1"><span className="text-gray-400">付款人</span><span className={`${getRoleColorStyle(viewingRecord.addedByRole).lightBg} ${getRoleColorStyle(viewingRecord.addedByRole).text} px-2 py-0.5 rounded-md`}>{viewingRecord.addedByRole}</span></div>
-                {viewingRecord.excludeFromBalance && <div className="flex justify-between border-b border-gray-100 pb-1.5 pt-1"><span className="text-gray-400">計入總覽</span><span className="text-red-500 font-bold">不計入</span></div>}
+          {viewingRecord && (
+            <div className="fixed inset-0 bg-black/40 z-[110] flex justify-center items-center p-4 backdrop-blur-sm" onClick={() => setViewingRecord(null)}>
+              <div className="bg-white w-full max-w-sm rounded-[1.5rem] p-5 shadow-2xl relative" onClick={e => e.stopPropagation()}>
+                <button onClick={() => setViewingRecord(null)} className="absolute top-3 right-3 text-gray-400 hover:text-gray-600 bg-gray-100 p-1.5 rounded-full"><X size={20}/></button>
+                <h3 className="font-black text-xl text-gray-800 mb-3 border-b border-gray-100 pb-2">詳細紀錄</h3>
+                <div className="space-y-2 text-[15px] text-gray-600 font-bold max-h-[65vh] overflow-y-auto pr-1">
+                  <div className="flex justify-between border-b border-gray-100 pb-1.5 pt-1"><span className="text-gray-400">類型</span><span className={`${viewingRecord.type==='income'?'text-green-500':viewingRecord.type==='transfer'?'text-blue-500':'text-orange-500'} font-black`}>{viewingRecord.type==='income'?'收入':viewingRecord.type==='transfer'?'轉帳':'支出'}</span></div>
+                  <div className="flex justify-between border-b border-gray-100 pb-1.5 pt-1"><span className="text-gray-400">金額</span><span className={`text-[24px] font-black ${viewingRecord.excludeFromBalance ? 'text-gray-500 line-through' : 'text-gray-800'}`}>${viewingRecord.amount.toLocaleString()}</span></div>
+                  <div className="flex justify-between border-b border-gray-100 pb-1.5 pt-1"><span className="text-gray-400">消費日期</span><span className="text-gray-800">{toROCYearStrWithDay(viewingRecord.date)}</span></div>
+                  <div className="flex justify-between border-b border-gray-100 pb-1.5 pt-1"><span className="text-gray-400">分類</span><span className="text-gray-800">{viewingRecord.category}</span></div>
+                  {viewingRecord.type !== 'transfer' && <div className="flex justify-between border-b border-gray-100 pb-1.5 pt-1"><span className="text-gray-400">項目</span><span className="text-gray-800">{viewingRecord.title}</span></div>}
+                  {viewingRecord.type !== 'transfer' && viewingRecord.merchant && viewingRecord.merchant !== '未指定' && <div className="flex justify-between border-b border-gray-100 pb-1.5 pt-1"><span className="text-gray-400">商家</span><span className="text-gray-800">{viewingRecord.merchant}</span></div>}
+                  <div className="flex justify-between border-b border-gray-100 pb-1.5 pt-1"><span className="text-gray-400">花費對象</span><span className="text-gray-800">{getPayerIcons(viewingRecord.payer)} {Array.isArray(viewingRecord.payer) ? viewingRecord.payer.join(', ') : viewingRecord.payer}</span></div>
+                  {viewingRecord.method && viewingRecord.method !== '未指定' && <div className="flex justify-between border-b border-gray-100 pb-1.5 pt-1"><span className="text-gray-400">{viewingRecord.type === 'transfer' ? '轉出帳戶' : '付款方式'}</span><span className="text-gray-800">{renderMethodText(viewingRecord.method, viewingRecord.subMethod)}</span></div>}
+                  {viewingRecord.type === 'transfer' && viewingRecord.transferToMethod && <div className="flex justify-between border-b border-gray-100 pb-1.5 pt-1"><span className="text-gray-400">轉入帳戶</span><span className="text-gray-800">{renderMethodText(viewingRecord.transferToMethod, viewingRecord.transferToSubMethod)}</span></div>}
+                  <div className="flex justify-between border-b border-gray-100 pb-1.5 pt-1"><span className="text-gray-400">付款人</span><span className={`${getRoleColorStyle(viewingRecord.addedByRole).lightBg} ${getRoleColorStyle(viewingRecord.addedByRole).text} px-2 py-0.5 rounded-md`}>{viewingRecord.addedByRole}</span></div>
+                  {viewingRecord.excludeFromBalance && <div className="flex justify-between border-b border-gray-100 pb-1.5 pt-1"><span className="text-gray-400">計入總覽</span><span className="text-red-500 font-bold">不計入</span></div>}
+                  
+                  {viewingRecord.note && (
+                    <div className="pt-2">
+                      <span className="text-gray-400 font-bold text-[13px] block mb-1">備註</span>
+                      <div className="text-gray-800 bg-gray-50 p-3 rounded-xl border border-gray-100">{viewingRecord.note}</div>
+                    </div>
+                  )}
+                  {(viewingRecord.photoBase64 || viewingRecord.photoUrl) && (
+                    <div className="pt-2">
+                      <span className="text-gray-400 font-bold text-[13px] block mb-1">照片 (點擊放大)</span>
+                      <img src={viewingRecord.photoBase64 || viewingRecord.photoUrl} alt="圖" className="w-full h-32 object-cover rounded-xl cursor-pointer border border-gray-200 shadow-sm" onClick={() => setEnlargedPhoto(viewingRecord.photoBase64 || viewingRecord.photoUrl)} />
+                    </div>
+                  )}
+                </div>
                 
-                {viewingRecord.note && (
-                  <div className="pt-2">
-                    <span className="text-gray-400 font-bold text-[13px] block mb-1">備註</span>
-                    <div className="text-gray-800 bg-gray-50 p-3 rounded-xl border border-gray-100">{viewingRecord.note}</div>
+                {!viewingRecord.addedByRole || viewingRecord.addedByRole === currentUserRole ? (
+                  <div className="flex gap-2.5 mt-4 pt-3 border-t border-gray-100">
+                    <button onClick={() => { setCopyRecordData(viewingRecord); setViewingRecord(null); setShowAddForm(true); setView('room'); }} className="flex-1 font-bold py-2.5 rounded-xl bg-blue-50 text-blue-600 flex justify-center items-center"><Copy size={15} className="mr-1"/> 複製</button>
+                    <button onClick={() => { handleDeleteRecord(viewingRecord); setViewingRecord(null); }} className="flex-1 font-bold py-2.5 rounded-xl bg-red-50 text-red-500 flex justify-center items-center"><Trash2 size={15} className="mr-1"/> 刪除</button>
                   </div>
-                )}
-                {(viewingRecord.photoBase64 || viewingRecord.photoUrl) && (
-                  <div className="pt-2">
-                    <span className="text-gray-400 font-bold text-[13px] block mb-1">照片 (點擊放大)</span>
-                    <img src={viewingRecord.photoBase64 || viewingRecord.photoUrl} alt="圖" className="w-full h-32 object-cover rounded-xl cursor-pointer border border-gray-200 shadow-sm" onClick={() => setEnlargedPhoto(viewingRecord.photoBase64 || viewingRecord.photoUrl)} />
+                ) : (
+                  <div className="mt-4 pt-3 border-t border-gray-100 text-center bg-gray-50 rounded-xl p-2.5 shadow-inner">
+                    <span className="text-[13px] font-bold text-gray-500 flex items-center justify-center gap-1.5">🔒 僅限本人 ({viewingRecord.addedByRole}) 修改或刪除</span>
                   </div>
                 )}
               </div>
-              
-              {!viewingRecord.addedByRole || viewingRecord.addedByRole === currentUserRole ? (
-                <div className="flex gap-2.5 mt-4 pt-3 border-t border-gray-100">
-                  <button onClick={() => { setCopyRecordData(viewingRecord); setViewingRecord(null); setShowAddForm(true); setView('room'); }} className="flex-1 font-bold py-2.5 rounded-xl bg-blue-50 text-blue-600 flex justify-center items-center"><Copy size={15} className="mr-1"/> 複製</button>
-                  <button onClick={() => { handleDeleteRecord(viewingRecord); setViewingRecord(null); }} className="flex-1 font-bold py-2.5 rounded-xl bg-red-50 text-red-500 flex justify-center items-center"><Trash2 size={15} className="mr-1"/> 刪除</button>
-                </div>
-              ) : (
-                <div className="mt-4 pt-3 border-t border-gray-100 text-center bg-gray-50 rounded-xl p-2.5 shadow-inner">
-                  <span className="text-[13px] font-bold text-gray-500 flex items-center justify-center gap-1.5">🔒 僅限本人 ({viewingRecord.addedByRole}) 修改或刪除</span>
-                </div>
-              )}
             </div>
-          </div>
-        )}
+          )}
 
-        {crossRoomRecord && (
-          <div className="fixed inset-0 bg-black/40 z-[120] flex justify-center items-center p-4 backdrop-blur-sm">
-            <div className="bg-white w-full max-w-sm rounded-[1.5rem] p-5 shadow-2xl">
-              <h3 className="font-black text-xl text-gray-800 mb-3 flex items-center gap-2"><Send size={22} className="text-blue-500"/> 傳送至其他房間</h3>
-              {!selectedTransferRoom ? (
-                <>
-                  <p className="text-[15px] font-bold text-gray-500 mb-4">將此筆 [{crossRoomRecord.title || crossRoomRecord.category}] ${crossRoomRecord.amount} 傳送到：</p>
-                  <div className="space-y-2.5 mb-5 max-h-56 overflow-y-auto">
-                    {savedRooms.filter(r => r.id !== activeRoomId).map(r => (
-                      <button key={r.id} onClick={() => { if (crossRoomRecord.frequency !== '一次') setSelectedTransferRoom(r); else handleSendToOtherRoom(r.id, false); }} className="w-full text-left bg-gray-50 hover:bg-blue-50 p-3 rounded-xl font-black text-gray-700">🏠 {r.name}</button>
-                    ))}
+          {crossRoomRecord && (
+            <div className="fixed inset-0 bg-black/40 z-[120] flex justify-center items-center p-4 backdrop-blur-sm">
+              <div className="bg-white w-full max-w-sm rounded-[1.5rem] p-5 shadow-2xl">
+                <h3 className="font-black text-xl text-gray-800 mb-3 flex items-center gap-2"><Send size={22} className="text-blue-500"/> 傳送至其他房間</h3>
+                {!selectedTransferRoom ? (
+                  <>
+                    <p className="text-[15px] font-bold text-gray-500 mb-4">將此筆 [{crossRoomRecord.title || crossRoomRecord.category}] ${crossRoomRecord.amount} 傳送到：</p>
+                    <div className="space-y-2.5 mb-5 max-h-56 overflow-y-auto">
+                      {savedRooms.filter(r => r.id !== activeRoomId).map(r => (
+                        <button key={r.id} onClick={() => { if (crossRoomRecord.frequency !== '一次') setSelectedTransferRoom(r); else handleSendToOtherRoom(r.id, false); }} className="w-full text-left bg-gray-50 hover:bg-blue-50 p-3 rounded-xl font-black text-gray-700">🏠 {r.name}</button>
+                      ))}
+                    </div>
+                    <button onClick={() => setCrossRoomRecord(null)} className="w-full bg-gray-100 text-gray-600 font-extrabold py-3 rounded-xl">取消</button>
+                  </>
+                ) : (
+                  <div>
+                    <p className="text-[15px] font-bold text-gray-600 mb-4">目標：{selectedTransferRoom.name}<br/>這是一筆週期性紀錄，如何傳送？</p>
+                    <button onClick={() => handleSendToOtherRoom(selectedTransferRoom.id, true)} className="w-full bg-blue-500 text-white font-black py-3.5 rounded-xl mb-3">🔄 完整傳送 (含未來排程)</button>
+                    <button onClick={() => handleSendToOtherRoom(selectedTransferRoom.id, false)} className="w-full bg-orange-100 text-orange-700 font-black py-3.5 rounded-xl mb-5">📌 僅傳送單次</button>
+                    <button onClick={() => setSelectedTransferRoom(null)} className="w-full bg-gray-100 text-gray-600 font-extrabold py-3 rounded-xl">返回重選</button>
                   </div>
-                  <button onClick={() => setCrossRoomRecord(null)} className="w-full bg-gray-100 text-gray-600 font-extrabold py-3 rounded-xl">取消</button>
-                </>
-              ) : (
-                <div>
-                  <p className="text-[15px] font-bold text-gray-600 mb-4">目標：{selectedTransferRoom.name}<br/>這是一筆週期性紀錄，如何傳送？</p>
-                  <button onClick={() => handleSendToOtherRoom(selectedTransferRoom.id, true)} className="w-full bg-blue-500 text-white font-black py-3.5 rounded-xl mb-3">🔄 完整傳送 (含未來排程)</button>
-                  <button onClick={() => handleSendToOtherRoom(selectedTransferRoom.id, false)} className="w-full bg-orange-100 text-orange-700 font-black py-3.5 rounded-xl mb-5">📌 僅傳送單次</button>
-                  <button onClick={() => setSelectedTransferRoom(null)} className="w-full bg-gray-100 text-gray-600 font-extrabold py-3 rounded-xl">返回重選</button>
-                </div>
-              )}
+                )}
+              </div>
             </div>
-          </div>
-        )}
+          )}
+
+        </div>
       </div>
     </AppContext.Provider>
   );
