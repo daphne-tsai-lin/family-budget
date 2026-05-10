@@ -4,7 +4,8 @@ import { onAuthStateChanged, signInAnonymously } from 'firebase/auth';
 import { doc, getDoc, updateDoc, onSnapshot, collection, writeBatch, deleteField, setDoc, query, where, deleteDoc } from 'firebase/firestore';
 
 import { auth, db, appId } from './firebase/firebaseConfig'; 
-import { AppContext, getLocalTodayStr, toROCYearStr, getRoleColorStyle, generateFutureDates } from './utils/helpers';
+// 💡 引入 toROCYearStrWithDay
+import { AppContext, getLocalTodayStr, toROCYearStrWithDay, getRoleColorStyle, generateFutureDates } from './utils/helpers';
 import { renderMethodText } from './components/SharedUI';
 
 import LoginView from './views/LoginView';
@@ -293,7 +294,6 @@ export default function App() {
       case 'login': return <LoginView savedRooms={savedRooms} roomCode={roomCode} setRoomCode={setRoomCode} roomPin={roomPin} setRoomPin={setRoomPin} currentUserRole={currentUserRole} setCurrentUserRole={setCurrentUserRole} availableLoginUsers={availableLoginUsers} isLoading={isLoading} errorMsg={errorMsg} handleJoinRoom={handleJoinRoom} quickJoinRoom={quickJoinRoom} onSwitchToCreate={() => {setView('create'); setErrorMsg('');}} />;
       case 'create': return <CreateRoomView roomName={roomName} setRoomName={setRoomName} roomCode={roomCode} setRoomCode={setRoomCode} roomPin={roomPin} setRoomPin={setRoomPin} currentUserRole={currentUserRole} setCurrentUserRole={setCurrentUserRole} isLoading={isLoading} errorMsg={errorMsg} handleCreateRoom={handleCreateRoom} onBackToLogin={() => {setView('login'); setErrorMsg('');}} />;
       case 'room':
-        // 💡 核心升級：將首頁當前觀看的日期 (homeFilterDate) 作為 defaultDate 傳遞給表單
         if (showAddForm) return <RecordFormView recordToEdit={editRecordId ? records.find(r => r.id === editRecordId) : null} copyRecordData={copyRecordData} onClose={handleCloseForm} setCrossRoomRecord={setCrossRoomRecord} defaultDate={homeFilterDate} />;
         return <RoomView fileInputRef={fileInputRef} handleBackup={handleBackup} homeFilterDate={homeFilterDate} setHomeFilterDate={setHomeFilterDate} searchQuery={searchQuery} setSearchQuery={setSearchQuery} setViewingRecord={setViewingRecord} handleMoveRecord={handleMoveRecord} onEditRecord={handleEditRecord} setCrossRoomRecord={setCrossRoomRecord} />;
       case 'accounts': return <AccountsView user={user} activeRoomId={activeRoomId} currentRoom={currentRoom} records={records} setView={setView} setViewingRecord={setViewingRecord} currentUserRole={currentUserRole} />;
@@ -325,7 +325,8 @@ export default function App() {
                 <div className="space-y-2 text-[15px] text-gray-600 font-bold max-h-[65vh] overflow-y-auto pr-1">
                   <div className="flex justify-between border-b border-gray-100 pb-1.5 pt-1"><span className="text-gray-400">類型</span><span className={`${viewingRecord.type==='income'?'text-green-500':viewingRecord.type==='transfer'?'text-blue-500':'text-orange-500'} font-black`}>{viewingRecord.type==='income'?'收入':viewingRecord.type==='transfer'?'轉帳':'支出'}</span></div>
                   <div className="flex justify-between border-b border-gray-100 pb-1.5 pt-1"><span className="text-gray-400">金額</span><span className={`text-[24px] font-black ${viewingRecord.excludeFromBalance ? 'text-gray-500 line-through' : 'text-gray-800'}`}>${viewingRecord.amount.toLocaleString()}</span></div>
-                  <div className="flex justify-between border-b border-gray-100 pb-1.5 pt-1"><span className="text-gray-400">消費日期</span><span className="text-gray-800">{toROCYearStr(viewingRecord.date)}</span></div>
+                  {/* 💡 詳細視窗加入星期幾 */}
+                  <div className="flex justify-between border-b border-gray-100 pb-1.5 pt-1"><span className="text-gray-400">消費日期</span><span className="text-gray-800">{toROCYearStrWithDay(viewingRecord.date)}</span></div>
                   <div className="flex justify-between border-b border-gray-100 pb-1.5 pt-1"><span className="text-gray-400">分類</span><span className="text-gray-800">{viewingRecord.category}</span></div>
                   {viewingRecord.type !== 'transfer' && <div className="flex justify-between border-b border-gray-100 pb-1.5 pt-1"><span className="text-gray-400">項目</span><span className="text-gray-800">{viewingRecord.title}</span></div>}
                   {viewingRecord.type !== 'transfer' && viewingRecord.merchant && viewingRecord.merchant !== '未指定' && <div className="flex justify-between border-b border-gray-100 pb-1.5 pt-1"><span className="text-gray-400">商家</span><span className="text-gray-800">{viewingRecord.merchant}</span></div>}
