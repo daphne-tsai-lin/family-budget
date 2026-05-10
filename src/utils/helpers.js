@@ -2,6 +2,10 @@ import { createContext } from 'react';
 
 export const AppContext = createContext(null);
 
+// ==========================================
+// 輔助函數 (純邏輯，不涉及狀態)
+// ==========================================
+
 export const getRoomHeaderColor = (roomId) => {
   if (!roomId) return 'from-indigo-500 to-purple-600';
   let hash = 0;
@@ -131,9 +135,9 @@ export const generateFutureDates = (startDateStr, freq, days, interval, customDa
     let addDays = 0;
     if (interval === '自訂') {
         addDays = parseInt(customDays, 10);
-        // 💡 防呆機制：如果不小心輸入"2個月"等文字導致 NaN，強制給予 1 天的預設值，避免系統崩潰
         if (isNaN(addDays) || addDays <= 0) addDays = 1; 
     }
+    else if (interval === '2個月') addDays = 60; // 💡 新增 2 個月的邏輯
     else if (interval === '3個月') addDays = 90;
     else if (interval === '半年') addDays = 180;
     else if (interval === '一年') addDays = 365;
