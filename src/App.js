@@ -4,7 +4,6 @@ import { onAuthStateChanged, signInAnonymously } from 'firebase/auth';
 import { doc, getDoc, updateDoc, onSnapshot, collection, writeBatch, deleteField, setDoc, query, where, deleteDoc } from 'firebase/firestore';
 
 import { auth, db, appId } from './firebase/firebaseConfig'; 
-// 💡 從 helpers 引入 AppContext，且下方已將舊的宣告徹底刪除！
 import { AppContext, getLocalTodayStr, toROCYearStr, getRoleColorStyle, generateFutureDates } from './utils/helpers';
 import { renderMethodText } from './components/SharedUI';
 
@@ -19,8 +18,6 @@ import SettingsView from './views/SettingsView';
 if (typeof document !== 'undefined' && !document.getElementById('tailwind-script')) {
   const script = document.createElement('script'); script.id = 'tailwind-script'; script.src = 'https://cdn.tailwindcss.com'; document.head.appendChild(script);
 }
-
-// 💡 (已刪除重複宣告的 export const AppContext = createContext(null);)
 
 export default function App() {
   const [user, setUser] = useState(null);
@@ -296,7 +293,8 @@ export default function App() {
       case 'login': return <LoginView savedRooms={savedRooms} roomCode={roomCode} setRoomCode={setRoomCode} roomPin={roomPin} setRoomPin={setRoomPin} currentUserRole={currentUserRole} setCurrentUserRole={setCurrentUserRole} availableLoginUsers={availableLoginUsers} isLoading={isLoading} errorMsg={errorMsg} handleJoinRoom={handleJoinRoom} quickJoinRoom={quickJoinRoom} onSwitchToCreate={() => {setView('create'); setErrorMsg('');}} />;
       case 'create': return <CreateRoomView roomName={roomName} setRoomName={setRoomName} roomCode={roomCode} setRoomCode={setRoomCode} roomPin={roomPin} setRoomPin={setRoomPin} currentUserRole={currentUserRole} setCurrentUserRole={setCurrentUserRole} isLoading={isLoading} errorMsg={errorMsg} handleCreateRoom={handleCreateRoom} onBackToLogin={() => {setView('login'); setErrorMsg('');}} />;
       case 'room':
-        if (showAddForm) return <RecordFormView recordToEdit={editRecordId ? records.find(r => r.id === editRecordId) : null} copyRecordData={copyRecordData} onClose={handleCloseForm} setCrossRoomRecord={setCrossRoomRecord} />;
+        // 💡 核心升級：將首頁當前觀看的日期 (homeFilterDate) 作為 defaultDate 傳遞給表單
+        if (showAddForm) return <RecordFormView recordToEdit={editRecordId ? records.find(r => r.id === editRecordId) : null} copyRecordData={copyRecordData} onClose={handleCloseForm} setCrossRoomRecord={setCrossRoomRecord} defaultDate={homeFilterDate} />;
         return <RoomView fileInputRef={fileInputRef} handleBackup={handleBackup} homeFilterDate={homeFilterDate} setHomeFilterDate={setHomeFilterDate} searchQuery={searchQuery} setSearchQuery={setSearchQuery} setViewingRecord={setViewingRecord} handleMoveRecord={handleMoveRecord} onEditRecord={handleEditRecord} setCrossRoomRecord={setCrossRoomRecord} />;
       case 'accounts': return <AccountsView user={user} activeRoomId={activeRoomId} currentRoom={currentRoom} records={records} setView={setView} setViewingRecord={setViewingRecord} currentUserRole={currentUserRole} />;
       case 'analysis': return <AnalysisView records={records} currentRoom={currentRoom} setView={setView} setViewingRecord={setViewingRecord} currentUserRole={currentUserRole} />;
