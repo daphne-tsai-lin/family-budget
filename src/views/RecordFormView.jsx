@@ -20,7 +20,7 @@ const RecordFormView = ({ recordToEdit, copyRecordData, onClose, setCrossRoomRec
       category: currentRoom?.categories?.[0] || '🍔 飲食',
       title: '', merchant: '', method: '現金', subMethod: '', transferToMethod: '', transferToSubMethod: '',
       payer: ['全家'], note: '', photoBase64: '', excludeFromBalance: false,
-      frequency: '一次', frequencyDays: [], frequencyInterval: '3個月', frequencyCustomText: '10'
+      frequency: '一次', frequencyDays: [], frequencyInterval: '2個月', frequencyCustomText: '10' // 💡 預設改為第一個選項
     };
   });
 
@@ -90,7 +90,6 @@ const RecordFormView = ({ recordToEdit, copyRecordData, onClose, setCrossRoomRec
       const baseData = { ...record, amount: parsedAmt, timestamp, roomId: activeRoomId, addedBy: user.uid, addedByRole: currentUserRole, groupId: newGroupId };
       if (record.type === 'transfer') baseData.excludeFromBalance = false;
 
-      // 💡 終極防呆 1：淨化陣列，將所有 undefined 的髒屬性徹底踢除，保證 Firestore 開心接收！
       Object.keys(baseData).forEach(key => {
         if (baseData[key] === undefined) delete baseData[key];
       });
@@ -124,13 +123,11 @@ const RecordFormView = ({ recordToEdit, copyRecordData, onClose, setCrossRoomRec
       } else {
         const curRef = doc(db, 'artifacts', appId, 'public', 'data', 'expenses', recordToEdit.id);
         
-        // 💡 終極防呆 2：安全處理更新狀態
         const updateData = { ...baseData, timestamp: oldRecord.timestamp || timestamp };
         if (!record.photoBase64 && oldRecord?.photoBase64) {
             updateData.photoBase64 = deleteField();
         }
 
-        // 如果選擇「不變更未來」，就把它徹底降級成「單次」，不再和未來連動
         if (!updateFuture && oldWasPeriodic) {
             updateData.frequency = '一次'; updateData.frequencyDays = []; updateData.frequencyInterval = ''; updateData.frequencyCustomText = ''; updateData.groupId = null;
         }
@@ -138,7 +135,6 @@ const RecordFormView = ({ recordToEdit, copyRecordData, onClose, setCrossRoomRec
         batch.update(curRef, updateData); 
         opsCount++;
 
-        // 💡 終極防呆 3：未來的新紀錄絕對不能帶有 deleteField()，複製一份乾淨的底稿給未來用
         const futureBaseData = { ...baseData };
         delete futureBaseData.photoBase64;
 
@@ -254,7 +250,8 @@ const RecordFormView = ({ recordToEdit, copyRecordData, onClose, setCrossRoomRec
           {record.frequency === '區間' && (
             <div className="mb-3.5 bg-gray-50 p-3 rounded-xl border border-gray-100 shadow-sm">
               <div className="flex flex-wrap gap-1.5 mb-2">
-                {['3個月', '半年', '一年', '自訂'].map(opt => (
+                {/* 💡 介面修正：加入「2個月」選項，共 5 個 */}
+                {['2個月', '3個月', '半年', '一年', '自訂'].map(opt => (
                   <button key={opt} type="button" onClick={() => setRecord(prev => ({...prev, frequencyInterval: opt}))} className={`px-2.5 py-1.5 rounded-lg text-[13px] font-bold transition-all ${record.frequencyInterval === opt ? 'bg-[#FFE28A] text-gray-800 shadow-sm border-2 border-[#FCD34D] transform -translate-y-0.5' : 'bg-white text-gray-500 border border-gray-100'}`}>{opt}</button>
                 ))}
               </div>
