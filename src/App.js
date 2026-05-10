@@ -4,8 +4,7 @@ import { onAuthStateChanged, signInAnonymously } from 'firebase/auth';
 import { doc, getDoc, updateDoc, onSnapshot, collection, writeBatch, deleteField, setDoc, query, where, deleteDoc } from 'firebase/firestore';
 
 import { auth, db, appId } from './firebase/firebaseConfig'; 
-// 💡 引入 toROCYearStrWithDay
-import { AppContext, getLocalTodayStr, toROCYearStrWithDay, getRoleColorStyle, generateFutureDates } from './utils/helpers';
+import { AppContext, getLocalTodayStr, toROCYearStr, getRoleColorStyle, generateFutureDates } from './utils/helpers';
 import { renderMethodText } from './components/SharedUI';
 
 import LoginView from './views/LoginView';
@@ -139,6 +138,7 @@ export default function App() {
     document.body.appendChild(downloadAnchorNode); downloadAnchorNode.click(); downloadAnchorNode.remove();
   }, [records]);
 
+  // 💡 登入成功後，立刻清空輸入欄位
   const handleJoinRoom = async (e) => {
     e.preventDefault(); setErrorMsg('');
     if (!currentUserRole || !roomCode || !roomPin) return setErrorMsg('請填寫代碼、密碼並選擇身份');
@@ -153,6 +153,7 @@ export default function App() {
         const newRooms = [{ id: roomCode, name: data.name, pin: roomPin, role: currentUserRole }, ...savedRooms.filter(r => r.id !== roomCode)].slice(0, 5);
         localStorage.setItem('expenseApp_savedRooms', JSON.stringify(newRooms));
         setSavedRooms(newRooms); setActiveRoomId(roomCode); setHomeFilterDate(getLocalTodayStr()); setView('room');
+        setRoomCode(''); setRoomPin(''); // 清空
       }
     } catch (err) { setErrorMsg('加入失敗'); } finally { setIsLoading(false); }
   };
@@ -162,8 +163,9 @@ export default function App() {
     try {
       const roomSnap = await getDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', savedRoom.id));
       if (roomSnap.exists() && roomSnap.data().pin === savedRoom.pin) {
-        let role = savedRoom.role || '其他家人'; setRoomCode(savedRoom.id); setRoomPin(savedRoom.pin); setCurrentUserRole(role);
+        let role = savedRoom.role || '其他家人'; setCurrentUserRole(role);
         setActiveRoomId(savedRoom.id); setHomeFilterDate(getLocalTodayStr()); setView('room');
+        setRoomCode(''); setRoomPin(''); // 清空
       } else { setErrorMsg('密碼可能已被更改'); }
     } catch(err) { setErrorMsg('連線失敗'); } finally { setIsLoading(false); }
   };
@@ -190,18 +192,28 @@ export default function App() {
       const newRooms = [{ id: roomCode, name: roomName, pin: roomPin, role: currentUserRole }, ...savedRooms.filter(r => r.id !== roomCode)].slice(0, 5);
       localStorage.setItem('expenseApp_savedRooms', JSON.stringify(newRooms));
       setSavedRooms(newRooms); setActiveRoomId(roomCode); setHomeFilterDate(getLocalTodayStr()); setView('room');
+      setRoomCode(''); setRoomPin(''); setRoomName(''); // 清空
     } catch (err) { setErrorMsg('建立失敗'); } finally { setIsLoading(false); }
   };
 
+  // 💡 修正上下位置卡住的 Bug：時間戳完全相同時，強制給予正負偏移值錯開位置
   const handleMoveRecord = async (index, direction) => {
     const displayRecs = searchQuery ? records.filter(r => r.date <= getLocalTodayStr() && JSON.stringify(r).toLowerCase().includes(searchQuery.toLowerCase())) : records.filter(r => r.date === homeFilterDate);
     if (index + direction < 0 || index + direction >= displayRecs.length) return;
     const currentTx = displayRecs[index], targetTx = displayRecs[index + direction];
-    let targetTs = targetTx.timestamp; if (currentTx.timestamp === targetTs) targetTs += (direction === -1 ? -1 : 1);
+    
+    let newCurTs = targetTx.timestamp;
+    let newTarTs = currentTx.timestamp;
+
+    if (newCurTs === newTarTs) {
+      if (direction === -1) { newCurTs += 1; newTarTs -= 1; } 
+      else { newCurTs -= 1; newTarTs += 1; }
+    }
+
     try {
       const batch = writeBatch(db);
-      batch.update(doc(db, 'artifacts', appId, 'public', 'data', 'expenses', currentTx.id), { timestamp: targetTs });
-      batch.update(doc(db, 'artifacts', appId, 'public', 'data', 'expenses', targetTx.id), { timestamp: currentTx.timestamp });
+      batch.update(doc(db, 'artifacts', appId, 'public', 'data', 'expenses', currentTx.id), { timestamp: newCurTs });
+      batch.update(doc(db, 'artifacts', appId, 'public', 'data', 'expenses', targetTx.id), { timestamp: newTarTs });
       await batch.commit();
     } catch (err) {}
   };
@@ -325,8 +337,7 @@ export default function App() {
                 <div className="space-y-2 text-[15px] text-gray-600 font-bold max-h-[65vh] overflow-y-auto pr-1">
                   <div className="flex justify-between border-b border-gray-100 pb-1.5 pt-1"><span className="text-gray-400">類型</span><span className={`${viewingRecord.type==='income'?'text-green-500':viewingRecord.type==='transfer'?'text-blue-500':'text-orange-500'} font-black`}>{viewingRecord.type==='income'?'收入':viewingRecord.type==='transfer'?'轉帳':'支出'}</span></div>
                   <div className="flex justify-between border-b border-gray-100 pb-1.5 pt-1"><span className="text-gray-400">金額</span><span className={`text-[24px] font-black ${viewingRecord.excludeFromBalance ? 'text-gray-500 line-through' : 'text-gray-800'}`}>${viewingRecord.amount.toLocaleString()}</span></div>
-                  {/* 💡 詳細視窗加入星期幾 */}
-                  <div className="flex justify-between border-b border-gray-100 pb-1.5 pt-1"><span className="text-gray-400">消費日期</span><span className="text-gray-800">{toROCYearStrWithDay(viewingRecord.date)}</span></div>
+                  <div className="flex justify-between border-b border-gray-100 pb-1.5 pt-1"><span className="text-gray-400">消費日期</span><span className="text-gray-800">{toROCYearStr(viewingRecord.date)}</span></div>
                   <div className="flex justify-between border-b border-gray-100 pb-1.5 pt-1"><span className="text-gray-400">分類</span><span className="text-gray-800">{viewingRecord.category}</span></div>
                   {viewingRecord.type !== 'transfer' && <div className="flex justify-between border-b border-gray-100 pb-1.5 pt-1"><span className="text-gray-400">項目</span><span className="text-gray-800">{viewingRecord.title}</span></div>}
                   {viewingRecord.type !== 'transfer' && viewingRecord.merchant && viewingRecord.merchant !== '未指定' && <div className="flex justify-between border-b border-gray-100 pb-1.5 pt-1"><span className="text-gray-400">商家</span><span className="text-gray-800">{viewingRecord.merchant}</span></div>}
