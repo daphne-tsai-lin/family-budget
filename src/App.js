@@ -156,7 +156,7 @@ export default function App() {
         const newRooms = [{ id: roomCode, name: data.name, pin: roomPin, role: currentUserRole }, ...savedRooms.filter(r => r.id !== roomCode)].slice(0, 5);
         localStorage.setItem('expenseApp_savedRooms', JSON.stringify(newRooms));
         setSavedRooms(newRooms); setActiveRoomId(roomCode); setHomeFilterDate(getLocalTodayStr()); setView('room');
-        setRoomCode(''); setRoomPin('');
+        setRoomCode(''); setRoomPin(''); 
       }
     } catch (err) { setErrorMsg('加入失敗'); } finally { setIsLoading(false); }
   };
@@ -168,7 +168,7 @@ export default function App() {
       if (roomSnap.exists() && roomSnap.data().pin === savedRoom.pin) {
         let role = savedRoom.role || '其他家人'; setCurrentUserRole(role);
         setActiveRoomId(savedRoom.id); setHomeFilterDate(getLocalTodayStr()); setView('room');
-        setRoomCode(''); setRoomPin('');
+        setRoomCode(''); setRoomPin(''); 
       } else { setErrorMsg('密碼可能已被更改'); }
     } catch(err) { setErrorMsg('連線失敗'); } finally { setIsLoading(false); }
   };
@@ -195,13 +195,15 @@ export default function App() {
       const newRooms = [{ id: roomCode, name: roomName, pin: roomPin, role: currentUserRole }, ...savedRooms.filter(r => r.id !== roomCode)].slice(0, 5);
       localStorage.setItem('expenseApp_savedRooms', JSON.stringify(newRooms));
       setSavedRooms(newRooms); setActiveRoomId(roomCode); setHomeFilterDate(getLocalTodayStr()); setView('room');
-      setRoomCode(''); setRoomPin(''); setRoomName('');
+      setRoomCode(''); setRoomPin(''); setRoomName(''); 
     } catch (err) { setErrorMsg('建立失敗'); } finally { setIsLoading(false); }
   };
 
   const handleMoveRecord = async (index, direction) => {
     const displayRecs = searchQuery ? records.filter(r => r.date <= getLocalTodayStr() && JSON.stringify(r).toLowerCase().includes(searchQuery.toLowerCase())) : records.filter(r => r.date === homeFilterDate);
-    displayRecs.sort((a, b) => b.timestamp - a.timestamp);
+    // 💡 同步大腦的排序邏輯為升冪 (舊到新)，與首頁畫面完全一致！
+    displayRecs.sort((a, b) => a.timestamp - b.timestamp);
+
     if (index + direction < 0 || index + direction >= displayRecs.length) return;
     const currentTx = displayRecs[index], targetTx = displayRecs[index + direction];
     
@@ -209,8 +211,9 @@ export default function App() {
     let newTarTs = currentTx.timestamp;
 
     if (newCurTs === newTarTs) {
-      if (direction === -1) { newCurTs += 10; newTarTs -= 10; } 
-      else { newCurTs -= 10; newTarTs += 10; }
+      // 💡 偏移反轉：因為由舊到新(時間戳小到大)，往上移(direction=-1)代表時間戳要變更小！
+      if (direction === -1) { newCurTs -= 10; newTarTs += 10; } 
+      else { newCurTs += 10; newTarTs -= 10; }
     }
 
     try {
@@ -320,14 +323,9 @@ export default function App() {
 
   return (
     <AppContext.Provider value={contextValue}>
-      {/* 最外層灰色大背景 */}
       <div className="min-h-screen bg-gray-100 sm:py-4 flex justify-center items-center font-sans text-[16px]">
-        
-        {/* 💡 核心修復：這就是剛剛遺失的「手機殼」！它負責奶白底色、圓角、陰影與定位 */}
         <div className={`w-full ${view === 'login' || view === 'create' ? 'max-w-[400px]' : 'max-w-[460px]'} min-h-screen sm:min-h-0 sm:h-[800px] bg-[#FFFBF0] flex flex-col relative sm:rounded-[2.5rem] sm:border-[6px] sm:border-gray-800 shadow-2xl overflow-hidden transition-all duration-500`}>
-          
           <input type="file" accept=".json,application/json,text/plain" style={{display: 'none'}} ref={fileInputRef} onChange={handleImport} />
-          
           {renderView()}
 
           {enlargedPhoto && (
@@ -408,7 +406,6 @@ export default function App() {
               </div>
             </div>
           )}
-
         </div>
       </div>
     </AppContext.Provider>
