@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useRef, useCallback, createContext } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Sparkles, Copy, Trash2, X, Send } from 'lucide-react';
 import { onAuthStateChanged, signInAnonymously } from 'firebase/auth';
 import { doc, getDoc, updateDoc, onSnapshot, collection, writeBatch, deleteField, setDoc, query, where } from 'firebase/firestore';
 
 import { auth, db, appId } from './firebase/firebaseConfig'; 
-import { getLocalTodayStr, toROCYearStr, getRoleColorStyle, generateFutureDates } from './utils/helpers';
+// 💡 從 helpers 引入 AppContext，這裡不再重複建立 Context
+import { AppContext, getLocalTodayStr, toROCYearStr, getRoleColorStyle, generateFutureDates } from './utils/helpers';
 
 import LoginView from './views/LoginView';
 import CreateRoomView from './views/CreateRoomView';
@@ -17,8 +18,6 @@ import SettingsView from './views/SettingsView';
 if (typeof document !== 'undefined' && !document.getElementById('tailwind-script')) {
   const script = document.createElement('script'); script.id = 'tailwind-script'; script.src = 'https://cdn.tailwindcss.com'; document.head.appendChild(script);
 }
-
-export const AppContext = createContext(null);
 
 export default function App() {
   const [user, setUser] = useState(null);
@@ -205,7 +204,6 @@ export default function App() {
     } catch (err) {}
   };
 
-  // 💡 修正：智慧分塊刪除，100% 解決無法刪除未來紀錄的問題
   const handleDeleteRecord = async (record) => {
     let deleteFuture = false;
     if (record.groupId) {
