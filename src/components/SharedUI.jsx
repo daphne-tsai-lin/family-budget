@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Pencil, Trash2, ArrowUp, ArrowDown, Send, Check } from 'lucide-react';
-import { getRoleColorStyle, toROCYearStr } from '../utils/helpers';
+// 💡 引入帶有星期的 toROCYearStrWithDay
+import { getRoleColorStyle, toROCYearStrWithDay } from '../utils/helpers';
 
 export const SettingBlock = ({ title, items, onUpdate, themeClass, spanClass, btnClass, placeholder }) => {
     const [newItem, setNewItem] = useState('');
@@ -313,7 +314,8 @@ export const RecordItem = ({ exp, idx, currentUserRole, isSortable = false, hide
             <div className={`absolute left-0 top-1/2 -translate-y-1/2 h-1/2 w-1 rounded-r-md ${isIncome ? 'bg-green-400' : isTransfer ? 'bg-blue-400' : 'bg-orange-400'}`}></div>
             <div className="flex-1 pl-2.5 pr-2 overflow-hidden flex flex-col justify-center py-1">
                 <div className="flex flex-wrap items-center gap-1.5 mb-0.5">
-                    <span className="text-[11px] font-bold text-gray-400">{toROCYearStr(exp.timestamp ? new Date(exp.timestamp).toISOString().split('T')[0] : exp.date)} {exp.timestamp ? new Date(exp.timestamp).toLocaleTimeString('zh-TW', { hour12: false, hour: '2-digit', minute: '2-digit' }) : ''}</span>
+                    {/* 💡 修改點：列表明細也加入星期幾 */}
+                    <span className="text-[11px] font-bold text-gray-400">{toROCYearStrWithDay(exp.timestamp ? new Date(exp.timestamp).toISOString().split('T')[0] : exp.date)} {exp.timestamp ? new Date(exp.timestamp).toLocaleTimeString('zh-TW', { hour12: false, hour: '2-digit', minute: '2-digit' }) : ''}</span>
                     {exp.addedByRole && <span className={`${getRoleColorStyle(exp.addedByRole).lightBg} ${getRoleColorStyle(exp.addedByRole).text} border ${getRoleColorStyle(exp.addedByRole).lightBorder} px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0`}>{exp.addedByRole}</span>}
                     <span className="bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0">{freqDisplay || '一次'}</span>
                     {exp.excludeFromBalance && <span className="bg-gray-200 text-gray-500 px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0">不計入</span>}
