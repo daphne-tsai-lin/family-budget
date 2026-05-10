@@ -81,7 +81,6 @@ export const toROCShortStr = (dateVal) => {
   }
 };
 
-// 💡 提取星期幾的函式
 export const getDayOfWeek = (dateStr) => {
   if (!dateStr) return '';
   const d = new Date(dateStr);
@@ -90,18 +89,31 @@ export const getDayOfWeek = (dateStr) => {
   return `(${days[d.getDay()]})`;
 };
 
-// 💡 帶有星期的年份字串 (表單與明細使用)
 export const toROCYearStrWithDay = (dateVal) => {
   const rocStr = toROCYearStr(dateVal);
   if (!rocStr) return '';
   return `${rocStr}${getDayOfWeek(dateVal)}`;
 };
 
-// 💡 帶有星期的短字串 (首頁上方使用)
 export const toROCShortStrWithDay = (dateVal) => {
   const rocStr = toROCShortStr(dateVal);
   if (!rocStr) return '';
   return `${rocStr}${getDayOfWeek(dateVal)}`;
+};
+
+// 💡 智慧判斷家庭成員組合圖示
+export const getPayerIcons = (payers) => {
+  if (!payers) return '👤';
+  const payerStr = Array.isArray(payers) ? payers.join(',') : String(payers);
+  if (payerStr.includes('全家')) return '👨👩👦👦';
+
+  let icons = '';
+  if (payerStr.includes('老公')) icons += '👨';
+  if (payerStr.includes('老婆')) icons += '👩';
+  if (payerStr.includes('恩恩')) icons += '👦';
+  if (payerStr.includes('蔚蔚')) icons += '👦';
+
+  return icons === '' ? '👤' : icons;
 };
 
 export const getRoleColorStyle = (role, index = 0) => {
