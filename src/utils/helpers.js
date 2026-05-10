@@ -81,6 +81,29 @@ export const toROCShortStr = (dateVal) => {
   }
 };
 
+// 💡 提取星期幾的函式
+export const getDayOfWeek = (dateStr) => {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return '';
+  const days = ['日', '一', '二', '三', '四', '五', '六'];
+  return `(${days[d.getDay()]})`;
+};
+
+// 💡 帶有星期的年份字串 (表單與明細使用)
+export const toROCYearStrWithDay = (dateVal) => {
+  const rocStr = toROCYearStr(dateVal);
+  if (!rocStr) return '';
+  return `${rocStr}${getDayOfWeek(dateVal)}`;
+};
+
+// 💡 帶有星期的短字串 (首頁上方使用)
+export const toROCShortStrWithDay = (dateVal) => {
+  const rocStr = toROCShortStr(dateVal);
+  if (!rocStr) return '';
+  return `${rocStr}${getDayOfWeek(dateVal)}`;
+};
+
 export const getRoleColorStyle = (role, index = 0) => {
   if (!role) return { bg: 'bg-gray-100', text: 'text-gray-500', borderSel: 'border-gray-200', lightBg: 'bg-gray-100', lightBorder: 'border-transparent' };
   if (role === '老公') return { bg: 'bg-blue-500', text: 'text-blue-600', borderSel: 'border-blue-500', lightBg: 'bg-blue-50', lightBorder: 'border-blue-200' };
@@ -137,7 +160,7 @@ export const generateFutureDates = (startDateStr, freq, days, interval, customDa
         addDays = parseInt(customDays, 10);
         if (isNaN(addDays) || addDays <= 0) addDays = 1; 
     }
-    else if (interval === '2個月') addDays = 60; // 💡 新增 2 個月的邏輯
+    else if (interval === '2個月') addDays = 60;
     else if (interval === '3個月') addDays = 90;
     else if (interval === '半年') addDays = 180;
     else if (interval === '一年') addDays = 365;
