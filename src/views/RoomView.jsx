@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useContext, useRef } from 'react';
 import { Upload, Download, Settings, LogOut, Calendar, Search, X, PiggyBank, Wallet, Plus, BarChart, ChevronDown } from 'lucide-react';
-import { AppContext, getRoomHeaderColor, toROCShortStr, getLocalTodayStr } from '../utils/helpers';
+// 💡 引入帶有星期的短字串轉換
+import { AppContext, getRoomHeaderColor, toROCShortStrWithDay, getLocalTodayStr } from '../utils/helpers';
 import { RecordItem } from '../components/SharedUI';
 
 const RoomView = ({
@@ -75,17 +76,19 @@ const RoomView = ({
 
         <div className="mb-1.5">
           <div className="flex items-center gap-1.5 w-full">
-            <div className="relative bg-white/20 backdrop-blur-md rounded-lg shadow-sm border border-white/30 px-2 py-1 flex items-center overflow-hidden hover:bg-white/30 transition shrink-0">
+            {/* 💡 放大左側日期寬度 min-w-[110px]，確保星期幾不會換行或截斷 */}
+            <div className="relative bg-white/20 backdrop-blur-md rounded-lg shadow-sm border border-white/30 px-1.5 py-1 flex items-center justify-center overflow-hidden hover:bg-white/30 transition shrink-0 min-w-[110px]">
               <input type="date" value={homeFilterDate} onChange={(e) => setHomeFilterDate(e.target.value)} className="absolute inset-0 w-full h-full opacity-0 z-10 cursor-pointer" />
               <Calendar size={13} className="text-white mr-1 shrink-0 z-0"/>
-              <span className="text-white text-[12px] font-black drop-shadow-sm z-0 whitespace-nowrap">{homeFilterDate ? toROCShortStr(homeFilterDate) : '全部日期'}</span>
+              <span className="text-white text-[12px] font-black drop-shadow-sm z-0 whitespace-nowrap">{homeFilterDate ? toROCShortStrWithDay(homeFilterDate) : '全部日期'}</span>
             </div>
             <button onClick={() => setHomeFilterDate(getLocalTodayStr())} className={`shrink-0 px-2 py-1 rounded-lg transition-all duration-300 font-black text-[12px] shadow-sm backdrop-blur-sm whitespace-nowrap ${homeFilterDate === getLocalTodayStr() ? 'bg-white text-orange-500 scale-105 shadow-md' : 'bg-white/20 hover:bg-white/30 text-white'}`}>
               今天
             </button>
+            {/* 💡 右側搜尋列文字精簡為 "搜尋..."，給左側讓位 */}
             <div className="relative bg-white/20 backdrop-blur-md rounded-lg shadow-sm border border-white/30 px-2 py-1 flex items-center overflow-hidden transition flex-1 min-w-0">
               <Search size={13} className="text-white mr-1.5 shrink-0 z-0" />
-              <input type="text" placeholder="搜尋明細..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-full bg-transparent outline-none text-white text-[12px] font-black placeholder-white/70 z-0 min-w-0" />
+              <input type="text" placeholder="搜尋..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-full bg-transparent outline-none text-white text-[12px] font-black placeholder-white/70 z-0 min-w-0" />
               {searchQuery && <button onClick={() => setSearchQuery('')} className="text-white/70 hover:text-white shrink-0 z-10 p-0.5 ml-1"><X size={13}/></button>}
             </div>
           </div>
