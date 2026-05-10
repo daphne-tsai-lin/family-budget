@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useRef, useCallback, createContext } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Sparkles, Copy, Trash2, X, Send } from 'lucide-react';
 import { onAuthStateChanged, signInAnonymously } from 'firebase/auth';
 import { doc, getDoc, updateDoc, onSnapshot, collection, writeBatch, deleteField, setDoc, query, where, deleteDoc } from 'firebase/firestore';
 
 import { auth, db, appId } from './firebase/firebaseConfig'; 
+// 💡 從 helpers 引入 AppContext，且下方已將舊的宣告徹底刪除！
 import { AppContext, getLocalTodayStr, toROCYearStr, getRoleColorStyle, generateFutureDates } from './utils/helpers';
 import { renderMethodText } from './components/SharedUI';
 
@@ -19,7 +20,7 @@ if (typeof document !== 'undefined' && !document.getElementById('tailwind-script
   const script = document.createElement('script'); script.id = 'tailwind-script'; script.src = 'https://cdn.tailwindcss.com'; document.head.appendChild(script);
 }
 
-export const AppContext = createContext(null);
+// 💡 (已刪除重複宣告的 export const AppContext = createContext(null);)
 
 export default function App() {
   const [user, setUser] = useState(null);
@@ -99,7 +100,6 @@ export default function App() {
     const expensesQuery = query(collection(db, 'artifacts', appId, 'public', 'data', 'expenses'), where('roomId', '==', activeRoomId));
     
     const unsubscribeExpenses = onSnapshot(expensesQuery, (snapshot) => {
-      // 💡 核心修復：強制將 id: doc.id 放在最後面，徹底碾壓並修復資料庫中存在的假 ID！
       const roomRecords = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })).sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
       setRecords(roomRecords);
     });
