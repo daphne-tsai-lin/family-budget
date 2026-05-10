@@ -5,17 +5,20 @@ import { db, appId } from '../firebase/firebaseConfig';
 import { CustomDropdown, MethodSelector, PillGroupMulti } from '../components/SharedUI';
 import { AppContext, getLocalTodayStr, generateFutureDates, evaluateCalc, toROCYearStr } from '../utils/helpers';
 
-const RecordFormView = ({ recordToEdit, copyRecordData, onClose, setCrossRoomRecord }) => {
+// 💡 接收外部傳入的 defaultDate
+const RecordFormView = ({ recordToEdit, copyRecordData, onClose, setCrossRoomRecord, defaultDate }) => {
   const { user, activeRoomId, currentRoom, currentUserRole, records } = useContext(AppContext);
 
   const [record, setRecord] = useState(() => {
     if (recordToEdit) return recordToEdit;
     if (copyRecordData) {
       const { id, groupId, ...rest } = copyRecordData;
-      return { ...rest, date: getLocalTodayStr() };
+      // 💡 複製時也預設帶入目前觀看的日期
+      return { ...rest, date: defaultDate || getLocalTodayStr() };
     }
     return {
-      type: 'expense', amount: '', date: getLocalTodayStr(),
+      // 💡 新增時預設帶入目前觀看的日期 (不再強制是今天)
+      type: 'expense', amount: '', date: defaultDate || getLocalTodayStr(),
       category: currentRoom?.categories?.[0] || '🍔 飲食',
       title: '', merchant: '', method: '現金', subMethod: '', transferToMethod: '', transferToSubMethod: '',
       payer: ['全家'], note: '', photoBase64: '', excludeFromBalance: false,
@@ -89,7 +92,6 @@ const RecordFormView = ({ recordToEdit, copyRecordData, onClose, setCrossRoomRec
       const baseData = { ...record, amount: parsedAmt, timestamp, roomId: activeRoomId, addedBy: user.uid, addedByRole: currentUserRole, groupId: newGroupId };
       if (record.type === 'transfer') baseData.excludeFromBalance = false;
 
-      // 💡 核心修復防呆：強制拔除假 ID 並淨化資料陣列
       Object.keys(baseData).forEach(key => {
         if (baseData[key] === undefined) delete baseData[key];
       });
@@ -193,6 +195,9 @@ const RecordFormView = ({ recordToEdit, copyRecordData, onClose, setCrossRoomRec
   const themeBorder = record.type === 'income' ? 'border-green-100' : record.type === 'transfer' ? 'border-blue-100' : 'border-orange-100';
   const themeText = record.type === 'income' ? 'text-green-500' : record.type === 'transfer' ? 'text-blue-500' : 'text-orange-500';
 
+  // 💡 判斷是否為非今日
+  const isNotToday = record.date !== getLocalTodayStr();
+
   return (
     <div className="absolute inset-0 bg-[#FFFBF0] z-50 flex flex-col overflow-hidden">
       <header className={`${themeBg} text-white px-4 py-3 shadow-md shrink-0 z-10 border-b-4 border-white/20 rounded-b-[1.5rem] transition-colors duration-300`}>
@@ -218,17 +223,22 @@ const RecordFormView = ({ recordToEdit, copyRecordData, onClose, setCrossRoomRec
 
         <div className={`bg-white rounded-2xl p-4 shadow-sm border-2 ${themeBorder}`}>
           <div className="grid grid-cols-2 gap-2 mb-3.5 z-40">
+            {/* 💡 日期欄位加入視覺變色防呆機制 */}
             <div>
               <label className="flex items-center justify-between text-[14px] font-bold text-gray-500 mb-2 ml-1 w-full pr-1">
-                <span className="flex items-center gap-1.5"><Calendar size={16} className="text-gray-400" /> 日期 🗓️</span>
-                <button type="button" onClick={() => setRecord(prev => ({...prev, date: getLocalTodayStr()}))} className={`px-2 py-1 rounded text-[12px] font-bold transition-all duration-300 shadow-sm ${record.date === getLocalTodayStr() ? `${themeBg} text-white scale-105 shadow-md` : 'bg-gray-200 hover:bg-gray-300 text-gray-700'}`}>今天</button>
+                <span className="flex items-center gap-1.5">
+                  <Calendar size={16} className="text-gray-400" /> 日期 🗓️
+                  {isNotToday && <span className="bg-red-100 text-red-600 px-1.5 py-0.5 rounded text-[11px] font-black animate-pulse shadow-sm">⚠️ 非今日</span>}
+                </span>
+                <button type="button" onClick={() => setRecord(prev => ({...prev, date: getLocalTodayStr()}))} className={`px-2 py-1 rounded text-[12px] font-bold transition-all duration-300 shadow-sm ${!isNotToday ? `${themeBg} text-white scale-105 shadow-md` : 'bg-gray-200 hover:bg-gray-300 text-gray-700'}`}>今天</button>
               </label>
-              <div className="relative w-full bg-gray-50 border border-gray-100 p-2.5 rounded-xl flex items-center shadow-sm cursor-pointer hover:bg-white transition overflow-hidden" onClick={() => { if (recordDateInputRef.current) { try { recordDateInputRef.current.showPicker(); } catch (e) { recordDateInputRef.current.focus(); } } }}>
+              <div className={`relative w-full ${isNotToday ? 'bg-red-50 border-red-300 shadow-inner' : 'bg-gray-50 border-gray-100'} border p-2.5 rounded-xl flex items-center shadow-sm cursor-pointer hover:bg-white transition overflow-hidden`} onClick={() => { if (recordDateInputRef.current) { try { recordDateInputRef.current.showPicker(); } catch (e) { recordDateInputRef.current.focus(); } } }}>
                 <input ref={recordDateInputRef} type="date" required className="absolute inset-0 w-full h-full opacity-0 z-10 cursor-pointer" value={record.date} onChange={(e) => setRecord(prev => ({...prev, date: e.target.value}))} />
-                <span className="font-bold text-gray-700 text-[15px] z-0 pointer-events-none">{record.date ? toROCYearStr(record.date) : '選擇日期'}</span>
-                <span className="absolute right-2 text-gray-400 text-[12px] z-0 pointer-events-none">▼</span>
+                <span className={`font-bold text-[15px] z-0 pointer-events-none ${isNotToday ? 'text-red-600' : 'text-gray-700'}`}>{record.date ? toROCYearStr(record.date) : '選擇日期'}</span>
+                <span className={`absolute right-2 text-[12px] z-0 pointer-events-none ${isNotToday ? 'text-red-400' : 'text-gray-400'}`}>▼</span>
               </div>
             </div>
+
             <div className="z-40">
               <CustomDropdown label="頻率 🔄" icon={RefreshCw} options={['一次', '每週', '每月', '區間']} value={record.frequency} onChange={(val) => { setRecord(prev => ({...prev, frequency: val, frequencyDays: [], frequencyInterval: '', frequencyCustomText: ''})); }} placeholder="選擇頻率" />
             </div>
@@ -250,7 +260,6 @@ const RecordFormView = ({ recordToEdit, copyRecordData, onClose, setCrossRoomRec
 
           {record.frequency === '區間' && (
             <div className="mb-3.5 bg-gray-50 p-3 rounded-xl border border-gray-100 shadow-sm">
-              {/* 💡 介面優化：5 個選項強制均分擠在一行，絕對不會掉下去 */}
               <div className="flex w-full gap-1 mb-2">
                 {['2個月', '3個月', '半年', '一年', '自訂'].map(opt => (
                   <button key={opt} type="button" onClick={() => setRecord(prev => ({...prev, frequencyInterval: opt}))} className={`flex-1 py-1.5 rounded-lg text-[11px] sm:text-[13px] font-bold transition-all border shadow-sm flex items-center justify-center whitespace-nowrap ${record.frequencyInterval === opt ? 'bg-[#FFE28A] text-gray-800 border-[#FCD34D]' : 'bg-white text-gray-500 border-gray-100'}`}>{opt}</button>
