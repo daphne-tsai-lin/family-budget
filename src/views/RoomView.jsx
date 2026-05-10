@@ -1,8 +1,7 @@
 import React, { useState, useMemo, useContext, useRef } from 'react';
 import { Upload, Download, Settings, LogOut, Calendar, Search, X, PiggyBank, Wallet, Plus, BarChart, ChevronDown } from 'lucide-react';
-import { getRoomHeaderColor, toROCShortStr, getLocalTodayStr } from '../utils/helpers';
+import { AppContext, getRoomHeaderColor, toROCShortStr, getLocalTodayStr } from '../utils/helpers';
 import { RecordItem } from '../components/SharedUI';
-import { AppContext } from '../App';
 
 const RoomView = ({
   fileInputRef, handleBackup, homeFilterDate, setHomeFilterDate, 
@@ -12,7 +11,6 @@ const RoomView = ({
   const [displayCount, setDisplayCount] = useState(50);
   const headerColorClass = currentRoom?.headerTheme || getRoomHeaderColor(activeRoomId);
 
-  // 💡 修正 4：還原左右滑動切換日期功能
   const touchStartX = useRef(null);
   const touchStartY = useRef(null);
 
@@ -67,7 +65,6 @@ const RoomView = ({
             <h1 className="text-[20px] font-black">{currentRoom?.name || '林北的小財庫'}</h1>
             <p className="text-[13px] opacity-90 font-bold">👤 {currentUserRole}</p>
           </div>
-          {/* 💡 修正 2：還原下載(備份)與上傳按鈕 */}
           <div className="flex items-center gap-1.5">
             <button onClick={() => fileInputRef.current?.click()} className="p-1.5 bg-white/20 hover:bg-white/30 text-white rounded-lg transition backdrop-blur-sm"><Upload size={18} /></button>
             <button onClick={handleBackup} className="p-1.5 bg-white/20 hover:bg-white/30 text-white rounded-lg transition backdrop-blur-sm"><Download size={18} /></button>
@@ -76,7 +73,6 @@ const RoomView = ({
           </div>
         </div>
 
-        {/* 💡 修正 2：還原日期與搜尋的配置位置，與會發光的今天按鈕 */}
         <div className="mb-1.5">
           <div className="flex items-center gap-1.5 w-full">
             <div className="relative bg-white/20 backdrop-blur-md rounded-lg shadow-sm border border-white/30 px-2 py-1 flex items-center overflow-hidden hover:bg-white/30 transition shrink-0">
@@ -111,7 +107,6 @@ const RoomView = ({
         </div>
       </header>
 
-      {/* 💡 修正 4：綁定 Touch 事件，恢復左右滑動換日 */}
       <main className="flex-1 overflow-y-auto px-3 py-3 pb-[90px]" style={{ touchAction: 'pan-y' }} onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
         <div className="space-y-2">
           {displayRecords.map((exp, idx) => (
