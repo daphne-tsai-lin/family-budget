@@ -1,11 +1,11 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, createContext } from 'react';
 import { Sparkles, Copy, Trash2, X, Send } from 'lucide-react';
 import { onAuthStateChanged, signInAnonymously } from 'firebase/auth';
-// 💡 加入了 deleteDoc，用來執行強制擊殺指令
 import { doc, getDoc, updateDoc, onSnapshot, collection, writeBatch, deleteField, setDoc, query, where, deleteDoc } from 'firebase/firestore';
 
 import { auth, db, appId } from './firebase/firebaseConfig'; 
 import { AppContext, getLocalTodayStr, toROCYearStr, getRoleColorStyle, generateFutureDates } from './utils/helpers';
+import { renderMethodText } from './components/SharedUI';
 
 import LoginView from './views/LoginView';
 import CreateRoomView from './views/CreateRoomView';
@@ -18,6 +18,8 @@ import SettingsView from './views/SettingsView';
 if (typeof document !== 'undefined' && !document.getElementById('tailwind-script')) {
   const script = document.createElement('script'); script.id = 'tailwind-script'; script.src = 'https://cdn.tailwindcss.com'; document.head.appendChild(script);
 }
+
+export const AppContext = createContext(null);
 
 export default function App() {
   const [user, setUser] = useState(null);
@@ -95,8 +97,10 @@ export default function App() {
     const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', activeRoomId);
     const unsubscribeRoom = onSnapshot(roomRef, (snapshot) => { if (snapshot.exists()) setCurrentRoom({ id: snapshot.id, ...snapshot.data() }); });
     const expensesQuery = query(collection(db, 'artifacts', appId, 'public', 'data', 'expenses'), where('roomId', '==', activeRoomId));
+    
     const unsubscribeExpenses = onSnapshot(expensesQuery, (snapshot) => {
-      const roomRecords = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })).sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+      // 💡 核心修復：強制將 id: doc.id 放在最後面，徹底碾壓並修復資料庫中存在的假 ID！
+      const roomRecords = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })).sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
       setRecords(roomRecords);
     });
     return () => { unsubscribeRoom(); unsubscribeExpenses(); };
@@ -204,7 +208,6 @@ export default function App() {
     } catch (err) {}
   };
 
-  // 💡 終極修復：先強制擊殺眼前有問題的紀錄，再批次清掃未來的關聯紀錄
   const handleDeleteRecord = async (record) => {
     let deleteFuture = false;
     if (record.groupId) {
@@ -215,10 +218,8 @@ export default function App() {
     }
     
     try {
-      // 1. 強制優先刪除當下點擊的紀錄 (保證一定能刪掉那個幽靈)
       await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'expenses', record.id));
 
-      // 2. 如果選擇刪除未來，再進行批次刪除
       if (deleteFuture && record.groupId) {
         const futureRecords = records.filter(r => r.groupId === record.groupId && r.date > record.date && r.id !== record.id);
         if (futureRecords.length > 0) {
@@ -331,8 +332,8 @@ export default function App() {
                   {viewingRecord.type !== 'transfer' && <div className="flex justify-between border-b border-gray-100 pb-1.5 pt-1"><span className="text-gray-400">項目</span><span className="text-gray-800">{viewingRecord.title}</span></div>}
                   {viewingRecord.type !== 'transfer' && viewingRecord.merchant && viewingRecord.merchant !== '未指定' && <div className="flex justify-between border-b border-gray-100 pb-1.5 pt-1"><span className="text-gray-400">商家</span><span className="text-gray-800">{viewingRecord.merchant}</span></div>}
                   <div className="flex justify-between border-b border-gray-100 pb-1.5 pt-1"><span className="text-gray-400">花費對象</span><span className="text-gray-800">{Array.isArray(viewingRecord.payer) ? viewingRecord.payer.join(', ') : viewingRecord.payer}</span></div>
-                  {viewingRecord.method && viewingRecord.method !== '未指定' && <div className="flex justify-between border-b border-gray-100 pb-1.5 pt-1"><span className="text-gray-400">{viewingRecord.type === 'transfer' ? '轉出帳戶' : '付款方式'}</span><span className="text-gray-800">{viewingRecord.method}{viewingRecord.subMethod ? ` (${viewingRecord.subMethod})` : ''}</span></div>}
-                  {viewingRecord.type === 'transfer' && viewingRecord.transferToMethod && <div className="flex justify-between border-b border-gray-100 pb-1.5 pt-1"><span className="text-gray-400">轉入帳戶</span><span className="text-gray-800">{viewingRecord.transferToMethod}{viewingRecord.transferToSubMethod ? ` (${viewingRecord.transferToSubMethod})` : ''}</span></div>}
+                  {viewingRecord.method && viewingRecord.method !== '未指定' && <div className="flex justify-between border-b border-gray-100 pb-1.5 pt-1"><span className="text-gray-400">{viewingRecord.type === 'transfer' ? '轉出帳戶' : '付款方式'}</span><span className="text-gray-800">{renderMethodText(viewingRecord.method, viewingRecord.subMethod)}</span></div>}
+                  {viewingRecord.type === 'transfer' && viewingRecord.transferToMethod && <div className="flex justify-between border-b border-gray-100 pb-1.5 pt-1"><span className="text-gray-400">轉入帳戶</span><span className="text-gray-800">{renderMethodText(viewingRecord.transferToMethod, viewingRecord.transferToSubMethod)}</span></div>}
                   <div className="flex justify-between border-b border-gray-100 pb-1.5 pt-1"><span className="text-gray-400">付款人</span><span className={`${getRoleColorStyle(viewingRecord.addedByRole).lightBg} ${getRoleColorStyle(viewingRecord.addedByRole).text} px-2 py-0.5 rounded-md`}>{viewingRecord.addedByRole}</span></div>
                   {viewingRecord.excludeFromBalance && <div className="flex justify-between border-b border-gray-100 pb-1.5 pt-1"><span className="text-gray-400">計入總覽</span><span className="text-red-500 font-bold">不計入</span></div>}
                   
