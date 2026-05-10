@@ -1,6 +1,5 @@
 import React, { useState, useMemo, useContext, useRef } from 'react';
 import { Upload, Download, Settings, LogOut, Calendar, Search, X, PiggyBank, Wallet, Plus, BarChart, ChevronDown } from 'lucide-react';
-// 💡 引入 getPayerIcons
 import { AppContext, getRoomHeaderColor, toROCShortStrWithDay, getLocalTodayStr, getPayerIcons } from '../utils/helpers';
 import { RecordItem } from '../components/SharedUI';
 
@@ -47,7 +46,8 @@ const RoomView = ({
       if (homeFilterDate) return r.date === homeFilterDate;
       return true;
     });
-    return filtered.sort((a,b) => b.timestamp - a.timestamp);
+    // 💡 核心變更：由舊到新排列 (升冪排序)
+    return filtered.sort((a,b) => a.timestamp - b.timestamp);
   }, [records, searchQuery, homeFilterDate]);
 
   const displayRecords = allFilteredRecords.slice(0, displayCount);
@@ -64,7 +64,6 @@ const RoomView = ({
         <div className="flex justify-between items-center mb-1.5">
           <div className="flex flex-col text-white">
             <h1 className="text-[20px] font-black">{currentRoom?.name || '共同記帳本'}</h1>
-            {/* 💡 加入了 getPayerIcons */}
             <p className="text-[13px] opacity-90 font-bold">{getPayerIcons(currentUserRole)} {currentUserRole}</p>
           </div>
           <div className="flex items-center gap-1.5">
