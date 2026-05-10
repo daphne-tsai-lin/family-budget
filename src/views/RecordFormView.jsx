@@ -3,8 +3,8 @@ import { ChevronLeft, Save, Upload, Tag, Store, Receipt, Calendar, Settings, Ima
 import { collection, doc, writeBatch, deleteField } from 'firebase/firestore';
 import { db, appId } from '../firebase/firebaseConfig';
 import { CustomDropdown, MethodSelector, PillGroupMulti } from '../components/SharedUI';
-// 💡 從 helpers 引入 AppContext 確保安全連線
-import { AppContext, getLocalTodayStr, generateFutureDates, evaluateCalc, toROCYearStr } from '../utils/helpers';
+import { getLocalTodayStr, generateFutureDates, evaluateCalc, toROCYearStr } from '../utils/helpers';
+import { AppContext } from '../App';
 
 const RecordFormView = ({ recordToEdit, copyRecordData, onClose, setCrossRoomRecord }) => {
   const { user, activeRoomId, currentRoom, currentUserRole, records } = useContext(AppContext);
@@ -90,6 +90,11 @@ const RecordFormView = ({ recordToEdit, copyRecordData, onClose, setCrossRoomRec
       const baseData = { ...record, amount: parsedAmt, timestamp, roomId: activeRoomId, addedBy: user.uid, addedByRole: currentUserRole, groupId: newGroupId };
       if (record.type === 'transfer') baseData.excludeFromBalance = false;
 
+      // 💡 終極防呆 1：淨化陣列，將所有 undefined 的髒屬性徹底踢除，保證 Firestore 開心接收！
+      Object.keys(baseData).forEach(key => {
+        if (baseData[key] === undefined) delete baseData[key];
+      });
+
       let batch = writeBatch(db);
       let opsCount = 0;
 
@@ -118,14 +123,24 @@ const RecordFormView = ({ recordToEdit, copyRecordData, onClose, setCrossRoomRec
         }
       } else {
         const curRef = doc(db, 'artifacts', appId, 'public', 'data', 'expenses', recordToEdit.id);
-        if (!record.photoBase64 && oldRecord?.photoBase64) baseData.photoBase64 = deleteField();
         
+        // 💡 終極防呆 2：安全處理更新狀態
+        const updateData = { ...baseData, timestamp: oldRecord.timestamp || timestamp };
+        if (!record.photoBase64 && oldRecord?.photoBase64) {
+            updateData.photoBase64 = deleteField();
+        }
+
+        // 如果選擇「不變更未來」，就把它徹底降級成「單次」，不再和未來連動
         if (!updateFuture && oldWasPeriodic) {
-          baseData.frequency = '一次'; baseData.frequencyDays = []; baseData.frequencyInterval = ''; baseData.frequencyCustomText = ''; baseData.groupId = null;
+            updateData.frequency = '一次'; updateData.frequencyDays = []; updateData.frequencyInterval = ''; updateData.frequencyCustomText = ''; updateData.groupId = null;
         }
         
-        batch.update(curRef, { ...baseData, timestamp: oldRecord.timestamp }); 
+        batch.update(curRef, updateData); 
         opsCount++;
+
+        // 💡 終極防呆 3：未來的新紀錄絕對不能帶有 deleteField()，複製一份乾淨的底稿給未來用
+        const futureBaseData = { ...baseData };
+        delete futureBaseData.photoBase64;
 
         if (updateFuture && currentGroupId) {
           const futuresToDelete = records.filter(r => r.groupId === currentGroupId && r.date > oldRecord.date && r.id !== recordToEdit.id);
@@ -141,7 +156,7 @@ const RecordFormView = ({ recordToEdit, copyRecordData, onClose, setCrossRoomRec
             if (opsCount >= 490) await commitBatch();
             const [y, m, day] = d.split('-').map(Number);
             const safeTs = new Date(y, m - 1, day, 7, 0, 0).getTime();
-            batch.set(doc(collection(db, 'artifacts', appId, 'public', 'data', 'expenses')), { ...baseData, date: d, timestamp: safeTs });
+            batch.set(doc(collection(db, 'artifacts', appId, 'public', 'data', 'expenses')), { ...futureBaseData, date: d, timestamp: safeTs });
             opsCount++;
           }
         }
@@ -159,7 +174,7 @@ const RecordFormView = ({ recordToEdit, copyRecordData, onClose, setCrossRoomRec
         setCrossRoomRecord({ ...baseData, id: `auto_${Date.now()}` });
       }
       onClose();
-    } catch (err) { alert('儲存過程發生錯誤！'); } finally { setIsUploading(false); }
+    } catch (err) { alert('儲存過程發生錯誤：' + err.message); } finally { setIsUploading(false); }
   };
 
   const calcKeys = ['C', '(', ')', '÷', '7', '8', '9', '×', '4', '5', '6', '-', '1', '2', '3', '+', '0', '00', '.', '⌫'];
