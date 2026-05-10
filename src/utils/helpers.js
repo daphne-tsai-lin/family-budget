@@ -1,6 +1,5 @@
 import { createContext } from 'react';
 
-// 💡 全域資料庫
 export const AppContext = createContext(null);
 
 // ==========================================
@@ -102,42 +101,23 @@ export const toROCShortStrWithDay = (dateVal) => {
   return `${rocStr}${getDayOfWeek(dateVal)}`;
 };
 
-// 💡 智慧判斷家庭成員組合圖示 (依照指定邏輯客製化)
+// 💡 修正破圖問題：單人顯示圖案，兩人以上(含全家)一律安全降級為 👤
 export const getPayerIcons = (payers) => {
   if (!payers) return '👤';
   const p = Array.isArray(payers) ? payers : [payers];
 
-  // 1. 全家 (一男一女兩男孩) 或 剛好選了這四個人
-  if (p.includes('全家') || (p.includes('老公') && p.includes('老婆') && p.includes('恩恩') && p.includes('蔚蔚'))) {
-    return '👨‍👩‍👦‍👦';
+  // 超過1個人，或是選擇全家，一律給藍色人頭
+  if (p.length > 1 || p.includes('全家')) {
+    return '👤';
   }
 
-  // 2. 三人組合
-  if (p.length === 3) {
-    if (p.includes('老婆') && p.includes('恩恩') && p.includes('蔚蔚')) return '👩‍👦‍👦';
-    if (p.includes('老公') && p.includes('恩恩') && p.includes('蔚蔚')) return '👨‍👦‍👦';
-    if (p.includes('老公') && p.includes('老婆') && p.includes('恩恩')) return '👨‍👩‍👦';
-    if (p.includes('老公') && p.includes('老婆') && p.includes('蔚蔚')) return '👨‍👩‍👦';
-  }
+  // 只有單一人時，給予專屬圖示
+  if (p.includes('老公')) return '👨‍🦰';
+  if (p.includes('老婆')) return '👩‍🦰';
+  if (p.includes('恩恩')) return '👨‍🦱';
+  if (p.includes('蔚蔚')) return '👦';
 
-  // 3. 雙人組合
-  if (p.length === 2) {
-    if (p.includes('老公') && p.includes('老婆')) return '👫';
-    if (p.includes('老婆') && p.includes('恩恩')) return '👩‍👦';
-    if (p.includes('老公') && p.includes('恩恩')) return '👨‍👦';
-    if (p.includes('老婆') && p.includes('蔚蔚')) return '👩‍👦';
-    if (p.includes('老公') && p.includes('蔚蔚')) return '👨‍👦';
-    if (p.includes('恩恩') && p.includes('蔚蔚')) return '👦';
-  }
-
-  // 4. 單人 或 其他未涵蓋的動態組合
-  let icons = '';
-  if (p.includes('老公')) icons += '👨‍🦰';
-  if (p.includes('老婆')) icons += '👩‍🦰';
-  if (p.includes('恩恩')) icons += '👨‍🦱';
-  if (p.includes('蔚蔚')) icons += '👦';
-
-  return icons === '' ? '👤' : icons;
+  return '👤';
 };
 
 export const getRoleColorStyle = (role, index = 0) => {
