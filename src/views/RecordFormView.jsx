@@ -3,8 +3,8 @@ import { ChevronLeft, Save, Upload, Tag, Store, Receipt, Calendar, Settings, Ima
 import { collection, doc, writeBatch, deleteField } from 'firebase/firestore';
 import { db, appId } from '../firebase/firebaseConfig';
 import { CustomDropdown, MethodSelector, PillGroupMulti } from '../components/SharedUI';
-import { getLocalTodayStr, generateFutureDates, evaluateCalc, toROCYearStr } from '../utils/helpers';
-import { AppContext } from '../App';
+// 💡 核心修復：正確將路徑指向 helpers，徹底解決 Vercel 編譯失敗
+import { AppContext, getLocalTodayStr, generateFutureDates, evaluateCalc, toROCYearStr } from '../utils/helpers';
 
 const RecordFormView = ({ recordToEdit, copyRecordData, onClose, setCrossRoomRecord }) => {
   const { user, activeRoomId, currentRoom, currentUserRole, records } = useContext(AppContext);
@@ -20,7 +20,7 @@ const RecordFormView = ({ recordToEdit, copyRecordData, onClose, setCrossRoomRec
       category: currentRoom?.categories?.[0] || '🍔 飲食',
       title: '', merchant: '', method: '現金', subMethod: '', transferToMethod: '', transferToSubMethod: '',
       payer: ['全家'], note: '', photoBase64: '', excludeFromBalance: false,
-      frequency: '一次', frequencyDays: [], frequencyInterval: '2個月', frequencyCustomText: '10' // 💡 預設改為第一個選項
+      frequency: '一次', frequencyDays: [], frequencyInterval: '2個月', frequencyCustomText: '10'
     };
   });
 
@@ -250,7 +250,6 @@ const RecordFormView = ({ recordToEdit, copyRecordData, onClose, setCrossRoomRec
           {record.frequency === '區間' && (
             <div className="mb-3.5 bg-gray-50 p-3 rounded-xl border border-gray-100 shadow-sm">
               <div className="flex flex-wrap gap-1.5 mb-2">
-                {/* 💡 介面修正：加入「2個月」選項，共 5 個 */}
                 {['2個月', '3個月', '半年', '一年', '自訂'].map(opt => (
                   <button key={opt} type="button" onClick={() => setRecord(prev => ({...prev, frequencyInterval: opt}))} className={`px-2.5 py-1.5 rounded-lg text-[13px] font-bold transition-all ${record.frequencyInterval === opt ? 'bg-[#FFE28A] text-gray-800 shadow-sm border-2 border-[#FCD34D] transform -translate-y-0.5' : 'bg-white text-gray-500 border border-gray-100'}`}>{opt}</button>
                 ))}
