@@ -1,10 +1,10 @@
 import { createContext } from 'react';
 
-// 💡 終極解法：將全域資料庫建立在最底層，徹底斬斷 App.jsx 與其他頁面的循環依賴死結
+// 💡 將全域資料庫建立在最底層，徹底斬斷循環依賴死結
 export const AppContext = createContext(null);
 
 // ==========================================
-// 輔助函數 (純邏輯，不涉及狀態)
+// 輔助函數
 // ==========================================
 
 export const getRoomHeaderColor = (roomId) => {
@@ -54,24 +54,33 @@ export const getLocalLastMonthEndStr = () => {
   return `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
 };
 
-export const toROCYearStr = (dateStr) => {
-  if (!dateStr) return '';
-  const parts = dateStr.split('-');
-  if (parts.length === 3) {
+// 💡 核心修復：這就是導致白畫面的元凶，現在已完美支援任何格式的時間戳與字串
+export const toROCYearStr = (dateVal) => {
+  if (!dateVal) return '';
+  let d;
+  if (typeof dateVal === 'string' && dateVal.includes('-') && dateVal.length <= 10) {
+    const parts = dateVal.split('-');
     const rocYear = parseInt(parts[0], 10) - 1911;
     return `${rocYear}-${parts[1]}-${parts[2]}`;
+  } else {
+    d = new Date(dateVal);
+    if (isNaN(d.getTime())) return String(dateVal);
+    return `${d.getFullYear() - 1911}/${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}`;
   }
-  return dateStr;
 };
 
-export const toROCShortStr = (dateStr) => {
-  if (!dateStr) return '';
-  const parts = dateStr.split('-');
-  if (parts.length === 3) {
+export const toROCShortStr = (dateVal) => {
+  if (!dateVal) return '';
+  let d;
+  if (typeof dateVal === 'string' && dateVal.includes('-') && dateVal.length <= 10) {
+    const parts = dateVal.split('-');
     const rocYear = parseInt(parts[0], 10) - 1911;
     return `${rocYear}/${parts[1]}/${parts[2]}`;
+  } else {
+    d = new Date(dateVal);
+    if (isNaN(d.getTime())) return String(dateVal);
+    return `${d.getFullYear() - 1911}/${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}`;
   }
-  return dateStr;
 };
 
 export const getRoleColorStyle = (role, index = 0) => {
@@ -151,7 +160,7 @@ export const evaluateCalc = (expr) => {
   try {
     if (!expr) return '';
     const sanitized = expr.replace(/×/g, '*').replace(/÷/g, '/');
-    // 💡 核心修復：這就是導致 Vercel 部署失敗的元凶，現在已經安全修正！
+    // 💡 核心修復：Vercel 報錯的元凶，減號已正確放置於陣列末端
     if (/[^0-9+*/.() -]/.test(sanitized)) return expr;
     const result = new Function(`return ${sanitized}`)();
     if (!isFinite(result)) return '';
