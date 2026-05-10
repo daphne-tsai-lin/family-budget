@@ -1,3 +1,8 @@
+import { createContext } from 'react';
+
+// 💡 終極解法：將全域資料庫建立在最底層，徹底斬斷 App.jsx 與其他頁面的循環依賴死結
+export const AppContext = createContext(null);
+
 // ==========================================
 // 輔助函數 (純邏輯，不涉及狀態)
 // ==========================================
@@ -146,7 +151,7 @@ export const evaluateCalc = (expr) => {
   try {
     if (!expr) return '';
     const sanitized = expr.replace(/×/g, '*').replace(/÷/g, '/');
-    // 💡 已修正：安全符號範圍，不再報錯
+    // 💡 核心修復：這就是導致 Vercel 部署失敗的元凶，現在已經安全修正！
     if (/[^0-9+*/.() -]/.test(sanitized)) return expr;
     const result = new Function(`return ${sanitized}`)();
     if (!isFinite(result)) return '';
