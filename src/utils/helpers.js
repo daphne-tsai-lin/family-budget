@@ -1,5 +1,6 @@
 import { createContext } from 'react';
 
+// 💡 全域資料庫
 export const AppContext = createContext(null);
 
 // ==========================================
@@ -53,14 +54,14 @@ export const getLocalLastMonthEndStr = () => {
   return `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
 };
 
-// 💡 統一修正為斜線格式 (YYYY/MM/DD)
+// 💡 日期全面替換為斜線格式 (YYYY/MM/DD)
 export const toROCYearStr = (dateVal) => {
   if (!dateVal) return '';
   let d;
   if (typeof dateVal === 'string' && dateVal.includes('-') && dateVal.length <= 10) {
     const parts = dateVal.split('-');
     const rocYear = parseInt(parts[0], 10) - 1911;
-    return `${rocYear}/${parts[1]}/${parts[2]}`; 
+    return `${rocYear}/${parts[1]}/${parts[2]}`;
   } else {
     d = new Date(dateVal);
     if (isNaN(d.getTime())) return String(dateVal);
@@ -82,6 +83,7 @@ export const toROCShortStr = (dateVal) => {
   }
 };
 
+// 💡 提取星期幾的函式
 export const getDayOfWeek = (dateStr) => {
   if (!dateStr) return '';
   const d = new Date(dateStr);
@@ -90,6 +92,7 @@ export const getDayOfWeek = (dateStr) => {
   return `(${days[d.getDay()]})`;
 };
 
+// 💡 帶有星期的年份字串
 export const toROCYearStrWithDay = (dateVal) => {
   const rocStr = toROCYearStr(dateVal);
   if (!rocStr) return '';
@@ -102,37 +105,23 @@ export const toROCShortStrWithDay = (dateVal) => {
   return `${rocStr}${getDayOfWeek(dateVal)}`;
 };
 
+// 💡 智慧判斷家庭成員組合圖示 (防破圖安全降級版)
 export const getPayerIcons = (payers) => {
   if (!payers) return '👤';
   const p = Array.isArray(payers) ? payers : [payers];
 
-  if (p.includes('全家') || (p.includes('老公') && p.includes('老婆') && p.includes('恩恩') && p.includes('蔚蔚'))) {
-    return '👨‍👩‍👦‍👦';
+  // 超過 1 個人，或是選擇全家，一律給藍色人頭，防止手機 Emoji 破圖黑掉
+  if (p.length > 1 || p.includes('全家')) {
+    return '👤';
   }
 
-  if (p.length === 3) {
-    if (p.includes('老婆') && p.includes('恩恩') && p.includes('蔚蔚')) return '👩‍👦‍👦';
-    if (p.includes('老公') && p.includes('恩恩') && p.includes('蔚蔚')) return '👨‍👦‍👦';
-    if (p.includes('老公') && p.includes('老婆') && p.includes('恩恩')) return '👨‍👩‍👦';
-    if (p.includes('老公') && p.includes('老婆') && p.includes('蔚蔚')) return '👨‍👩‍👦';
-  }
+  // 只有單一人時，給予客製化專屬圖示
+  if (p.includes('老公')) return '👨‍🦰';
+  if (p.includes('老婆')) return '👩‍🦰';
+  if (p.includes('恩恩')) return '👨‍🦱';
+  if (p.includes('蔚蔚')) return '👦';
 
-  if (p.length === 2) {
-    if (p.includes('老公') && p.includes('老婆')) return '👫';
-    if (p.includes('老婆') && p.includes('恩恩')) return '👩‍👦';
-    if (p.includes('老公') && p.includes('恩恩')) return '👨‍👦';
-    if (p.includes('老婆') && p.includes('蔚蔚')) return '👩‍👦';
-    if (p.includes('老公') && p.includes('蔚蔚')) return '👨‍👦';
-    if (p.includes('恩恩') && p.includes('蔚蔚')) return '👦';
-  }
-
-  let icons = '';
-  if (p.includes('老公')) icons += '👨‍🦰';
-  if (p.includes('老婆')) icons += '👩‍🦰';
-  if (p.includes('恩恩')) icons += '👨‍🦱';
-  if (p.includes('蔚蔚')) icons += '👦';
-
-  return icons === '' ? '👤' : icons;
+  return '👤';
 };
 
 export const getRoleColorStyle = (role, index = 0) => {
@@ -189,6 +178,7 @@ export const generateFutureDates = (startDateStr, freq, days, interval, customDa
     let addDays = 0;
     if (interval === '自訂') {
         addDays = parseInt(customDays, 10);
+        // 💡 防呆機制：避免輸入非數字字串導致當機
         if (isNaN(addDays) || addDays <= 0) addDays = 1; 
     }
     else if (interval === '2個月') addDays = 60;
