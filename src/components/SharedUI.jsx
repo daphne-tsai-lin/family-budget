@@ -1,6 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Pencil, Trash2, ArrowUp, ArrowDown, Send, Check } from 'lucide-react';
-// 💡 加入 getPayerIcons
 import { getRoleColorStyle, toROCYearStrWithDay, getPayerIcons } from '../utils/helpers';
 
 export const SettingBlock = ({ title, items, onUpdate, themeClass, spanClass, btnClass, placeholder }) => {
@@ -330,17 +329,17 @@ export const RecordItem = ({ exp, idx, currentUserRole, isSortable = false, hide
                             </span>
                         </>
                     )}
+                    {/* 💡 核心優化：將轉帳文字字距微調並加入 truncate 截斷機制，保證永不換行撐開 */}
                     {isTransfer && (
                         <>
                             <span className={`font-bold text-[11px] px-1.5 py-0.5 rounded border shrink-0 ${exp.excludeFromBalance ? 'text-gray-500 bg-gray-50 border-gray-200' : 'bg-blue-50 text-blue-600 border-blue-100'}`}>
                                 轉帳
                             </span>
-                            <span className={`font-black text-black text-[14px] sm:text-[15px] ${exp.excludeFromBalance ? 'text-gray-500 line-through decoration-gray-400' : ''}`}>
-                                {renderMethodText(exp.method, exp.subMethod)}  ➜  {renderMethodText(exp.transferToMethod, exp.transferToSubMethod)}
+                            <span className={`font-black text-black text-[12px] sm:text-[13px] tracking-tighter max-w-[160px] sm:max-w-[200px] truncate ${exp.excludeFromBalance ? 'text-gray-500 line-through decoration-gray-400' : ''}`} title={`${renderMethodText(exp.method, exp.subMethod)} → ${renderMethodText(exp.transferToMethod, exp.transferToSubMethod)}`}>
+                                {renderMethodText(exp.method, exp.subMethod)}→{renderMethodText(exp.transferToMethod, exp.transferToSubMethod)}
                             </span>
                         </>
                     )}
-                    {/* 💡 花費對象加入自動家庭圖示 */}
                     {payerStr && payerStr !== '未指定' && <span className={`text-[11px] font-bold bg-white px-1.5 py-0.5 rounded border border-gray-200 ${exp.excludeFromBalance ? 'text-gray-400' : 'text-gray-500'}`}> {getPayerIcons(exp.payer)}  {payerStr}</span>}
                     {!isTransfer && exp.method && exp.method !== '未指定' && <span className={`text-[11px] font-bold bg-white px-1.5 py-0.5 rounded border border-gray-200 ${exp.excludeFromBalance ? 'text-gray-400' : 'text-gray-500'}`}> 💳  {renderMethodText(exp.method, exp.subMethod)}</span>}
                     {exp.merchant && exp.merchant !== '未指定' && <span className={`text-[11px] font-bold bg-white px-1.5 py-0.5 rounded border border-gray-200 ${exp.excludeFromBalance ? 'text-gray-400' : 'text-gray-500'}`}> 🏪  {exp.merchant}</span>}
