@@ -15,7 +15,6 @@ const RecordFormView = ({ recordToEdit, copyRecordData, onClose, setCrossRoomRec
       return { ...rest, date: defaultDate || getLocalTodayStr() };
     }
     return {
-      // 💡 修正：主分類預設清空！
       type: 'expense', amount: '', date: defaultDate || getLocalTodayStr(),
       category: '',
       title: '', merchant: '', method: '現金', subMethod: '', transferToMethod: '', transferToSubMethod: '',
@@ -215,7 +214,7 @@ const RecordFormView = ({ recordToEdit, copyRecordData, onClose, setCrossRoomRec
         <div role="button" tabIndex={0} className={`w-full block bg-white rounded-2xl pt-2.5 pb-2 px-4 shadow-sm border-2 ${themeBorder} text-center relative overflow-hidden cursor-pointer active:scale-[0.98] transition-transform select-none`} onClick={() => { setCalcInput(String(amount || '0')); setShowCalc(true); }}>
           <div className={`absolute top-0 left-0 w-full h-1.5 ${themeBg} opacity-20`}></div>
           <p className={`${themeText} font-extrabold text-[13px] mb-1 flex items-center justify-center gap-1.5`}>輸入金額 💰 <span className="bg-gray-50 border border-gray-100 px-2 py-0.5 rounded text-[10px] text-gray-400 flex items-center gap-1"><Calculator size={12}/> 點擊計算</span></p>
-          <div className={`text-center text-[36px] leading-none font-black w-full text-gray-800 py-1 tracking-tight`}>{amount === '' || amount === 0 ? '0' : Number(amount).toLocaleString()}</div>
+          <div className={`text-center text-[36px] leading-none font-black w-full text-gray-800 py-1 tracking-tight overflow-x-auto whitespace-nowrap scrollbar-hide`}>{amount === '' || amount === 0 ? '0' : Number(amount).toLocaleString()}</div>
         </div>
 
         <div className={`bg-white rounded-2xl p-4 shadow-sm border-2 ${themeBorder}`}>
@@ -224,7 +223,6 @@ const RecordFormView = ({ recordToEdit, copyRecordData, onClose, setCrossRoomRec
               <label className="flex items-center justify-between text-[14px] font-bold text-gray-500 mb-2 ml-1 w-full pr-1">
                 <span className="flex items-center gap-1.5">
                   <Calendar size={16} className="text-gray-400" /> 日期 🗓️
-                  {/* 💡 修改為您的直列要求 */}
                   {isNotToday && (
                     <div className="bg-red-100 text-red-600 px-1 py-0.5 rounded-[4px] text-[10px] font-black animate-pulse shadow-sm flex flex-col items-center leading-[1.1] ml-0.5 border border-red-200">
                       <span>非</span><span>今</span><span>日</span>
@@ -356,7 +354,7 @@ const RecordFormView = ({ recordToEdit, copyRecordData, onClose, setCrossRoomRec
               <span className="text-gray-500 font-bold text-[14px] flex items-center gap-1.5"><Calculator size={16}/> 智慧計算機</span>
               <button onClick={() => { setAmount(evaluateCalc(calcInput)); setShowCalc(false); }} className="text-gray-500 bg-gray-200 hover:bg-gray-300 rounded-full p-1.5 transition"><X size={16}/></button>
             </div>
-            <div className="text-right text-[38px] font-black text-gray-800 mb-4 overflow-x-auto whitespace-nowrap pb-1.5 border-b-2 border-gray-200 tracking-wider">{calcInput}</div>
+            <div className="text-right text-[38px] font-black text-gray-800 mb-4 overflow-x-auto whitespace-nowrap pb-1.5 border-b-2 border-gray-200 tracking-wider scrollbar-hide">{calcInput}</div>
             <div className="grid grid-cols-4 gap-2">
               {calcKeys.map(k => (
                 <button key={k} onClick={() => {
