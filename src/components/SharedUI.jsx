@@ -302,7 +302,6 @@ export const renderMethodText = (method, subMethod) => {
     return `${method}${subMethod ? `(${subMethod})` : ''}`;
 };
 
-// 💡 核心版面優化：所有資訊放進同一個 flex-wrap 容器，完美接續不斷層！
 export const RecordItem = ({ exp, idx, currentUserRole, isSortable = false, hideActions = false, onRecordClick, handleMoveRecord, openEditForm, setCrossRoomRecord }) => {
     const isIncome = exp.type === 'income', isTransfer = exp.type === 'transfer';
     const payerStr = Array.isArray(exp.payer) ? exp.payer.join(', ') : exp.payer;
@@ -320,34 +319,34 @@ export const RecordItem = ({ exp, idx, currentUserRole, isSortable = false, hide
                     {exp.excludeFromBalance && <span className="bg-gray-200 text-gray-500 px-1.5 py-0.5 rounded text-[10px] shrink-0">不計入</span>}
                 </div>
 
-                {/* 第二行：所有詳細資訊 (付款人/頻率/分類/標題/對象)，用 flex-wrap 完美接續 */}
+                {/* 💡 核心優化：第二行，完美接續順序 (付款人 -> 頻率 -> 標籤 -> 對象 -> 細節) */}
                 <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 mt-0.5 leading-tight">
-                    {/* 付款人 */}
+                    {/* 1. 付款人 */}
                     {exp.addedByRole && <span className={`${getRoleColorStyle(exp.addedByRole).lightBg} ${getRoleColorStyle(exp.addedByRole).text} border ${getRoleColorStyle(exp.addedByRole).lightBorder} px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0`}>{exp.addedByRole}</span>}
                     
-                    {/* 頻率 */}
+                    {/* 2. 頻率 */}
                     <span className="bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0">{freqDisplay || '一次'}</span>
 
-                    {/* 類型標籤 */}
+                    {/* 3. 類型標籤 */}
                     {isTransfer ? (
                         <span className={`font-bold text-[11px] px-1.5 py-0.5 rounded border shrink-0 bg-blue-50 text-blue-600 border-blue-100`}>轉帳</span>
                     ) : (
                         <span className={`font-bold text-[11px] px-1.5 py-0.5 rounded border shrink-0 ${exp.excludeFromBalance ? 'text-gray-500 bg-gray-50 border-gray-200' : isIncome ? 'bg-green-50 text-green-600 border-green-100' : 'bg-orange-50 text-orange-600 border-orange-100'}`}>{exp.category}</span>
                     )}
 
-                    {/* 標題 / 轉帳路徑 (智慧截斷防撐破) */}
+                    {/* 4. 對象 (包含動態圖示) */}
+                    {payerStr && payerStr !== '未指定' && <span className={`text-[11px] font-bold bg-white px-1.5 py-0.5 rounded border border-gray-200 flex items-center gap-0.5 shrink-0 ${exp.excludeFromBalance ? 'text-gray-400' : 'text-gray-500'}`}><span>{getPayerIcons(exp.payer)}</span><span>{payerStr}</span></span>}
+
+                    {/* 5. 標題 / 轉帳路徑 (解除 truncate 與 maxWidth，顯示完整內容) */}
                     {isTransfer ? (
-                        <span className={`font-black text-black text-[12px] sm:text-[13px] tracking-tighter truncate max-w-[130px] sm:max-w-[160px] shrink-0 ${exp.excludeFromBalance ? 'text-gray-500 line-through decoration-gray-400' : ''}`} title={`${renderMethodText(exp.method, exp.subMethod)} → ${renderMethodText(exp.transferToMethod, exp.transferToSubMethod)}`}>
+                        <span className={`font-black text-black text-[12px] sm:text-[13px] tracking-tighter ${exp.excludeFromBalance ? 'text-gray-500 line-through decoration-gray-400' : ''}`}>
                             {renderMethodText(exp.method, exp.subMethod)}→{renderMethodText(exp.transferToMethod, exp.transferToSubMethod)}
                         </span>
                     ) : (
-                        <span className={`font-black text-black text-[14px] sm:text-[15px] truncate max-w-[140px] shrink-0 ${exp.excludeFromBalance ? 'text-gray-500 line-through decoration-gray-400' : ''}`}>{exp.title}</span>
+                        <span className={`font-black text-black text-[14px] sm:text-[15px] ${exp.excludeFromBalance ? 'text-gray-500 line-through decoration-gray-400' : ''}`}>{exp.title}</span>
                     )}
 
-                    {/* 對象 (包含動態圖示) */}
-                    {payerStr && payerStr !== '未指定' && <span className={`text-[11px] font-bold bg-white px-1.5 py-0.5 rounded border border-gray-200 flex items-center gap-0.5 shrink-0 ${exp.excludeFromBalance ? 'text-gray-400' : 'text-gray-500'}`}><span>{getPayerIcons(exp.payer)}</span><span>{payerStr}</span></span>}
-
-                    {/* 其他資訊 */}
+                    {/* 6. 其他資訊 */}
                     {!isTransfer && exp.method && exp.method !== '未指定' && <span className={`text-[11px] font-bold bg-white px-1.5 py-0.5 rounded border border-gray-200 shrink-0 ${exp.excludeFromBalance ? 'text-gray-400' : 'text-gray-500'}`}>💳 {renderMethodText(exp.method, exp.subMethod)}</span>}
                     {exp.merchant && exp.merchant !== '未指定' && <span className={`text-[11px] font-bold bg-white px-1.5 py-0.5 rounded border border-gray-200 shrink-0 ${exp.excludeFromBalance ? 'text-gray-400' : 'text-gray-500'}`}>🏪 {exp.merchant}</span>}
                     {exp.note && <span className={`text-[11px] font-bold bg-[#FFFDF9] px-1.5 py-0.5 rounded border border-[#F2EFE9] max-w-[100px] truncate shrink-0 ${exp.excludeFromBalance ? 'text-gray-400' : 'text-gray-500'}`}>📝 {exp.note}</span>}
@@ -355,7 +354,6 @@ export const RecordItem = ({ exp, idx, currentUserRole, isSortable = false, hide
                 </div>
             </div>
             
-            {/* 價錢與動作按鈕 */}
             <div className="flex flex-col items-end shrink-0 pt-0.5 pl-1">
                 <span className={`font-black text-[20px] sm:text-[22px] ${exp.excludeFromBalance ? 'text-gray-400 line-through decoration-gray-300' : isIncome ? 'text-green-500' : isTransfer ? 'text-blue-500' : 'text-gray-800'}`}>{isIncome ? '+' : isTransfer ? ' ⇆ ' : '-'}${exp.amount.toLocaleString()}</span>
                 {!hideActions && (
