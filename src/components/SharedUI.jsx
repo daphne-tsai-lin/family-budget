@@ -302,6 +302,7 @@ export const renderMethodText = (method, subMethod) => {
     return `${method}${subMethod ? `(${subMethod})` : ''}`;
 };
 
+// 💡 核心版面優化：所有資訊放進同一個 flex-wrap 容器，完美接續不斷層！
 export const RecordItem = ({ exp, idx, currentUserRole, isSortable = false, hideActions = false, onRecordClick, handleMoveRecord, openEditForm, setCrossRoomRecord }) => {
     const isIncome = exp.type === 'income', isTransfer = exp.type === 'transfer';
     const payerStr = Array.isArray(exp.payer) ? exp.payer.join(', ') : exp.payer;
@@ -312,41 +313,49 @@ export const RecordItem = ({ exp, idx, currentUserRole, isSortable = false, hide
         <div key={exp.id} onClick={() => onRecordClick(exp)} className={`bg-white p-2.5 rounded-2xl shadow-sm border ${exp.excludeFromBalance ? 'border-gray-200 opacity-80' : 'border-gray-100'} flex justify-between items-start group relative hover:shadow-md transition duration-300 cursor-pointer`}>
             <div className={`absolute left-0 top-1/2 -translate-y-1/2 h-1/2 w-1 rounded-r-md ${isIncome ? 'bg-green-400' : isTransfer ? 'bg-blue-400' : 'bg-orange-400'}`}></div>
             <div className="flex-1 pl-2.5 pr-2 overflow-hidden flex flex-col justify-center py-1">
-                <div className="flex flex-wrap items-center gap-1.5 mb-0.5">
-                    <span className="text-[11px] font-bold text-gray-400">{toROCYearStrWithDay(exp.timestamp ? new Date(exp.timestamp).toISOString().split('T')[0] : exp.date)} {exp.timestamp ? new Date(exp.timestamp).toLocaleTimeString('zh-TW', { hour12: false, hour: '2-digit', minute: '2-digit' }) : ''}</span>
-                    {exp.addedByRole && <span className={`${getRoleColorStyle(exp.addedByRole).lightBg} ${getRoleColorStyle(exp.addedByRole).text} border ${getRoleColorStyle(exp.addedByRole).lightBorder} px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0`}>{exp.addedByRole}</span>}
-                    <span className="bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0">{freqDisplay || '一次'}</span>
-                    {exp.excludeFromBalance && <span className="bg-gray-200 text-gray-500 px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0">不計入</span>}
+                
+                {/* 第一行：日期與時間 */}
+                <div className="flex items-center gap-1.5 mb-0.5 text-[11px] font-bold text-gray-400">
+                    <span>{toROCYearStrWithDay(exp.timestamp ? new Date(exp.timestamp).toISOString().split('T')[0] : exp.date)} {exp.timestamp ? new Date(exp.timestamp).toLocaleTimeString('zh-TW', { hour12: false, hour: '2-digit', minute: '2-digit' }) : ''}</span>
+                    {exp.excludeFromBalance && <span className="bg-gray-200 text-gray-500 px-1.5 py-0.5 rounded text-[10px] shrink-0">不計入</span>}
                 </div>
-                <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 mt-0.5">
-                    {!isTransfer && (
-                        <>
-                            <span className={`font-bold text-[11px] px-1.5 py-0.5 rounded border shrink-0 ${exp.excludeFromBalance ? 'text-gray-500 bg-gray-50 border-gray-200' : isIncome ? 'bg-green-50 text-green-600 border-green-100' : 'bg-orange-50 text-orange-600 border-orange-100'}`}>
-                                {exp.category}
-                            </span>
-                            <span className={`font-black text-black text-[14px] sm:text-[15px] ${exp.excludeFromBalance ? 'text-gray-500 line-through decoration-gray-400' : ''}`}>
-                                {exp.title}
-                            </span>
-                        </>
+
+                {/* 第二行：所有詳細資訊 (付款人/頻率/分類/標題/對象)，用 flex-wrap 完美接續 */}
+                <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 mt-0.5 leading-tight">
+                    {/* 付款人 */}
+                    {exp.addedByRole && <span className={`${getRoleColorStyle(exp.addedByRole).lightBg} ${getRoleColorStyle(exp.addedByRole).text} border ${getRoleColorStyle(exp.addedByRole).lightBorder} px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0`}>{exp.addedByRole}</span>}
+                    
+                    {/* 頻率 */}
+                    <span className="bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0">{freqDisplay || '一次'}</span>
+
+                    {/* 類型標籤 */}
+                    {isTransfer ? (
+                        <span className={`font-bold text-[11px] px-1.5 py-0.5 rounded border shrink-0 bg-blue-50 text-blue-600 border-blue-100`}>轉帳</span>
+                    ) : (
+                        <span className={`font-bold text-[11px] px-1.5 py-0.5 rounded border shrink-0 ${exp.excludeFromBalance ? 'text-gray-500 bg-gray-50 border-gray-200' : isIncome ? 'bg-green-50 text-green-600 border-green-100' : 'bg-orange-50 text-orange-600 border-orange-100'}`}>{exp.category}</span>
                     )}
-                    {/* 💡 核心優化：將轉帳文字字距微調並加入 truncate 截斷機制，保證永不換行撐開 */}
-                    {isTransfer && (
-                        <>
-                            <span className={`font-bold text-[11px] px-1.5 py-0.5 rounded border shrink-0 ${exp.excludeFromBalance ? 'text-gray-500 bg-gray-50 border-gray-200' : 'bg-blue-50 text-blue-600 border-blue-100'}`}>
-                                轉帳
-                            </span>
-                            <span className={`font-black text-black text-[12px] sm:text-[13px] tracking-tighter max-w-[160px] sm:max-w-[200px] truncate ${exp.excludeFromBalance ? 'text-gray-500 line-through decoration-gray-400' : ''}`} title={`${renderMethodText(exp.method, exp.subMethod)} → ${renderMethodText(exp.transferToMethod, exp.transferToSubMethod)}`}>
-                                {renderMethodText(exp.method, exp.subMethod)}→{renderMethodText(exp.transferToMethod, exp.transferToSubMethod)}
-                            </span>
-                        </>
+
+                    {/* 標題 / 轉帳路徑 (智慧截斷防撐破) */}
+                    {isTransfer ? (
+                        <span className={`font-black text-black text-[12px] sm:text-[13px] tracking-tighter truncate max-w-[130px] sm:max-w-[160px] shrink-0 ${exp.excludeFromBalance ? 'text-gray-500 line-through decoration-gray-400' : ''}`} title={`${renderMethodText(exp.method, exp.subMethod)} → ${renderMethodText(exp.transferToMethod, exp.transferToSubMethod)}`}>
+                            {renderMethodText(exp.method, exp.subMethod)}→{renderMethodText(exp.transferToMethod, exp.transferToSubMethod)}
+                        </span>
+                    ) : (
+                        <span className={`font-black text-black text-[14px] sm:text-[15px] truncate max-w-[140px] shrink-0 ${exp.excludeFromBalance ? 'text-gray-500 line-through decoration-gray-400' : ''}`}>{exp.title}</span>
                     )}
-                    {payerStr && payerStr !== '未指定' && <span className={`text-[11px] font-bold bg-white px-1.5 py-0.5 rounded border border-gray-200 ${exp.excludeFromBalance ? 'text-gray-400' : 'text-gray-500'}`}> {getPayerIcons(exp.payer)}  {payerStr}</span>}
-                    {!isTransfer && exp.method && exp.method !== '未指定' && <span className={`text-[11px] font-bold bg-white px-1.5 py-0.5 rounded border border-gray-200 ${exp.excludeFromBalance ? 'text-gray-400' : 'text-gray-500'}`}> 💳  {renderMethodText(exp.method, exp.subMethod)}</span>}
-                    {exp.merchant && exp.merchant !== '未指定' && <span className={`text-[11px] font-bold bg-white px-1.5 py-0.5 rounded border border-gray-200 ${exp.excludeFromBalance ? 'text-gray-400' : 'text-gray-500'}`}> 🏪  {exp.merchant}</span>}
-                    {exp.photoBase64 && <span className="shrink-0 w-[18px] h-[18px] rounded overflow-hidden shadow-sm inline-block border border-gray-200" title="此紀錄附有照片"><img src={exp.photoBase64} alt="圖" className="w-full h-full object-cover" /></span>}
-                    {exp.note && <span className={`text-[11px] font-bold bg-[#FFFDF9] px-1.5 py-0.5 rounded border border-[#F2EFE9] max-w-[120px] truncate ${exp.excludeFromBalance ? 'text-gray-400' : 'text-gray-500'}`}> 📝  {exp.note}</span>}
+
+                    {/* 對象 (包含動態圖示) */}
+                    {payerStr && payerStr !== '未指定' && <span className={`text-[11px] font-bold bg-white px-1.5 py-0.5 rounded border border-gray-200 flex items-center gap-0.5 shrink-0 ${exp.excludeFromBalance ? 'text-gray-400' : 'text-gray-500'}`}><span>{getPayerIcons(exp.payer)}</span><span>{payerStr}</span></span>}
+
+                    {/* 其他資訊 */}
+                    {!isTransfer && exp.method && exp.method !== '未指定' && <span className={`text-[11px] font-bold bg-white px-1.5 py-0.5 rounded border border-gray-200 shrink-0 ${exp.excludeFromBalance ? 'text-gray-400' : 'text-gray-500'}`}>💳 {renderMethodText(exp.method, exp.subMethod)}</span>}
+                    {exp.merchant && exp.merchant !== '未指定' && <span className={`text-[11px] font-bold bg-white px-1.5 py-0.5 rounded border border-gray-200 shrink-0 ${exp.excludeFromBalance ? 'text-gray-400' : 'text-gray-500'}`}>🏪 {exp.merchant}</span>}
+                    {exp.note && <span className={`text-[11px] font-bold bg-[#FFFDF9] px-1.5 py-0.5 rounded border border-[#F2EFE9] max-w-[100px] truncate shrink-0 ${exp.excludeFromBalance ? 'text-gray-400' : 'text-gray-500'}`}>📝 {exp.note}</span>}
+                    {exp.photoBase64 && <span className="shrink-0 w-[18px] h-[18px] rounded overflow-hidden shadow-sm inline-block border border-gray-200"><img src={exp.photoBase64} alt="圖" className="w-full h-full object-cover" /></span>}
                 </div>
             </div>
+            
+            {/* 價錢與動作按鈕 */}
             <div className="flex flex-col items-end shrink-0 pt-0.5 pl-1">
                 <span className={`font-black text-[20px] sm:text-[22px] ${exp.excludeFromBalance ? 'text-gray-400 line-through decoration-gray-300' : isIncome ? 'text-green-500' : isTransfer ? 'text-blue-500' : 'text-gray-800'}`}>{isIncome ? '+' : isTransfer ? ' ⇆ ' : '-'}${exp.amount.toLocaleString()}</span>
                 {!hideActions && (
