@@ -131,16 +131,20 @@ export default function App() {
 
   const handleBackup = useCallback(() => {
     if (!records || records.length === 0) return alert('目前沒有資料可以備份喔！');
+    const dateStamp = getLocalTodayStr().replace(/-/g, '');
+    const roomDisplayName = currentRoom?.name || '未命名房間';
+    const finalFileName = `${dateStamp}_${roomDisplayName}_備份.json`;
+
     const blob = new Blob([JSON.stringify(records, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const downloadAnchorNode = document.createElement('a');
     downloadAnchorNode.href = url;
-    downloadAnchorNode.download = `expense_backup_${getLocalTodayStr()}.json`;
+    downloadAnchorNode.download = finalFileName;
     document.body.appendChild(downloadAnchorNode);
     downloadAnchorNode.click();
     document.body.removeChild(downloadAnchorNode);
     URL.revokeObjectURL(url);
-  }, [records]);
+  }, [records, currentRoom]);
 
   const handleJoinRoom = async (e) => {
     e.preventDefault(); setErrorMsg('');
@@ -156,7 +160,7 @@ export default function App() {
         const newRooms = [{ id: roomCode, name: data.name, pin: roomPin, role: currentUserRole }, ...savedRooms.filter(r => r.id !== roomCode)].slice(0, 5);
         localStorage.setItem('expenseApp_savedRooms', JSON.stringify(newRooms));
         setSavedRooms(newRooms); setActiveRoomId(roomCode); setHomeFilterDate(getLocalTodayStr()); setView('room');
-        setRoomCode(''); setRoomPin(''); 
+        setRoomCode(''); setRoomPin('');
       }
     } catch (err) { setErrorMsg('加入失敗'); } finally { setIsLoading(false); }
   };
@@ -168,7 +172,7 @@ export default function App() {
       if (roomSnap.exists() && roomSnap.data().pin === savedRoom.pin) {
         let role = savedRoom.role || '其他家人'; setCurrentUserRole(role);
         setActiveRoomId(savedRoom.id); setHomeFilterDate(getLocalTodayStr()); setView('room');
-        setRoomCode(''); setRoomPin(''); 
+        setRoomCode(''); setRoomPin('');
       } else { setErrorMsg('密碼可能已被更改'); }
     } catch(err) { setErrorMsg('連線失敗'); } finally { setIsLoading(false); }
   };
@@ -195,13 +199,12 @@ export default function App() {
       const newRooms = [{ id: roomCode, name: roomName, pin: roomPin, role: currentUserRole }, ...savedRooms.filter(r => r.id !== roomCode)].slice(0, 5);
       localStorage.setItem('expenseApp_savedRooms', JSON.stringify(newRooms));
       setSavedRooms(newRooms); setActiveRoomId(roomCode); setHomeFilterDate(getLocalTodayStr()); setView('room');
-      setRoomCode(''); setRoomPin(''); setRoomName(''); 
+      setRoomCode(''); setRoomPin(''); setRoomName('');
     } catch (err) { setErrorMsg('建立失敗'); } finally { setIsLoading(false); }
   };
 
   const handleMoveRecord = async (index, direction) => {
     const displayRecs = searchQuery ? records.filter(r => r.date <= getLocalTodayStr() && JSON.stringify(r).toLowerCase().includes(searchQuery.toLowerCase())) : records.filter(r => r.date === homeFilterDate);
-    // 💡 同步大腦的排序邏輯為升冪 (舊到新)，與首頁畫面完全一致！
     displayRecs.sort((a, b) => a.timestamp - b.timestamp);
 
     if (index + direction < 0 || index + direction >= displayRecs.length) return;
@@ -211,7 +214,6 @@ export default function App() {
     let newTarTs = currentTx.timestamp;
 
     if (newCurTs === newTarTs) {
-      // 💡 偏移反轉：因為由舊到新(時間戳小到大)，往上移(direction=-1)代表時間戳要變更小！
       if (direction === -1) { newCurTs -= 10; newTarTs += 10; } 
       else { newCurTs += 10; newTarTs -= 10; }
     }
