@@ -53,13 +53,14 @@ export const getLocalLastMonthEndStr = () => {
   return `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
 };
 
+// 💡 統一修正為斜線格式 (YYYY/MM/DD)
 export const toROCYearStr = (dateVal) => {
   if (!dateVal) return '';
   let d;
   if (typeof dateVal === 'string' && dateVal.includes('-') && dateVal.length <= 10) {
     const parts = dateVal.split('-');
     const rocYear = parseInt(parts[0], 10) - 1911;
-    return `${rocYear}-${parts[1]}-${parts[2]}`;
+    return `${rocYear}/${parts[1]}/${parts[2]}`; 
   } else {
     d = new Date(dateVal);
     if (isNaN(d.getTime())) return String(dateVal);
@@ -101,23 +102,37 @@ export const toROCShortStrWithDay = (dateVal) => {
   return `${rocStr}${getDayOfWeek(dateVal)}`;
 };
 
-// 💡 修正破圖問題：單人顯示圖案，兩人以上(含全家)一律安全降級為 👤
 export const getPayerIcons = (payers) => {
   if (!payers) return '👤';
   const p = Array.isArray(payers) ? payers : [payers];
 
-  // 超過1個人，或是選擇全家，一律給藍色人頭
-  if (p.length > 1 || p.includes('全家')) {
-    return '👤';
+  if (p.includes('全家') || (p.includes('老公') && p.includes('老婆') && p.includes('恩恩') && p.includes('蔚蔚'))) {
+    return '👨‍👩‍👦‍👦';
   }
 
-  // 只有單一人時，給予專屬圖示
-  if (p.includes('老公')) return '👨‍🦰';
-  if (p.includes('老婆')) return '👩‍🦰';
-  if (p.includes('恩恩')) return '👨‍🦱';
-  if (p.includes('蔚蔚')) return '👦';
+  if (p.length === 3) {
+    if (p.includes('老婆') && p.includes('恩恩') && p.includes('蔚蔚')) return '👩‍👦‍👦';
+    if (p.includes('老公') && p.includes('恩恩') && p.includes('蔚蔚')) return '👨‍👦‍👦';
+    if (p.includes('老公') && p.includes('老婆') && p.includes('恩恩')) return '👨‍👩‍👦';
+    if (p.includes('老公') && p.includes('老婆') && p.includes('蔚蔚')) return '👨‍👩‍👦';
+  }
 
-  return '👤';
+  if (p.length === 2) {
+    if (p.includes('老公') && p.includes('老婆')) return '👫';
+    if (p.includes('老婆') && p.includes('恩恩')) return '👩‍👦';
+    if (p.includes('老公') && p.includes('恩恩')) return '👨‍👦';
+    if (p.includes('老婆') && p.includes('蔚蔚')) return '👩‍👦';
+    if (p.includes('老公') && p.includes('蔚蔚')) return '👨‍👦';
+    if (p.includes('恩恩') && p.includes('蔚蔚')) return '👦';
+  }
+
+  let icons = '';
+  if (p.includes('老公')) icons += '👨‍🦰';
+  if (p.includes('老婆')) icons += '👩‍🦰';
+  if (p.includes('恩恩')) icons += '👨‍🦱';
+  if (p.includes('蔚蔚')) icons += '👦';
+
+  return icons === '' ? '👤' : icons;
 };
 
 export const getRoleColorStyle = (role, index = 0) => {
