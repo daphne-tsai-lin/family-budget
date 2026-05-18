@@ -111,7 +111,8 @@ const RecordFormView = ({ recordToEdit, copyRecordData, onClose, setCrossRoomRec
         opsCount++;
         
         if (record.frequency !== '一次') {
-          const dates = generateFutureDates(record.date, record.frequency, record.frequencyDays, record.frequencyInterval, record.frequencyCustomText, 1);
+          // 💡 核心修復：強制過濾掉當前這一天 (d > record.date)，避免重複產生！
+          const dates = generateFutureDates(record.date, record.frequency, record.frequencyDays, record.frequencyInterval, record.frequencyCustomText, 1).filter(d => d > record.date);
           for (const d of dates) {
             if (opsCount >= 490) await commitBatch();
             const [y, m, day] = d.split('-').map(Number);
@@ -147,6 +148,7 @@ const RecordFormView = ({ recordToEdit, copyRecordData, onClose, setCrossRoomRec
           }
         }
         if (updateFuture && record.frequency !== '一次') {
+          // 💡 編輯狀態下原本就已經有防呆過濾了，維持不變
           const dates = generateFutureDates(record.date, record.frequency, record.frequencyDays, record.frequencyInterval, record.frequencyCustomText, 1).filter(d => d > record.date);
           for (const d of dates) {
             if (opsCount >= 490) await commitBatch();
@@ -351,10 +353,14 @@ const RecordFormView = ({ recordToEdit, copyRecordData, onClose, setCrossRoomRec
         <div className="fixed inset-0 z-[150] bg-black/60 flex flex-col justify-center items-center p-4 backdrop-blur-[2px] animate-in fade-in duration-200" onClick={() => { setAmount(evaluateCalc(calcInput)); setShowCalc(false); }}>
           <div className="bg-gray-50 w-full max-w-[320px] rounded-[2rem] p-5 shadow-2xl animate-in zoom-in-95 duration-200 border border-gray-200" onClick={e => e.stopPropagation()}>
             <div className="flex justify-between items-center mb-3">
-              <span className="text-gray-500 font-bold text-[14px] flex items-center gap-1.5"><Calculator size={16}/> 智慧計算機</span>
-              <button onClick={() => { setAmount(evaluateCalc(calcInput)); setShowCalc(false); }} className="text-gray-500 bg-gray-200 hover:bg-gray-300 rounded-full p-1.5 transition"><X size={16}/></button>
+              <span className="text-gray-500 font-bold text-[14px] flex items-center gap-1.5"><Calculator size={16}/> 專業運算模式</span>
+              <button onClick={() => { setAmount(evaluateCalc(calcInput)); setShowCalc(false); }} className="text-gray-500 bg-gray-200 rounded-full p-1.5"><X size={16}/></button>
             </div>
-            <div className="text-right text-[38px] font-black text-gray-800 mb-4 overflow-x-auto whitespace-nowrap pb-1.5 border-b-2 border-gray-200 tracking-wider scrollbar-hide">{calcInput}</div>
+            
+            <div className="text-right text-[38px] font-black text-gray-800 mb-4 overflow-x-auto whitespace-nowrap pb-1.5 border-b-2 border-gray-200 tracking-wider scrollbar-hide">
+              {calcInput}
+            </div>
+
             <div className="grid grid-cols-4 gap-2">
               {calcKeys.map(k => (
                 <button key={k} onClick={() => {
@@ -362,13 +368,14 @@ const RecordFormView = ({ recordToEdit, copyRecordData, onClose, setCrossRoomRec
                   else if (k === '⌫') setCalcInput(prev => prev.length > 1 ? prev.slice(0, -1) : '0');
                   else if (k === '=') setCalcInput(prev => evaluateCalc(prev));
                   else setCalcInput(prev => prev === '0' && !['+','-','×','÷','.'].includes(k) ? k : prev + k);
-                }} className={`py-4 rounded-xl text-[20px] font-black active:scale-95 transition-transform flex items-center justify-center shadow-sm 
-                  ${['C', '⌫'].includes(k) ? 'bg-[#FFD1DC] text-[#9F1239]' : ['+', '-', '×', '÷', '(', ')'].includes(k) ? 'bg-[#FEF08A] text-[#B45309]' : k === '=' ? 'bg-[#38BDF8] text-white shadow-md' : 'bg-white text-gray-800'}`}>
+                }} className={`py-4 rounded-xl text-[20px] font-black shadow-sm transition-transform active:scale-95 flex items-center justify-center 
+                  ${['C', '⌫'].includes(k) ? 'bg-[#FFD1DC] text-[#9F1239]' : ['+', '-', '×', '÷', '(', ')'].includes(k) ? 'bg-[#FEF08A] text-[#B45309]' : k === '=' ? 'bg-[#38BDF8] text-white' : 'bg-white text-gray-800'}`}>
                   {k}
                 </button>
               ))}
             </div>
-            <button onClick={() => { setAmount(evaluateCalc(calcInput)); setShowCalc(false); }} className={`w-full mt-3 ${themeBg} text-white py-3.5 rounded-xl font-black text-[18px] shadow-md active:scale-95 transition flex justify-center items-center gap-2`}>
+
+            <button onClick={() => { setAmount(evaluateCalc(calcInput)); setShowCalc(false); }} className={`w-full mt-3 ${themeBg} text-white py-3.5 rounded-xl font-black text-[18px] shadow-md active:scale-95 flex justify-center items-center gap-2`}>
               <Check size={20}/> 確認金額
             </button>
           </div>
