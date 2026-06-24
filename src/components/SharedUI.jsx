@@ -302,7 +302,7 @@ export const renderMethodText = (method, subMethod) => {
     return `${method}${subMethod ? `(${subMethod})` : ''}`;
 };
 
-export const RecordItem = ({ exp, idx, currentUserRole, isSortable = false, hideActions = false, onRecordClick, handleMoveRecord, openEditForm, setCrossRoomRecord }) => {
+export const RecordItem = ({ exp, idx, currentUserRole, isSortable = false, hideActions = false, onRecordClick, handleMoveRecord, openEditForm, setCrossRoomRecord, runningBalance }) => {
     const isIncome = exp.type === 'income', isTransfer = exp.type === 'transfer';
     const payerStr = Array.isArray(exp.payer) ? exp.payer.join(', ') : exp.payer;
     const freqDisplay = exp.frequency === '區間' ? (exp.frequencyInterval === '自訂' ? `${exp.frequencyCustomText}天` : exp.frequencyInterval) : exp.frequency;
@@ -336,7 +336,7 @@ export const RecordItem = ({ exp, idx, currentUserRole, isSortable = false, hide
                         </>
                     )}
 
-                    {/* 2. 收入：[付款人] ➜ [頻率] ➜ [標籤] ➜ [收入分類] ➜ [對象] ➜ [付款方式(原本的完整細節)] ➜ [照片] ➜ [備註] */}
+                    {/* 2. 收入：[付款人] ➜ [頻率] ➜ [標籤] ➜ [收入分類] ➜ [對象] ➜ [付款方式] ➜ [照片] ➜ [備註] */}
                     {exp.type === 'income' && (
                         <>
                             {exp.addedByRole && <span className={`${getRoleColorStyle(exp.addedByRole).lightBg} ${getRoleColorStyle(exp.addedByRole).text} border ${getRoleColorStyle(exp.addedByRole).lightBorder} px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0`}>{exp.addedByRole}</span>}
@@ -367,8 +367,24 @@ export const RecordItem = ({ exp, idx, currentUserRole, isSortable = false, hide
                 </div>
             </div>
             
+            {/* 💡 核心變更：完美呈現圖片中的「金額 》 結餘」單排版面 */}
             <div className="flex flex-col items-end shrink-0 pt-0.5 pl-1">
-                <span className={`font-black text-[20px] sm:text-[22px] ${exp.excludeFromBalance ? 'text-gray-400 line-through decoration-gray-300' : isIncome ? 'text-green-500' : isTransfer ? 'text-blue-500' : 'text-gray-800'}`}>{isIncome ? '+' : isTransfer ? ' ⇆ ' : '-'}${exp.amount.toLocaleString()}</span>
+                {runningBalance !== undefined ? (
+                    <div className="flex items-center gap-1.5 justify-end w-full">
+                        <span className={`font-black text-[15px] sm:text-[16px] ${exp.excludeFromBalance ? 'text-gray-400 line-through decoration-gray-300' : isIncome ? 'text-green-500' : isTransfer ? 'text-blue-500' : 'text-orange-500'}`}>
+                            {isIncome ? '+' : isTransfer ? ' ⇆ ' : '-'}${exp.amount.toLocaleString()}
+                        </span>
+                        <span className="text-gray-300 text-[11px] font-black mt-0.5">》</span>
+                        <span className={`font-black text-[15px] sm:text-[16px] ${runningBalance < 0 ? 'text-red-500' : 'text-emerald-600'}`}>
+                            {runningBalance.toLocaleString()}
+                        </span>
+                    </div>
+                ) : (
+                    <span className={`font-black text-[20px] sm:text-[22px] ${exp.excludeFromBalance ? 'text-gray-400 line-through decoration-gray-300' : isIncome ? 'text-green-500' : isTransfer ? 'text-blue-500' : 'text-gray-800'}`}>
+                        {isIncome ? '+' : isTransfer ? ' ⇆ ' : '-'}${exp.amount.toLocaleString()}
+                    </span>
+                )}
+
                 {!hideActions && (
                     <div className="grid grid-cols-2 gap-1 mt-1 w-[64px] relative z-20">
                         <button onClick={(e) => { e.stopPropagation(); handleMoveRecord(idx, -1); }} disabled={idx === 0 || !isSortable} className={`text-gray-400 hover:text-blue-500 font-bold p-1 transition bg-gray-50 hover:bg-blue-50 rounded shadow-sm flex items-center justify-center disabled:opacity-30 ${!isSortable ? 'cursor-not-allowed' : ''}`}><ArrowUp size={14} /></button>
