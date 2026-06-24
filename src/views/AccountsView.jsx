@@ -213,7 +213,7 @@ const AccountsView = ({ user, activeRoomId, currentRoom, records, setView, setVi
         </div>
       </main>
 
-      {/* 💡 完美套用 RecordItem，讓明細列表有完整圖示與細節 */}
+      {/* 💡 包含結餘計算的歷史明細清單 */}
       {viewingAccountHistory && (
         <div className="fixed inset-0 bg-black/40 z-[100] flex justify-center items-end sm:items-center sm:p-4 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setViewingAccountHistory(null)}>
           <div className="bg-white w-full max-w-md max-h-[85vh] flex flex-col rounded-[1.5rem] p-4 shadow-2xl relative" onClick={e => e.stopPropagation()}>
@@ -226,15 +226,46 @@ const AccountsView = ({ user, activeRoomId, currentRoom, records, setView, setVi
                   if (accountStartDate && r.date < accountStartDate) return false;
                   if (accountEndDate && r.date > accountEndDate) return false;
                   if (!accountEndDate && r.date > todayStr) return false;
+                  if (r.excludeFromBalance) return false;
+                  
                   const getAccName = (method, subMethod) => method === '現金' ? '現金' : subMethod;
                   const fromAcc = getAccName(r.method, r.subMethod);
                   const toAcc = getAccName(r.transferToMethod, r.transferToSubMethod);
                   return fromAcc === viewingAccountHistory || toAcc === viewingAccountHistory;
-                }).sort((a, b) => (a.date !== b.date ? (a.date > b.date ? -1 : 1) : b.timestamp - a.timestamp));
+                }).sort((a, b) => b.timestamp - a.timestamp); // 降冪排列，新到舊
                 
                 if (accHistory.length === 0) return <p className="text-center text-gray-400 font-bold py-10 text-[14px]">此區間尚無明細</p>;
-                return accHistory.map((exp, idx) => (
-                   <RecordItem key={exp.id} exp={exp} idx={idx} currentUserRole={currentUserRole} hideActions={true} onRecordClick={setViewingRecord} />
+
+                // 💡 計算每筆的 runningBalance (逆向推算)
+                let currentBalance = 0;
+                if (viewingAccountHistory === '現金') currentBalance = balances['現金'] || 0;
+                else if (banks.includes(viewingAccountHistory)) currentBalance = balances[`bank_${viewingAccountHistory}`] || 0;
+                else if (eTickets.includes(viewingAccountHistory)) currentBalance = balances[`et_${viewingAccountHistory}`] || 0;
+                else if (ccs.includes(viewingAccountHistory)) currentBalance = balances[`cc_${viewingAccountHistory}`] || 0;
+
+                const isCc = ccs.includes(viewingAccountHistory);
+
+                const itemsWithBalance = accHistory.map((exp) => {
+                  const runningBalance = currentBalance;
+                  const getAccName = (method, subMethod) => method === '現金' ? '現金' : subMethod;
+                  const amt = Number(exp.amount) || 0;
+                  
+                  if (exp.type === 'expense' || !exp.type) {
+                    currentBalance -= (isCc ? amt : -amt);
+                  } else if (exp.type === 'income') {
+                    currentBalance -= (isCc ? -amt : amt);
+                  } else if (exp.type === 'transfer') {
+                    const fromAcc = getAccName(exp.method, exp.subMethod);
+                    const toAcc = getAccName(exp.transferToMethod, exp.transferToSubMethod);
+                    if (fromAcc === viewingAccountHistory) currentBalance -= (isCc ? amt : -amt);
+                    if (toAcc === viewingAccountHistory) currentBalance -= (isCc ? -amt : amt);
+                  }
+                  
+                  return { ...exp, runningBalance };
+                });
+
+                return itemsWithBalance.map((exp, idx) => (
+                   <RecordItem key={exp.id} exp={exp} idx={idx} currentUserRole={currentUserRole} hideActions={true} onRecordClick={setViewingRecord} runningBalance={exp.runningBalance} />
                 ));
               })()}
             </div>
