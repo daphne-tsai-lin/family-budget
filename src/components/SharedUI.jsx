@@ -336,7 +336,7 @@ export const RecordItem = ({ exp, idx, currentUserRole, isSortable = false, hide
                         </>
                     )}
 
-                    {/* 2. 收入：[付款人] ➜ [頻率] ➜ [標籤] ➜ [收入分類] ➜ [對象] ➜ [付款方式(原本的完整細節)] ➜ [照片] ➜ [備註] */}
+                    {/* 2. 收入：[付款人] ➜ [頻率] ➜ [標籤] ➜ [收入分類] ➜ [對象] ➜ [付款方式] ➜ [照片] ➜ [備註] */}
                     {exp.type === 'income' && (
                         <>
                             {exp.addedByRole && <span className={`${getRoleColorStyle(exp.addedByRole).lightBg} ${getRoleColorStyle(exp.addedByRole).text} border ${getRoleColorStyle(exp.addedByRole).lightBorder} px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0`}>{exp.addedByRole}</span>}
@@ -367,19 +367,19 @@ export const RecordItem = ({ exp, idx, currentUserRole, isSortable = false, hide
                 </div>
             </div>
             
-            {/* 右側價錢與結餘、按鈕區域 */}
+            {/* 💡 核心優化：完美回歸「上下疊加」黃金排版，並將合計金額框體結構放大！ */}
             <div className="flex flex-col items-end shrink-0 pt-0.5 pl-1">
                 <span className={`font-black text-[20px] sm:text-[22px] ${exp.excludeFromBalance ? 'text-gray-400 line-through decoration-gray-300' : isIncome ? 'text-green-500' : isTransfer ? 'text-blue-500' : 'text-gray-800'}`}>{isIncome ? '+' : isTransfer ? ' ⇆ ' : '-'}${exp.amount.toLocaleString()}</span>
                 
-                {/* 💡 顯示合計金額 */}
+                {/* 💡 完美放大的上下疊加合計金框 */}
                 {runningBalance !== undefined && (
-                    <span className="text-[11px] font-black text-gray-500 mt-0.5 bg-gray-50 px-1.5 py-0.5 rounded border border-gray-100 shadow-sm">
+                    <span className="text-[13px] font-black text-gray-500 mt-1.5 bg-gray-50 px-2 py-0.5 rounded border border-gray-200 shadow-sm whitespace-nowrap leading-none">
                         合計 ${runningBalance.toLocaleString()}
                     </span>
                 )}
 
                 {!hideActions && (
-                    <div className="grid grid-cols-2 gap-1 mt-1 w-[64px] relative z-20">
+                    <div className="grid grid-cols-2 gap-1 mt-1.5 w-[64px] relative z-20">
                         <button onClick={(e) => { e.stopPropagation(); handleMoveRecord(idx, -1); }} disabled={idx === 0 || !isSortable} className={`text-gray-400 hover:text-blue-500 font-bold p-1 transition bg-gray-50 hover:bg-blue-50 rounded shadow-sm flex items-center justify-center disabled:opacity-30 ${!isSortable ? 'cursor-not-allowed' : ''}`}><ArrowUp size={14} /></button>
                         <button onClick={(e) => { e.stopPropagation(); openEditForm(exp); }} disabled={!canModify} className={`font-bold p-1 transition bg-gray-50 rounded shadow-sm flex items-center justify-center ${canModify ? 'text-gray-400 hover:text-blue-500 hover:bg-blue-50' : 'text-gray-300 opacity-40 cursor-not-allowed'}`}><Pencil size={14} /></button>
                         <button onClick={(e) => { e.stopPropagation(); handleMoveRecord(idx, 1); }} disabled={!isSortable} className={`text-gray-400 hover:text-blue-500 font-bold p-1 transition bg-gray-50 hover:bg-blue-50 rounded shadow-sm flex items-center justify-center disabled:opacity-30 ${!isSortable ? 'cursor-not-allowed' : ''}`}><ArrowDown size={14} /></button>
