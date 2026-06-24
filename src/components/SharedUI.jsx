@@ -95,7 +95,7 @@ export const CustomDropdown = ({ label, icon: Icon, options, value, onChange, pl
                 <ul className="absolute z-50 w-full mt-1 bg-white border-2 border-gray-100 rounded-xl shadow-[0_10px_40px_rgba(0,0,0,0.12)] max-h-60 overflow-y-auto py-1 top-full left-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
                     {options.length === 0 && <li className="px-3 py-2 text-[13px] text-gray-400 font-bold">無選項可用</li>}
                     {options.map(opt => (
-                        <li key={opt} onClick={() => { onChange(opt); setIsOpen(false); }} className={`px-3 py-2 text-[14px] font-bold cursor-pointer transition-colors flex items-center gap-2 ${value === opt ? 'bg-blue-500 text-white' : 'text-gray-700 hover:bg-gray-100'}`}>{opt; }</li>
+                        <li key={opt} onClick={() => { onChange(opt); setIsOpen(false); }} className={`px-3 py-2 text-[14px] font-bold cursor-pointer transition-colors flex items-center gap-2 ${value === opt ? 'bg-blue-500 text-white' : 'text-gray-700 hover:bg-gray-100'}`}>{opt}</li>
                     ))}
                 </ul>
             )}
@@ -319,7 +319,7 @@ export const RecordItem = ({ exp, idx, currentUserRole, isSortable = false, hide
                     {exp.excludeFromBalance && <span className="bg-gray-200 text-gray-500 px-1.5 py-0.5 rounded text-[10px] shrink-0">不計入</span>}
                 </div>
 
-                {/* 第二行：標籤雲區域（移除了備註，讓付款方式正常收尾，不再留空） */}
+                {/* 第二行：依照不同類型客製化排序邏輯 */}
                 <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 mt-0.5 leading-tight">
                     
                     {/* 1. 支出：[付款人] ➜ [頻率] ➜ [主分類] ➜ [項目清單] ➜ [對象] ➜ [商家] ➜ [付款方式] */}
@@ -361,13 +361,13 @@ export const RecordItem = ({ exp, idx, currentUserRole, isSortable = false, hide
                         </>
                     )}
 
-                    {/* 共同結尾：照片（若有） */}
+                    {/* 共同結尾：照片 */}
                     {exp.photoBase64 && <span className="shrink-0 w-[18px] h-[18px] rounded overflow-hidden shadow-sm inline-block border border-gray-200"><img src={exp.photoBase64} alt="圖" className="w-full h-full object-cover" /></span>}
                 </div>
-
-                {/* 💡 終極優化：將備註獨立移到下方，設為滿版 w-full，文字自然折行。這不但能徹底消除上方橫向的突兀空白，更不會把備註壓扁成窄長高塔！ */}
+                
+                {/* 獨立備註列：滿版置底，徹底解決標籤推擠與跳行留白問題 */}
                 {exp.note && (
-                    <div className="text-[11px] font-bold bg-[#FFFDF9] px-2 py-1 rounded-xl border border-[#F2EFE9] mt-2 w-full text-gray-500 whitespace-normal break-all leading-snug">
+                    <div className={`text-[11px] font-bold bg-[#FFFDF9] px-2 py-1 rounded-xl border border-[#F2EFE9] mt-1.5 w-full whitespace-normal break-words leading-snug ${exp.excludeFromBalance ? 'text-gray-400' : 'text-gray-500'}`}>
                         📝 {exp.note}
                     </div>
                 )}
