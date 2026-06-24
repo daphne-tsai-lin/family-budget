@@ -322,7 +322,7 @@ export const RecordItem = ({ exp, idx, currentUserRole, isSortable = false, hide
                 {/* 第二行：依照不同類型客製化排序邏輯 */}
                 <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 mt-0.5 leading-tight">
                     
-                    {/* 1. 支出：[付款人] ➜ [頻率] ➜ [主分類] ➜ [項目清單] ➜ [對象] ➜ [商家] ➜ [付款方式] ➜ [照片] ➜ [備註(自動換行完美銜接)] */}
+                    {/* 1. 支出：[付款人] ➜ [頻率] ➜ [主分類] ➜ [項目清單] ➜ [對象] ➜ [商家] ➜ [付款方式] ➜ [照片] ➜ [備註] */}
                     {(!exp.type || exp.type === 'expense') && (
                         <>
                             {exp.addedByRole && <span className={`${getRoleColorStyle(exp.addedByRole).lightBg} ${getRoleColorStyle(exp.addedByRole).text} border ${getRoleColorStyle(exp.addedByRole).lightBorder} px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0`}>{exp.addedByRole}</span>}
@@ -361,17 +361,17 @@ export const RecordItem = ({ exp, idx, currentUserRole, isSortable = false, hide
                         </>
                     )}
 
-                    {/* 共同結尾：照片與備註 (備註支援自動填補剩餘空間與自然換行) */}
+                    {/* 共同結尾：照片與備註 */}
                     {exp.photoBase64 && <span className="shrink-0 w-[18px] h-[18px] rounded overflow-hidden shadow-sm inline-block border border-gray-200"><img src={exp.photoBase64} alt="圖" className="w-full h-full object-cover" /></span>}
-                    {exp.note && <span className={`text-[11px] font-bold bg-[#FFFDF9] px-1.5 py-0.5 rounded border border-[#F2EFE9] flex-1 min-w-[80px] whitespace-normal break-words leading-snug ${exp.excludeFromBalance ? 'text-gray-400' : 'text-gray-500'}`}>📝 {exp.note}</span>}
+                    {exp.note && <span className={`text-[11px] font-bold bg-[#FFFDF9] px-1.5 py-0.5 rounded border border-[#F2EFE9] shrink-0 ${exp.excludeFromBalance ? 'text-gray-400' : 'text-gray-500'}`}>📝 {exp.note}</span>}
                 </div>
             </div>
             
-            {/* 右側價錢與結餘、按鈕區域 */}
+            {/* 💡 核心優化：完美回歸「上下疊加」黃金排版，並將合計金額框體結構放大！ */}
             <div className="flex flex-col items-end shrink-0 pt-0.5 pl-1">
                 <span className={`font-black text-[20px] sm:text-[22px] ${exp.excludeFromBalance ? 'text-gray-400 line-through decoration-gray-300' : isIncome ? 'text-green-500' : isTransfer ? 'text-blue-500' : 'text-gray-800'}`}>{isIncome ? '+' : isTransfer ? ' ⇆ ' : '-'}${exp.amount.toLocaleString()}</span>
                 
-                {/* 放大的上下疊加合計金框 */}
+                {/* 💡 完美放大的上下疊加合計金框 */}
                 {runningBalance !== undefined && (
                     <span className="text-[13px] font-black text-gray-500 mt-1.5 bg-gray-50 px-2 py-0.5 rounded border border-gray-200 shadow-sm whitespace-nowrap leading-none">
                         合計 ${runningBalance.toLocaleString()}
