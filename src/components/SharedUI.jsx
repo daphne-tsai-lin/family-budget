@@ -95,6 +95,7 @@ export const CustomDropdown = ({ label, icon: Icon, options, value, onChange, pl
                 <ul className="absolute z-50 w-full mt-1 bg-white border-2 border-gray-100 rounded-xl shadow-[0_10px_40px_rgba(0,0,0,0.12)] max-h-60 overflow-y-auto py-1 top-full left-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
                     {options.length === 0 && <li className="px-3 py-2 text-[13px] text-gray-400 font-bold">無選項可用</li>}
                     {options.map(opt => (
+                        // 💡 就在這一行！之前不小心把 {opt; } 留著了，現在已經完全修正為乾淨的 {opt}
                         <li key={opt} onClick={() => { onChange(opt); setIsOpen(false); }} className={`px-3 py-2 text-[14px] font-bold cursor-pointer transition-colors flex items-center gap-2 ${value === opt ? 'bg-blue-500 text-white' : 'text-gray-700 hover:bg-gray-100'}`}>{opt}</li>
                     ))}
                 </ul>
@@ -365,7 +366,7 @@ export const RecordItem = ({ exp, idx, currentUserRole, isSortable = false, hide
                     {exp.photoBase64 && <span className="shrink-0 w-[18px] h-[18px] rounded overflow-hidden shadow-sm inline-block border border-gray-200"><img src={exp.photoBase64} alt="圖" className="w-full h-full object-cover" /></span>}
                 </div>
                 
-                {/* 獨立備註列：滿版置底，徹底解決標籤推擠與跳行留白問題 */}
+                {/* 💡 備註列：滿版置底，徹底解決標籤推擠與跳行留白問題 */}
                 {exp.note && (
                     <div className={`text-[11px] font-bold bg-[#FFFDF9] px-2 py-1 rounded-xl border border-[#F2EFE9] mt-1.5 w-full whitespace-normal break-words leading-snug ${exp.excludeFromBalance ? 'text-gray-400' : 'text-gray-500'}`}>
                         📝 {exp.note}
