@@ -50,7 +50,7 @@ export default function App() {
   const [enlargedPhoto, setEnlargedPhoto] = useState(null);
   
   const fileInputRef = useRef(null);
-  const hasPrunedPhotos = useRef(false);
+  // 💡 已移除 hasPrunedPhotos 變數與自動刪除照片的 useEffect，照片將永久保存！
 
   const contextValue = {
     user, currentUserRole, activeRoomId, currentRoom, records, savedRooms,
@@ -67,14 +67,13 @@ export default function App() {
 
   useEffect(() => {
     window.history.pushState({ trap: true }, '');
-    const handleBeforeUnload = (e) => { e.preventDefault(); e.returnValue = ''; };
     const handlePopState = (e) => {
       const confirmExit = window.confirm("確定要關閉記帳本嗎？\n\n(免煩惱！您的資料都已經即時安全儲存至雲端囉 ✨ )");
       if (!confirmExit) window.history.pushState({ trap: true }, '');
       else setTimeout(() => { try { window.close(); } catch(err) {} window.history.back(); }, 100);
     };
-    window.addEventListener('beforeunload', handleBeforeUnload); window.addEventListener('popstate', handlePopState);
-    return () => { window.removeEventListener('beforeunload', handleBeforeUnload); window.removeEventListener('popstate', handlePopState); };
+    window.addEventListener('popstate', handlePopState);
+    return () => { window.removeEventListener('popstate', handlePopState); };
   }, []);
 
   useEffect(() => {
@@ -102,27 +101,6 @@ export default function App() {
     });
     return () => { unsubscribeRoom(); unsubscribeExpenses(); };
   }, [user, activeRoomId]);
-
-  useEffect(() => {
-    if (!records || records.length === 0 || !activeRoomId || hasPrunedPhotos.current) return;
-    const recordsToPrune = records.filter(r => r.photoBase64 && (Date.now() - r.timestamp > 90 * 24 * 60 * 60 * 1000));
-    if (recordsToPrune.length > 0) {
-      const pruneOldPhotos = async () => {
-        try {
-          let batch = writeBatch(db); let count = 0;
-          for (const r of recordsToPrune) {
-            if (count >= 490) { await batch.commit(); batch = writeBatch(db); count = 0; }
-            const newNote = r.note ? `${r.note} (圖檔已自動刪除)` : '(圖檔已自動刪除)';
-            batch.update(doc(db, 'artifacts', appId, 'public', 'data', 'expenses', r.id), { photoBase64: deleteField(), note: newNote });
-            count++;
-          }
-          if (count > 0) await batch.commit();
-        } catch (e) {}
-      };
-      pruneOldPhotos();
-    }
-    hasPrunedPhotos.current = true;
-  }, [records, activeRoomId]);
 
   useEffect(() => { if (view !== 'room') { setSearchQuery(''); setHomeFilterDate(getLocalTodayStr()); } }, [view]);
 
@@ -205,7 +183,9 @@ export default function App() {
 
   const handleMoveRecord = async (index, direction) => {
     const displayRecs = searchQuery ? records.filter(r => r.date <= getLocalTodayStr() && JSON.stringify(r).toLowerCase().includes(searchQuery.toLowerCase())) : records.filter(r => r.date === homeFilterDate);
-    displayRecs.sort((a, b) => a.timestamp - b.timestamp);
+    
+    if (searchQuery) displayRecs.sort((a, b) => b.date.localeCompare(a.date) || b.timestamp - a.timestamp);
+    else displayRecs.sort((a, b) => a.timestamp - b.timestamp);
 
     if (index + direction < 0 || index + direction >= displayRecs.length) return;
     const currentTx = displayRecs[index], targetTx = displayRecs[index + direction];
@@ -214,8 +194,13 @@ export default function App() {
     let newTarTs = currentTx.timestamp;
 
     if (newCurTs === newTarTs) {
-      if (direction === -1) { newCurTs -= 10; newTarTs += 10; } 
-      else { newCurTs += 10; newTarTs -= 10; }
+      if (searchQuery) {
+          if (direction === -1) { newCurTs += 10; newTarTs -= 10; } 
+          else { newCurTs -= 10; newTarTs += 10; }
+      } else {
+          if (direction === -1) { newCurTs -= 10; newTarTs += 10; } 
+          else { newCurTs += 10; newTarTs -= 10; }
+      }
     }
 
     try {
