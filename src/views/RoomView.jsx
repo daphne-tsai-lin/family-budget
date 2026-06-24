@@ -47,10 +47,11 @@ const RoomView = ({
       return true;
     });
     
-    // 💡 核心變更：搜尋狀態下由新到舊 (降冪)，一般狀態由舊到新 (升冪)
+    // 💡 核心修正：搜尋狀態下，嚴格依據「消費日期(date)」由新到舊(降冪)排序，若同天則依時間戳降冪
     if (searchQuery) {
-      return filtered.sort((a, b) => b.timestamp - a.timestamp);
+      return filtered.sort((a, b) => b.date.localeCompare(a.date) || b.timestamp - a.timestamp);
     }
+    // 一般首頁維持原本由舊到新的順序
     return filtered.sort((a, b) => a.timestamp - b.timestamp);
   }, [records, searchQuery, homeFilterDate]);
 
