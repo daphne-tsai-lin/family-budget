@@ -336,7 +336,7 @@ export const RecordItem = ({ exp, idx, currentUserRole, isSortable = false, hide
                         </>
                     )}
 
-                    {/* 2. 收入：[付款人] ➜ [頻率] ➜ [標籤] ➜ [收入分類] ➜ [對象] ➜ [付款方式] ➜ [照片] ➜ [備註] */}
+                    {/* 2. 收入：[付款人] ➜ [頻率] ➜ [標籤] ➜ [收入分類] ➜ [對象] ➜ [付款方式(原本的完整細節)] ➜ [照片] ➜ [備註] */}
                     {exp.type === 'income' && (
                         <>
                             {exp.addedByRole && <span className={`${getRoleColorStyle(exp.addedByRole).lightBg} ${getRoleColorStyle(exp.addedByRole).text} border ${getRoleColorStyle(exp.addedByRole).lightBorder} px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0`}>{exp.addedByRole}</span>}
@@ -367,21 +367,14 @@ export const RecordItem = ({ exp, idx, currentUserRole, isSortable = false, hide
                 </div>
             </div>
             
-            {/* 💡 核心變更：完美呈現圖片中的「金額 》 結餘」單排版面 */}
+            {/* 右側價錢與結餘、按鈕區域 */}
             <div className="flex flex-col items-end shrink-0 pt-0.5 pl-1">
-                {runningBalance !== undefined ? (
-                    <div className="flex items-center gap-1.5 justify-end w-full">
-                        <span className={`font-black text-[15px] sm:text-[16px] ${exp.excludeFromBalance ? 'text-gray-400 line-through decoration-gray-300' : isIncome ? 'text-green-500' : isTransfer ? 'text-blue-500' : 'text-orange-500'}`}>
-                            {isIncome ? '+' : isTransfer ? ' ⇆ ' : '-'}${exp.amount.toLocaleString()}
-                        </span>
-                        <span className="text-gray-300 text-[11px] font-black mt-0.5">》</span>
-                        <span className={`font-black text-[15px] sm:text-[16px] ${runningBalance < 0 ? 'text-red-500' : 'text-emerald-600'}`}>
-                            {runningBalance.toLocaleString()}
-                        </span>
-                    </div>
-                ) : (
-                    <span className={`font-black text-[20px] sm:text-[22px] ${exp.excludeFromBalance ? 'text-gray-400 line-through decoration-gray-300' : isIncome ? 'text-green-500' : isTransfer ? 'text-blue-500' : 'text-gray-800'}`}>
-                        {isIncome ? '+' : isTransfer ? ' ⇆ ' : '-'}${exp.amount.toLocaleString()}
+                <span className={`font-black text-[20px] sm:text-[22px] ${exp.excludeFromBalance ? 'text-gray-400 line-through decoration-gray-300' : isIncome ? 'text-green-500' : isTransfer ? 'text-blue-500' : 'text-gray-800'}`}>{isIncome ? '+' : isTransfer ? ' ⇆ ' : '-'}${exp.amount.toLocaleString()}</span>
+                
+                {/* 💡 顯示合計金額 */}
+                {runningBalance !== undefined && (
+                    <span className="text-[11px] font-black text-gray-500 mt-0.5 bg-gray-50 px-1.5 py-0.5 rounded border border-gray-100 shadow-sm">
+                        合計 ${runningBalance.toLocaleString()}
                     </span>
                 )}
 
