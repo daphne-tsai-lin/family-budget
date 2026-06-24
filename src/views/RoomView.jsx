@@ -46,8 +46,12 @@ const RoomView = ({
       if (homeFilterDate) return r.date === homeFilterDate;
       return true;
     });
-    // 💡 核心變更：由舊到新排列 (升冪排序)
-    return filtered.sort((a,b) => a.timestamp - b.timestamp);
+    
+    // 💡 核心變更：搜尋狀態下由新到舊 (降冪)，一般狀態由舊到新 (升冪)
+    if (searchQuery) {
+      return filtered.sort((a, b) => b.timestamp - a.timestamp);
+    }
+    return filtered.sort((a, b) => a.timestamp - b.timestamp);
   }, [records, searchQuery, homeFilterDate]);
 
   const displayRecords = allFilteredRecords.slice(0, displayCount);
