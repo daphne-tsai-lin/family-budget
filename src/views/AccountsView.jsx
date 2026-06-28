@@ -48,7 +48,7 @@ const AccountsView = ({ user, activeRoomId, currentRoom, records, setView, setVi
       }
       else if (r.type === 'transfer') {
         const fromKey = getAccKey(r.method, r.subMethod), toKey = getAccKey(r.transferToMethod, r.transferToSubMethod);
-        if (fromKey) bal[fromKey] = (bal[fromKey] || 0) + (fromKey.startsWith('cc_') ? amt : -amt);
+        if (fromKey) bal[fromKey] = (bal[fromKey] || 0) + (fromKey.startsWith('cc_'] ? amt : -amt);
         if (toKey) bal[toKey] = (bal[toKey] || 0) + (toKey.startsWith('cc_') ? -amt : amt);
       }
     });
@@ -213,7 +213,6 @@ const AccountsView = ({ user, activeRoomId, currentRoom, records, setView, setVi
         </div>
       </main>
 
-      {/* 💡 包含結餘計算的歷史明細清單 */}
       {viewingAccountHistory && (
         <div className="fixed inset-0 bg-black/40 z-[100] flex justify-center items-end sm:items-center sm:p-4 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setViewingAccountHistory(null)}>
           <div className="bg-white w-full max-w-md max-h-[85vh] flex flex-col rounded-[1.5rem] p-4 shadow-2xl relative" onClick={e => e.stopPropagation()}>
@@ -222,50 +221,74 @@ const AccountsView = ({ user, activeRoomId, currentRoom, records, setView, setVi
             <div className="flex-1 overflow-y-auto space-y-1.5 pr-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
               {(() => {
                 const todayStr = getLocalTodayStr();
-                const accHistory = records.filter(r => {
-                  if (accountStartDate && r.date < accountStartDate) return false;
-                  if (accountEndDate && r.date > accountEndDate) return false;
-                  if (!accountEndDate && r.date > todayStr) return false;
+                
+                // 1. 取得所有與此帳戶有關的歷史紀錄（不先過濾日期範圍，因為計算需要從頭（時間起點）開始滾動加減）
+                let accountAllRecords = records.filter(r => {
                   if (r.excludeFromBalance) return false;
-                  
                   const getAccName = (method, subMethod) => method === '現金' ? '現金' : subMethod;
                   const fromAcc = getAccName(r.method, r.subMethod);
                   const toAcc = getAccName(r.transferToMethod, r.transferToSubMethod);
                   return fromAcc === viewingAccountHistory || toAcc === viewingAccountHistory;
-                }).sort((a, b) => b.timestamp - a.timestamp); // 降冪排列，新到舊
-                
-                if (accHistory.length === 0) return <p className="text-center text-gray-400 font-bold py-10 text-[14px]">此區間尚無明細</p>;
-
-                // 💡 計算每筆的 runningBalance (逆向推算)
-                let currentBalance = 0;
-                if (viewingAccountHistory === '現金') currentBalance = balances['現金'] || 0;
-                else if (banks.includes(viewingAccountHistory)) currentBalance = balances[`bank_${viewingAccountHistory}`] || 0;
-                else if (eTickets.includes(viewingAccountHistory)) currentBalance = balances[`et_${viewingAccountHistory}`] || 0;
-                else if (ccs.includes(viewingAccountHistory)) currentBalance = balances[`cc_${viewingAccountHistory}`] || 0;
-
-                const isCc = ccs.includes(viewingAccountHistory);
-
-                const itemsWithBalance = accHistory.map((exp) => {
-                  const runningBalance = currentBalance;
-                  const getAccName = (method, subMethod) => method === '現金' ? '現金' : subMethod;
-                  const amt = Number(exp.amount) || 0;
-                  
-                  if (exp.type === 'expense' || !exp.type) {
-                    currentBalance -= (isCc ? amt : -amt);
-                  } else if (exp.type === 'income') {
-                    currentBalance -= (isCc ? -amt : amt);
-                  } else if (exp.type === 'transfer') {
-                    const fromAcc = getAccName(exp.method, exp.subMethod);
-                    const toAcc = getAccName(exp.transferToMethod, exp.transferToSubMethod);
-                    if (fromAcc === viewingAccountHistory) currentBalance -= (isCc ? amt : -amt);
-                    if (toAcc === viewingAccountHistory) currentBalance -= (isCc ? -amt : amt);
-                  }
-                  
-                  return { ...exp, runningBalance };
                 });
 
-                return itemsWithBalance.map((exp, idx) => (
-                   <RecordItem key={exp.id} exp={exp} idx={idx} currentUserRole={currentUserRole} hideActions={true} onRecordClick={setViewingRecord} runningBalance={exp.runningBalance} />
+                // 2. 依照「消費日期 (date)」由舊到新排序（如果日期相同，再依記帳時間戳 timestamp 由舊到新）
+                accountAllRecords.sort((a, b) => {
+                  if (a.date !== b.date) {
+                    return a.date < b.date ? -1 : 1;
+                  }
+                  return (a.timestamp || 0) - (b.timestamp || 0);
+                });
+
+                // 3. 找出對應的初始餘額鍵值
+                let accKey = '現金';
+                if (viewingAccountHistory !== '現金') {
+                  if (currentRoom?.bankAccounts?.includes(viewingAccountHistory)) accKey = `bank_${viewingAccountHistory}`;
+                  else if (currentRoom?.electronicTickets?.includes(viewingAccountHistory)) accKey = `et_${viewingAccountHistory}`;
+                  else if (currentRoom?.creditCards?.includes(viewingAccountHistory)) accKey = `cc_${viewingAccountHistory}`;
+                }
+                
+                // 4. 從時間起點的「初始餘額」開始，順著時間軸（由舊到新）一筆一筆加減算出每一步的累積結餘
+                let currentRunningBal = currentRoom?.initialBalances?.[accKey] || 0;
+                const isCc = accKey.startsWith('cc_');
+
+                const recordsWithBalance = accountAllRecords.map(r => {
+                  const amt = Number(r.amount) || 0;
+                  const getAccName = (method, subMethod) => method === '現金' ? '現金' : subMethod;
+                  const fromAcc = getAccName(r.method, r.subMethod);
+                  const toAcc = getAccName(r.transferToMethod, r.transferToSubMethod);
+
+                  if (r.type === 'expense' || !r.type) {
+                     currentRunningBal += isCc ? amt : -amt;
+                  } else if (r.type === 'income') {
+                     currentRunningBal += isCc ? -amt : amt;
+                  } else if (r.type === 'transfer') {
+                     if (fromAcc === viewingAccountHistory) currentRunningBal += isCc ? amt : -amt;
+                     if (toAcc === viewingAccountHistory) currentRunningBal += isCc ? -amt : amt;
+                  }
+
+                  return { ...r, calculatedRunningBalance: currentRunningBal };
+                });
+
+                // 5. 結餘計算完畢後，過濾出使用者選定的日期區間進行篩選
+                let displayRecords = recordsWithBalance.filter(r => {
+                  if (accountStartDate && r.date < accountStartDate) return false;
+                  if (accountEndDate && r.date > accountEndDate) return false;
+                  if (!accountEndDate && r.date > todayStr) return false;
+                  return true;
+                });
+
+                // 6. 畫面顯示：以「消費日期 (date)」為基準，由上到下為最新到最舊（降冪排序）
+                displayRecords.sort((a, b) => {
+                  if (a.date !== b.date) {
+                    return a.date > b.date ? -1 : 1;
+                  }
+                  return (b.timestamp || 0) - (a.timestamp || 0);
+                });
+
+                if (displayRecords.length === 0) return <p className="text-center text-gray-400 font-bold py-10 text-[14px]">此區間尚無明細</p>;
+                
+                return displayRecords.map((exp, idx) => (
+                   <RecordItem key={exp.id} exp={exp} idx={idx} currentUserRole={currentUserRole} hideActions={true} onRecordClick={setViewingRecord} runningBalance={exp.calculatedRunningBalance} />
                 ));
               })()}
             </div>
