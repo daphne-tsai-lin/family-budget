@@ -48,7 +48,7 @@ const AccountsView = ({ user, activeRoomId, currentRoom, records, setView, setVi
       }
       else if (r.type === 'transfer') {
         const fromKey = getAccKey(r.method, r.subMethod), toKey = getAccKey(r.transferToMethod, r.transferToSubMethod);
-        if (fromKey) bal[fromKey] = (bal[fromKey] || 0) + (fromKey.startsWith('cc_'] ? amt : -amt);
+        if (fromKey) bal[fromKey] = (bal[fromKey] || 0) + (fromKey.startsWith('cc_') ? amt : -amt);
         if (toKey) bal[toKey] = (bal[toKey] || 0) + (toKey.startsWith('cc_') ? -amt : amt);
       }
     });
@@ -222,7 +222,7 @@ const AccountsView = ({ user, activeRoomId, currentRoom, records, setView, setVi
               {(() => {
                 const todayStr = getLocalTodayStr();
                 
-                // 1. 取得所有與此帳戶有關的歷史紀錄（不先過濾日期範圍，因為計算需要從頭（時間起點）開始滾動加減）
+                // 1. 取得所有與此帳戶有關的歷史紀錄（不先過濾日期範圍，因為計算結餘需要從最源頭滾動加減）
                 let accountAllRecords = records.filter(r => {
                   if (r.excludeFromBalance) return false;
                   const getAccName = (method, subMethod) => method === '現金' ? '現金' : subMethod;
@@ -231,26 +231,24 @@ const AccountsView = ({ user, activeRoomId, currentRoom, records, setView, setVi
                   return fromAcc === viewingAccountHistory || toAcc === viewingAccountHistory;
                 });
 
-                // 2. 依照「消費日期 (date)」由舊到新排序（如果日期相同，再依記帳時間戳 timestamp 由舊到新）
+                // 2. 依照「消費日期 (date)」由舊到新排序，建立正確的時間軸基準
                 accountAllRecords.sort((a, b) => {
-                  if (a.date !== b.date) {
-                    return a.date < b.date ? -1 : 1;
-                  }
+                  if (a.date !== b.date) return a.date < b.date ? -1 : 1;
                   return (a.timestamp || 0) - (b.timestamp || 0);
                 });
 
-                // 3. 找出對應的初始餘額鍵值
+                // 3. 取得對應帳戶的時間起點初始餘額
                 let accKey = '現金';
                 if (viewingAccountHistory !== '現金') {
-                  if (currentRoom?.bankAccounts?.includes(viewingAccountHistory)) accKey = `bank_${viewingAccountHistory}`;
-                  else if (currentRoom?.electronicTickets?.includes(viewingAccountHistory)) accKey = `et_${viewingAccountHistory}`;
-                  else if (currentRoom?.creditCards?.includes(viewingAccountHistory)) accKey = `cc_${viewingAccountHistory}`;
+                  if (banks.includes(viewingAccountHistory)) accKey = `bank_${viewingAccountHistory}`;
+                  else if (eTickets.includes(viewingAccountHistory)) accKey = `et_${viewingAccountHistory}`;
+                  else if (ccs.includes(viewingAccountHistory)) accKey = `cc_${viewingAccountHistory}`;
                 }
                 
-                // 4. 從時間起點的「初始餘額」開始，順著時間軸（由舊到新）一筆一筆加減算出每一步的累積結餘
                 let currentRunningBal = currentRoom?.initialBalances?.[accKey] || 0;
                 const isCc = accKey.startsWith('cc_');
 
+                // 4. 順著時間軸（由舊到新）一筆一筆加減，精算出存摺式的每步累計合計金額
                 const recordsWithBalance = accountAllRecords.map(r => {
                   const amt = Number(r.amount) || 0;
                   const getAccName = (method, subMethod) => method === '現金' ? '現金' : subMethod;
@@ -269,7 +267,7 @@ const AccountsView = ({ user, activeRoomId, currentRoom, records, setView, setVi
                   return { ...r, calculatedRunningBalance: currentRunningBal };
                 });
 
-                // 5. 結餘計算完畢後，過濾出使用者選定的日期區間進行篩選
+                // 5. 結餘計算完畢後，過濾出使用者設定的日期區間範圍
                 let displayRecords = recordsWithBalance.filter(r => {
                   if (accountStartDate && r.date < accountStartDate) return false;
                   if (accountEndDate && r.date > accountEndDate) return false;
@@ -277,11 +275,9 @@ const AccountsView = ({ user, activeRoomId, currentRoom, records, setView, setVi
                   return true;
                 });
 
-                // 6. 畫面顯示：以「消費日期 (date)」為基準，由上到下為最新到最舊（降冪排序）
+                // 6. 畫面顯示排序：以「消費日期 (date)」為基準，由上到下由新到舊（降冪排序）
                 displayRecords.sort((a, b) => {
-                  if (a.date !== b.date) {
-                    return a.date > b.date ? -1 : 1;
-                  }
+                  if (a.date !== b.date) return a.date > b.date ? -1 : 1;
                   return (b.timestamp || 0) - (a.timestamp || 0);
                 });
 
