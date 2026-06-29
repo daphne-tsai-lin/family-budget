@@ -50,7 +50,6 @@ export default function App() {
   const [enlargedPhoto, setEnlargedPhoto] = useState(null);
   
   const fileInputRef = useRef(null);
-  // 💡 已移除 hasPrunedPhotos 變數與自動刪除照片的 useEffect，照片將永久保存！
 
   const contextValue = {
     user, currentUserRole, activeRoomId, currentRoom, records, savedRooms,
@@ -265,9 +264,12 @@ export default function App() {
       else dataToCopy.groupId = dataToCopy.frequency !== '一次' ? Date.now().toString() : null;
       const batch = writeBatch(db); batch.set(doc(collection(db, 'artifacts', appId, 'public', 'data', 'expenses')), dataToCopy);
       if (keepFrequency && dataToCopy.frequency !== '一次') {
-        generateFutureDates(dataToCopy.date, dataToCopy.frequency, dataToCopy.frequencyDays, dataToCopy.frequencyInterval, dataToCopy.frequencyCustomText, 1).forEach(d => {
-          batch.set(doc(collection(db, 'artifacts', appId, 'public', 'data', 'expenses')), { ...dataToCopy, date: d, timestamp: new Date(d + 'T07:00:00').getTime() });
-        });
+        // 💡 精準修復：過濾掉傳送當天 (d > dataToCopy.date)，防止跨房間複製時重複寫入
+        generateFutureDates(dataToCopy.date, dataToCopy.frequency, dataToCopy.frequencyDays, dataToCopy.frequencyInterval, dataToCopy.frequencyCustomText, 1)
+          .filter(d => d > dataToCopy.date)
+          .forEach(d => {
+            batch.set(doc(collection(db, 'artifacts', appId, 'public', 'data', 'expenses')), { ...dataToCopy, date: d, timestamp: new Date(d + 'T07:00:00').getTime() });
+          });
       }
       await batch.commit(); alert(`✅ 成功傳送紀錄至另一個房間！`); setCrossRoomRecord(null); setSelectedTransferRoom(null);
     } catch (err) { alert('傳送失敗！'); }
