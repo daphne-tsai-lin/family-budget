@@ -86,7 +86,7 @@ family-budget/
 │   └── App.jsx                 # 應用程式神經中樞：最高狀態調度、虛擬路由與安全攔截
 ├── package.json                # 專案套件依賴配置
 └── tailwind.config.js          # 樣式原子化設定配置
-
+```
 ### 📌 第參點總結：
 1. **系統大腦與路由 (`src/App.jsx`)**：最高狀態調度中心，控管全域 Context、防抖動態身分加載，與攔截 Popstate 本機安全跳出網。
 2. **資料庫與離線快取 (`src/firebase/firebaseConfig.js`)**：啟用 IndexedDB 持久化快取與多頁籤共用機制，主控斷網環境下 100% 正常記帳與多網頁即時背景同步。
