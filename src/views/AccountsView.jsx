@@ -35,7 +35,8 @@ const AccountsView = ({ user, activeRoomId, currentRoom, records, setView, setVi
       if (accountStartDate && r.date < accountStartDate) return;
       if (accountEndDate && r.date > accountEndDate) return;
       if (!accountEndDate && r.date > getLocalTodayStr()) return;
-      if (r.excludeFromBalance) return;
+      // 判斷不計入欄位（相容 excludeFromBalance 與 isExcluded）
+      if (r.excludeFromBalance || r.isExcluded) return;
 
       const amt = Number(r.amount) || 0;
       if (r.type === 'expense' || !r.type) { 
@@ -222,9 +223,8 @@ const AccountsView = ({ user, activeRoomId, currentRoom, records, setView, setVi
               {(() => {
                 const todayStr = getLocalTodayStr();
                 
-                // 1. 取得所有與此帳戶有關的歷史紀錄（不先過濾日期範圍，因為計算結餘需要從最源頭滾動加減）
+                // 1. 取得所有與此帳戶有關的歷史紀錄（包含「不計入」的紀錄，讓其能在明細中正常呈現）
                 let accountAllRecords = records.filter(r => {
-                  if (r.excludeFromBalance) return false;
                   const getAccName = (method, subMethod) => method === '現金' ? '現金' : subMethod;
                   const fromAcc = getAccName(r.method, r.subMethod);
                   const toAcc = getAccName(r.transferToMethod, r.transferToSubMethod);
@@ -250,18 +250,23 @@ const AccountsView = ({ user, activeRoomId, currentRoom, records, setView, setVi
 
                 // 4. 順著時間軸（由舊到新）一筆一筆加減，精算出存摺式的每步累計合計金額
                 const recordsWithBalance = accountAllRecords.map(r => {
-                  const amt = Number(r.amount) || 0;
-                  const getAccName = (method, subMethod) => method === '現金' ? '現金' : subMethod;
-                  const fromAcc = getAccName(r.method, r.subMethod);
-                  const toAcc = getAccName(r.transferToMethod, r.transferToSubMethod);
+                  const isExcluded = r.excludeFromBalance || r.isExcluded;
 
-                  if (r.type === 'expense' || !r.type) {
-                     currentRunningBal += isCc ? amt : -amt;
-                  } else if (r.type === 'income') {
-                     currentRunningBal += isCc ? -amt : amt;
-                  } else if (r.type === 'transfer') {
-                     if (fromAcc === viewingAccountHistory) currentRunningBal += isCc ? amt : -amt;
-                     if (toAcc === viewingAccountHistory) currentRunningBal += isCc ? -amt : amt;
+                  // ✅ 關鍵修改：只有在「未勾選不計入」時才進行加減，不計入資料會直接跳過加減，結餘數字維持不動
+                  if (!isExcluded) {
+                    const amt = Number(r.amount) || 0;
+                    const getAccName = (method, subMethod) => method === '現金' ? '現金' : subMethod;
+                    const fromAcc = getAccName(r.method, r.subMethod);
+                    const toAcc = getAccName(r.transferToMethod, r.transferToSubMethod);
+
+                    if (r.type === 'expense' || !r.type) {
+                       currentRunningBal += isCc ? amt : -amt;
+                    } else if (r.type === 'income') {
+                       currentRunningBal += isCc ? -amt : amt;
+                    } else if (r.type === 'transfer') {
+                       if (fromAcc === viewingAccountHistory) currentRunningBal += isCc ? amt : -amt;
+                       if (toAcc === viewingAccountHistory) currentRunningBal += isCc ? -amt : amt;
+                    }
                   }
 
                   return { ...r, calculatedRunningBalance: currentRunningBal };
@@ -294,4 +299,5 @@ const AccountsView = ({ user, activeRoomId, currentRoom, records, setView, setVi
     </div>
   );
 };
+
 export default AccountsView;
