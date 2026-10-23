@@ -46,7 +46,12 @@ const RecordFormView = ({ recordToEdit, copyRecordData, onClose, setCrossRoomRec
 
   let isFormValid = false;
   const parsedAmt = Number(String(amount).replace(/,/g, '').replace(/[^\d]/g, ''));
-  if (parsedAmt > 0 && record.date && record.payer.length > 0) {
+  
+  // ✅ 核心修改：如果金額大於 0，或者「有勾選不計入」，都視為合法的金額狀態
+  const isValidAmount = parsedAmt > 0 || record.excludeFromBalance;
+
+  // 使用 isValidAmount 取代原本單純的 parsedAmt > 0 判斷
+  if (isValidAmount && record.date && record.payer.length > 0) {
     if (record.type === 'expense' || !record.type) isFormValid = !!(record.category && record.title && record.method);
     else if (record.type === 'income') isFormValid = !!(record.category && record.method);
     else if (record.type === 'transfer') isFormValid = !!(record.category && record.method && record.transferToMethod);
@@ -111,7 +116,6 @@ const RecordFormView = ({ recordToEdit, copyRecordData, onClose, setCrossRoomRec
         opsCount++;
         
         if (record.frequency !== '一次') {
-          // 💡 核心修復：強制過濾掉當前這一天 (d > record.date)，避免重複產生！
           const dates = generateFutureDates(record.date, record.frequency, record.frequencyDays, record.frequencyInterval, record.frequencyCustomText, 1).filter(d => d > record.date);
           for (const d of dates) {
             if (opsCount >= 490) await commitBatch();
@@ -148,7 +152,6 @@ const RecordFormView = ({ recordToEdit, copyRecordData, onClose, setCrossRoomRec
           }
         }
         if (updateFuture && record.frequency !== '一次') {
-          // 💡 編輯狀態下原本就已經有防呆過濾了，維持不變
           const dates = generateFutureDates(record.date, record.frequency, record.frequencyDays, record.frequencyInterval, record.frequencyCustomText, 1).filter(d => d > record.date);
           for (const d of dates) {
             if (opsCount >= 490) await commitBatch();
