@@ -308,23 +308,25 @@ export const RecordItem = ({ exp, idx, currentUserRole, isSortable = false, hide
     const freqDisplay = exp.frequency === '區間' ? (exp.frequencyInterval === '自訂' ? `${exp.frequencyCustomText}天` : exp.frequencyInterval) : exp.frequency;
     const canModify = !exp.addedByRole || currentUserRole === exp.addedByRole;
     
-    // ✅ 統一判斷不計入邏輯 (相容兩種寫法)
+    // ✅ 統一判斷不計入邏輯
     const isExcluded = exp.excludeFromBalance || exp.isExcluded;
 
     return (
         <div 
             key={exp.id} 
             onClick={() => onRecordClick(exp)} 
-            // ✅ 核心修改：判斷 isExcluded 來套用半透明、反灰與背景色
-            className={`p-2.5 rounded-2xl shadow-sm border flex justify-between items-start group relative transition duration-300 cursor-pointer ${isExcluded ? 'border-gray-200 opacity-50 grayscale bg-gray-50' : 'border-gray-100 bg-white hover:shadow-md'}`}
+            // ✅ 核心優化：移除透明度與全反灰。改用「虛線邊框 + 灰色底」來呈現明確的「不計入」感，同時保持文字清晰
+            className={`p-2.5 rounded-2xl border-2 flex justify-between items-start group relative transition duration-300 cursor-pointer ${isExcluded ? 'border-dashed border-gray-300 bg-gray-50 hover:bg-gray-100' : 'border-solid border-gray-100 bg-white shadow-sm hover:shadow-md'}`}
         >
-            <div className={`absolute left-0 top-1/2 -translate-y-1/2 h-1/2 w-1 rounded-r-md ${isIncome ? 'bg-green-400' : isTransfer ? 'bg-blue-400' : 'bg-orange-400'}`}></div>
+            {/* 左側標示色條：若不計入則變成灰色 */}
+            <div className={`absolute left-0 top-1/2 -translate-y-1/2 h-1/2 w-1 rounded-r-md ${isExcluded ? 'bg-gray-300' : isIncome ? 'bg-green-400' : isTransfer ? 'bg-blue-400' : 'bg-orange-400'}`}></div>
+            
             <div className="flex-1 pl-2.5 pr-2 overflow-hidden flex flex-col justify-center py-1">
                 
                 {/* 第一行：日期與時間 */}
                 <div className="flex items-center gap-1.5 mb-0.5 text-[11px] font-bold text-gray-400">
                     <span>{toROCYearStrWithDay(exp.timestamp ? new Date(exp.timestamp).toISOString().split('T')[0] : exp.date)} {exp.timestamp ? new Date(exp.timestamp).toLocaleTimeString('zh-TW', { hour12: false, hour: '2-digit', minute: '2-digit' }) : ''}</span>
-                    {isExcluded && <span className="bg-gray-200 text-gray-500 px-1.5 py-0.5 rounded text-[10px] shrink-0">不計入</span>}
+                    {isExcluded && <span className="bg-gray-200 text-gray-500 px-1.5 py-0.5 rounded text-[10px] shrink-0 border border-gray-300">不計入</span>}
                 </div>
 
                 {/* 第二行：依照不同類型客製化排序邏輯 */}
@@ -335,12 +337,12 @@ export const RecordItem = ({ exp, idx, currentUserRole, isSortable = false, hide
                         <>
                             {exp.addedByRole && <span className={`${getRoleColorStyle(exp.addedByRole).lightBg} ${getRoleColorStyle(exp.addedByRole).text} border ${getRoleColorStyle(exp.addedByRole).lightBorder} px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0`}>{exp.addedByRole}</span>}
                             <span className="bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0">{freqDisplay || '一次'}</span>
-                            <span className={`font-bold text-[11px] px-1.5 py-0.5 rounded border shrink-0 ${isExcluded ? 'text-gray-500 bg-gray-50 border-gray-200' : 'bg-orange-50 text-orange-600 border-orange-100'}`}>{exp.category}</span>
-                            <span className={`font-black text-black text-[14px] sm:text-[15px] shrink-0 ${isExcluded ? 'text-gray-500 line-through decoration-gray-400' : ''}`}>{exp.title}</span>
+                            <span className={`font-bold text-[11px] px-1.5 py-0.5 rounded border shrink-0 ${isExcluded ? 'text-gray-500 bg-gray-100 border-gray-200' : 'bg-orange-50 text-orange-600 border-orange-100'}`}>{exp.category}</span>
+                            <span className={`font-black text-[14px] sm:text-[15px] shrink-0 ${isExcluded ? 'text-gray-500 line-through decoration-gray-400' : 'text-black'}`}>{exp.title}</span>
                             
-                            {payerStr && payerStr !== '未指定' && <span className={`text-[11px] font-bold bg-white px-1.5 py-0.5 rounded border border-gray-200 flex items-center gap-0.5 shrink-0 ${isExcluded ? 'text-gray-400' : 'text-gray-500'}`}><span>{getPayerIcons(exp.payer)}</span><span>{payerStr}</span></span>}
-                            {exp.merchant && exp.merchant !== '未指定' && <span className={`text-[11px] font-bold bg-white px-1.5 py-0.5 rounded border border-gray-200 shrink-0 ${isExcluded ? 'text-gray-400' : 'text-gray-500'}`}>🏪 {exp.merchant}</span>}
-                            {exp.method && exp.method !== '未指定' && <span className={`text-[11px] font-bold bg-white px-1.5 py-0.5 rounded border border-gray-200 shrink-0 ${isExcluded ? 'text-gray-400' : 'text-gray-500'}`}>💳 {renderMethodText(exp.method, exp.subMethod)}</span>}
+                            {payerStr && payerStr !== '未指定' && <span className={`text-[11px] font-bold px-1.5 py-0.5 rounded border flex items-center gap-0.5 shrink-0 ${isExcluded ? 'bg-gray-50 border-gray-200 text-gray-500' : 'bg-white border-gray-200 text-gray-500'}`}><span>{getPayerIcons(exp.payer)}</span><span>{payerStr}</span></span>}
+                            {exp.merchant && exp.merchant !== '未指定' && <span className={`text-[11px] font-bold px-1.5 py-0.5 rounded border shrink-0 ${isExcluded ? 'bg-gray-50 border-gray-200 text-gray-500' : 'bg-white border-gray-200 text-gray-500'}`}>🏪 {exp.merchant}</span>}
+                            {exp.method && exp.method !== '未指定' && <span className={`text-[11px] font-bold px-1.5 py-0.5 rounded border shrink-0 ${isExcluded ? 'bg-gray-50 border-gray-200 text-gray-500' : 'bg-white border-gray-200 text-gray-500'}`}>💳 {renderMethodText(exp.method, exp.subMethod)}</span>}
                         </>
                     )}
 
@@ -349,10 +351,10 @@ export const RecordItem = ({ exp, idx, currentUserRole, isSortable = false, hide
                         <>
                             {exp.addedByRole && <span className={`${getRoleColorStyle(exp.addedByRole).lightBg} ${getRoleColorStyle(exp.addedByRole).text} border ${getRoleColorStyle(exp.addedByRole).lightBorder} px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0`}>{exp.addedByRole}</span>}
                             <span className="bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0">{freqDisplay || '一次'}</span>
-                            <span className={`font-bold text-[11px] px-1.5 py-0.5 rounded border shrink-0 ${isExcluded ? 'text-gray-500 bg-gray-50 border-gray-200' : 'bg-green-50 text-green-600 border-green-100'}`}>收入</span>
-                            <span className={`font-black text-black text-[14px] sm:text-[15px] shrink-0 ${isExcluded ? 'text-gray-500 line-through decoration-gray-400' : ''}`}>{exp.category}</span>
-                            {payerStr && payerStr !== '未指定' && <span className={`text-[11px] font-bold bg-white px-1.5 py-0.5 rounded border border-gray-200 flex items-center gap-0.5 shrink-0 ${isExcluded ? 'text-gray-400' : 'text-gray-500'}`}><span>{getPayerIcons(exp.payer)}</span><span>{payerStr}</span></span>}
-                            {exp.method && exp.method !== '未指定' && <span className={`text-[11px] font-bold bg-white px-1.5 py-0.5 rounded border border-gray-200 shrink-0 ${isExcluded ? 'text-gray-400' : 'text-gray-500'}`}>💳 {renderMethodText(exp.method, exp.subMethod)}</span>}
+                            <span className={`font-bold text-[11px] px-1.5 py-0.5 rounded border shrink-0 ${isExcluded ? 'text-gray-500 bg-gray-100 border-gray-200' : 'bg-green-50 text-green-600 border-green-100'}`}>收入</span>
+                            <span className={`font-black text-[14px] sm:text-[15px] shrink-0 ${isExcluded ? 'text-gray-500 line-through decoration-gray-400' : 'text-black'}`}>{exp.category}</span>
+                            {payerStr && payerStr !== '未指定' && <span className={`text-[11px] font-bold px-1.5 py-0.5 rounded border flex items-center gap-0.5 shrink-0 ${isExcluded ? 'bg-gray-50 border-gray-200 text-gray-500' : 'bg-white border-gray-200 text-gray-500'}`}><span>{getPayerIcons(exp.payer)}</span><span>{payerStr}</span></span>}
+                            {exp.method && exp.method !== '未指定' && <span className={`text-[11px] font-bold px-1.5 py-0.5 rounded border shrink-0 ${isExcluded ? 'bg-gray-50 border-gray-200 text-gray-500' : 'bg-white border-gray-200 text-gray-500'}`}>💳 {renderMethodText(exp.method, exp.subMethod)}</span>}
                         </>
                     )}
 
@@ -361,26 +363,26 @@ export const RecordItem = ({ exp, idx, currentUserRole, isSortable = false, hide
                         <>
                             {exp.addedByRole && <span className={`${getRoleColorStyle(exp.addedByRole).lightBg} ${getRoleColorStyle(exp.addedByRole).text} border ${getRoleColorStyle(exp.addedByRole).lightBorder} px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0`}>{exp.addedByRole}</span>}
                             <span className="bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0">{freqDisplay || '一次'}</span>
-                            <span className={`font-bold text-[11px] px-1.5 py-0.5 rounded border shrink-0 bg-blue-50 text-blue-600 border-blue-100`}>轉帳</span>
-                            {payerStr && payerStr !== '未指定' && <span className={`text-[11px] font-bold bg-white px-1.5 py-0.5 rounded border border-gray-200 flex items-center gap-0.5 shrink-0 ${isExcluded ? 'text-gray-400' : 'text-gray-500'}`}><span>{getPayerIcons(exp.payer)}</span><span>{payerStr}</span></span>}
-                            <span className={`font-black text-black text-[12px] sm:text-[13px] tracking-tighter ${isExcluded ? 'text-gray-500 line-through decoration-gray-400' : ''}`}>
+                            <span className={`font-bold text-[11px] px-1.5 py-0.5 rounded border shrink-0 ${isExcluded ? 'bg-gray-100 text-gray-500 border-gray-200' : 'bg-blue-50 text-blue-600 border-blue-100'}`}>轉帳</span>
+                            {payerStr && payerStr !== '未指定' && <span className={`text-[11px] font-bold px-1.5 py-0.5 rounded border flex items-center gap-0.5 shrink-0 ${isExcluded ? 'bg-gray-50 border-gray-200 text-gray-500' : 'bg-white border-gray-200 text-gray-500'}`}><span>{getPayerIcons(exp.payer)}</span><span>{payerStr}</span></span>}
+                            <span className={`font-black text-[12px] sm:text-[13px] tracking-tighter ${isExcluded ? 'text-gray-500 line-through decoration-gray-400' : 'text-black'}`}>
                                 {renderMethodText(exp.method, exp.subMethod)}→{renderMethodText(exp.transferToMethod, exp.transferToSubMethod)}
                             </span>
                         </>
                     )}
 
                     {/* 共同結尾：照片與備註 */}
-                    {exp.photoBase64 && <span className="shrink-0 w-[18px] h-[18px] rounded overflow-hidden shadow-sm inline-block border border-gray-200"><img src={exp.photoBase64} alt="圖" className="w-full h-full object-cover" /></span>}
-                    {exp.note && <span className={`text-[11px] font-bold bg-[#FFFDF9] px-1.5 py-0.5 rounded border border-[#F2EFE9] shrink-0 ${isExcluded ? 'text-gray-400' : 'text-gray-500'}`}>📝 {exp.note}</span>}
+                    {exp.photoBase64 && <span className={`shrink-0 w-[18px] h-[18px] rounded overflow-hidden inline-block border ${isExcluded ? 'border-gray-300 opacity-80' : 'border-gray-200 shadow-sm'}`}><img src={exp.photoBase64} alt="圖" className="w-full h-full object-cover" /></span>}
+                    {exp.note && <span className={`text-[11px] font-bold px-1.5 py-0.5 rounded border shrink-0 ${isExcluded ? 'bg-gray-100 border-gray-200 text-gray-500' : 'bg-[#FFFDF9] border-[#F2EFE9] text-gray-500'}`}>📝 {exp.note}</span>}
                 </div>
             </div>
             
             {/* 合計金額區塊 */}
             <div className="flex flex-col items-end shrink-0 pt-0.5 pl-1">
-                <span className={`font-black text-[20px] sm:text-[22px] ${isExcluded ? 'text-gray-400 line-through decoration-gray-300' : isIncome ? 'text-green-500' : isTransfer ? 'text-blue-500' : 'text-gray-800'}`}>{isIncome ? '+' : isTransfer ? ' ⇆ ' : '-'}${exp.amount.toLocaleString()}</span>
+                <span className={`font-black text-[20px] sm:text-[22px] ${isExcluded ? 'text-gray-500 line-through decoration-gray-400' : isIncome ? 'text-green-500' : isTransfer ? 'text-blue-500' : 'text-gray-800'}`}>{isIncome ? '+' : isTransfer ? ' ⇆ ' : '-'}${exp.amount.toLocaleString()}</span>
                 
                 {runningBalance !== undefined && (
-                    <span className="text-[13px] font-black text-gray-500 mt-1.5 bg-gray-50 px-2 py-0.5 rounded border border-gray-200 shadow-sm whitespace-nowrap leading-none">
+                    <span className="text-[13px] font-black text-gray-500 mt-1.5 bg-gray-100 px-2 py-0.5 rounded border border-gray-200 shadow-sm whitespace-nowrap leading-none">
                         合計 ${runningBalance.toLocaleString()}
                     </span>
                 )}
